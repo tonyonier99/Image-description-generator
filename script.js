@@ -69,10 +69,10 @@ function setupEventListeners() {
     });
 }
 
-// 初始化 Canvas - 調整為 800x1120
+// 初始化 Canvas
 function initializeCanvas() {
-    canvas.width = 800;   // 寬度保持 800
-    canvas.height = 1120; // 高度調整為 1120
+    canvas.width = 800;
+    canvas.height = 1120;
     clearCanvas();
 }
 
@@ -197,17 +197,17 @@ function generateImage() {
     backgroundImg.src = bgImagePath;
 }
 
-// 繪製主圖片（根據模板調整位置）- 調整為 1120 高度
+// 繪製主圖片（修正縮放算法）
 function drawMainImage(template) {
     let imageArea;
     
     if (template === '1') {
-        // 模板一的圖片區域
+        // 模板一的圖片區域（根據你的底圖調整）
         imageArea = {
-            x: 70,    // 左邊距
-            y: 10,    // 上邊距  
-            width: 660,  // 圖片寬度
-            height: 350  // 圖片高度
+            x: 70,
+            y: 10,
+            width: 660,
+            height: 350
         };
     } else {
         // 模板二的圖片區域
@@ -219,41 +219,56 @@ function drawMainImage(template) {
         };
     }
     
-    // 計算縮放比例（保持比例）
-    const scale = Math.min(
-        imageArea.width / uploadedImage.width,
-        imageArea.height / uploadedImage.height
-    );
+    // 修正：使用 contain 模式，確保圖片完整顯示
+    const imgRatio = uploadedImage.width / uploadedImage.height;
+    const areaRatio = imageArea.width / imageArea.height;
     
-    const scaledWidth = uploadedImage.width * scale;
-    const scaledHeight = uploadedImage.height * scale;
+    let drawWidth, drawHeight, drawX, drawY;
     
-    // 置中計算
-    const x = imageArea.x + (imageArea.width - scaledWidth) / 2;
-    const y = imageArea.y + (imageArea.height - scaledHeight) / 2;
+    if (imgRatio > areaRatio) {
+        // 圖片比較寬，以寬度為準
+        drawWidth = imageArea.width;
+        drawHeight = imageArea.width / imgRatio;
+        drawX = imageArea.x;
+        drawY = imageArea.y + (imageArea.height - drawHeight) / 2;
+    } else {
+        // 圖片比較高，以高度為準
+        drawHeight = imageArea.height;
+        drawWidth = imageArea.height * imgRatio;
+        drawX = imageArea.x + (imageArea.width - drawWidth) / 2;
+        drawY = imageArea.y;
+    }
+    
+    // 先清空圖片區域背景（如果需要）
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(imageArea.x, imageArea.y, imageArea.width, imageArea.height);
     
     // 繪製圖片
-    ctx.drawImage(uploadedImage, x, y, scaledWidth, scaledHeight);
+    ctx.drawImage(uploadedImage, drawX, drawY, drawWidth, drawHeight);
+    
+    // 添加邊框（可選）
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(imageArea.x, imageArea.y, imageArea.width, imageArea.height);
 }
 
-// 模板一文字樣式（調整位置以適應 1120 高度）
+// 模板一文字樣式
 function drawTemplate1Text(title, subtitle, description) {
-    // 根據 1120 高度調整文字區域
     const titleArea = {
         x: canvas.width / 2,
-        y: 420  // 主標題的Y位置
+        y: 420
     };
     
     const subtitleArea = {
         x: canvas.width / 2,
-        y: 470  // 副標題的Y位置
+        y: 470
     };
     
     const descArea = {
-        x: 100,   // 描述文字的左邊距
-        y: 520,   // 描述文字的起始Y位置
-        width: 600,  // 描述文字的最大寬度
-        maxHeight: 580  // 增加最大高度 (1120-520=600，留一些邊距)
+        x: 100,
+        y: 520,
+        width: 600,
+        maxHeight: 580
     };
     
     // 主標題
@@ -272,7 +287,7 @@ function drawTemplate1Text(title, subtitle, description) {
         ctx.fillText(subtitle, subtitleArea.x, subtitleArea.y);
     }
     
-    // 描述（限制在指定區域內）
+    // 描述
     if (description) {
         ctx.font = '18px "Noto Sans TC"';
         ctx.fillStyle = '#34495e';
@@ -281,9 +296,8 @@ function drawTemplate1Text(title, subtitle, description) {
     }
 }
 
-// 模板二文字樣式（調整位置以適應 1120 高度）
+// 模板二文字樣式
 function drawTemplate2Text(title, subtitle, description) {
-    // 根據 1120 高度調整文字區域
     const titleBarArea = {
         x: 0,
         y: 380,
@@ -295,11 +309,11 @@ function drawTemplate2Text(title, subtitle, description) {
         x: 100,
         y: 480,
         width: 600,
-        maxHeight: 620  // 增加最大高度 (1120-480=640，留一些邊距)
+        maxHeight: 620
     };
     
     // 標題背景條
-    ctx.fillStyle = 'rgba(185, 169, 104, 0.9)'; // 金黃色半透明
+    ctx.fillStyle = 'rgba(185, 169, 104, 0.9)';
     ctx.fillRect(titleBarArea.x, titleBarArea.y, titleBarArea.width, titleBarArea.height);
     
     // 主標題
@@ -318,7 +332,7 @@ function drawTemplate2Text(title, subtitle, description) {
         ctx.fillText(subtitle, canvas.width / 2, titleBarArea.y + 62);
     }
     
-    // 描述（限制在指定區域內）
+    // 描述
     if (description) {
         ctx.font = '18px "Noto Sans TC"';
         ctx.fillStyle = '#2c3e50';
@@ -327,7 +341,7 @@ function drawTemplate2Text(title, subtitle, description) {
     }
 }
 
-// 在指定區域內換行文字（增加最大高度限制）
+// 在指定區域內換行文字
 function wrapTextInArea(text, x, y, maxWidth, lineHeight, maxHeight) {
     const words = text.split('');
     let line = '';
@@ -349,7 +363,6 @@ function wrapTextInArea(text, x, y, maxWidth, lineHeight, maxHeight) {
         }
     }
     
-    // 繪製最後一行（如果還有空間）
     if (line !== '' && lineCount < maxLines) {
         ctx.fillText(line, x, currentY);
     }
