@@ -20,21 +20,21 @@
             <h2>選擇模板</h2>
             <div class="template-grid">
                 <!-- 模板一：經典模板 -->
-                <label class="template-card template-classic">
+                <label class="template-card">
                     <input type="radio" name="template" value="1" checked>
                     <div class="template-preview">
-                        <!-- 實際圖片預覽 -->
-                        <div class="actual-preview">
-                            <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=200&fit=crop" alt="食物圖片" class="preview-image">
-                            <div class="preview-content">
-                                <div class="preview-line"></div>
-                                <div class="preview-title">大標題內容在這裡</div>
-                                <div class="preview-subtitle">小標題附註說明內容，附註說明內容</div>
-                                <div class="preview-text">
-                                    內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。
-                                </div>
-                                <div class="preview-text">
-                                    內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。
+                        <img src="template1-preview.jpg" alt="經典模板預覽" class="template-image" 
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="template-fallback" style="display: none;">
+                            <div class="fallback-content">
+                                <div class="template-demo">
+                                    <div class="demo-image"></div>
+                                    <div class="demo-line"></div>
+                                    <div class="demo-title">大標題內容在這裡</div>
+                                    <div class="demo-subtitle">小標題附註說明內容，附註說明內容</div>
+                                    <div class="demo-text"></div>
+                                    <div class="demo-text"></div>
+                                    <div class="demo-text"></div>
                                 </div>
                             </div>
                         </div>
@@ -46,19 +46,22 @@
                 </label>
 
                 <!-- 模板二：現代模板 -->
-                <label class="template-card template-modern">
+                <label class="template-card">
                     <input type="radio" name="template" value="2">
                     <div class="template-preview">
-                        <!-- 實際圖片預覽 -->
-                        <div class="actual-preview">
-                            <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=200&fit=crop" alt="食物圖片" class="preview-image">
-                            <div class="preview-content">
-                                <div class="preview-banner">
-                                    <div class="banner-title">大標題內容在這裡</div>
-                                    <div class="banner-subtitle">小標題附註說明內容，附註說明內容</div>
-                                </div>
-                                <div class="preview-text">
-                                    內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。
+                        <img src="template2-preview.jpg" alt="現代模板預覽" class="template-image"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="template-fallback" style="display: none;">
+                            <div class="fallback-content">
+                                <div class="template-demo">
+                                    <div class="demo-image"></div>
+                                    <div class="demo-banner">
+                                        <div class="demo-banner-title">大標題內容在這裡</div>
+                                        <div class="demo-banner-subtitle">小標題附註說明內容，附註說明內容</div>
+                                    </div>
+                                    <div class="demo-text"></div>
+                                    <div class="demo-text"></div>
+                                    <div class="demo-text"></div>
                                 </div>
                             </div>
                         </div>
