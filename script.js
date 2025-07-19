@@ -69,10 +69,10 @@ function setupEventListeners() {
     });
 }
 
-// 初始化 Canvas
+// 初始化 Canvas - 調整為 800x1120
 function initializeCanvas() {
-    canvas.width = 800;
-    canvas.height = 1000;
+    canvas.width = 800;   // 寬度保持 800
+    canvas.height = 1120; // 高度調整為 1120
     clearCanvas();
 }
 
@@ -197,12 +197,12 @@ function generateImage() {
     backgroundImg.src = bgImagePath;
 }
 
-// 繪製主圖片（根據模板調整位置）
+// 繪製主圖片（根據模板調整位置）- 調整為 1120 高度
 function drawMainImage(template) {
     let imageArea;
     
     if (template === '1') {
-        // 模板一的圖片區域（根據底圖框架調整）
+        // 模板一的圖片區域
         imageArea = {
             x: 70,    // 左邊距
             y: 10,    // 上邊距  
@@ -236,9 +236,9 @@ function drawMainImage(template) {
     ctx.drawImage(uploadedImage, x, y, scaledWidth, scaledHeight);
 }
 
-// 模板一文字樣式（調整位置以適應底圖）
+// 模板一文字樣式（調整位置以適應 1120 高度）
 function drawTemplate1Text(title, subtitle, description) {
-    // 根據你的圖片，調整文字區域
+    // 根據 1120 高度調整文字區域
     const titleArea = {
         x: canvas.width / 2,
         y: 420  // 主標題的Y位置
@@ -253,7 +253,7 @@ function drawTemplate1Text(title, subtitle, description) {
         x: 100,   // 描述文字的左邊距
         y: 520,   // 描述文字的起始Y位置
         width: 600,  // 描述文字的最大寬度
-        maxHeight: 300  // 描述文字的最大高度
+        maxHeight: 580  // 增加最大高度 (1120-520=600，留一些邊距)
     };
     
     // 主標題
@@ -281,9 +281,9 @@ function drawTemplate1Text(title, subtitle, description) {
     }
 }
 
-// 模板二文字樣式（調整位置以適應底圖）
+// 模板二文字樣式（調整位置以適應 1120 高度）
 function drawTemplate2Text(title, subtitle, description) {
-    // 根據你的圖片，調整文字區域
+    // 根據 1120 高度調整文字區域
     const titleBarArea = {
         x: 0,
         y: 380,
@@ -295,10 +295,10 @@ function drawTemplate2Text(title, subtitle, description) {
         x: 100,
         y: 480,
         width: 600,
-        maxHeight: 400
+        maxHeight: 620  // 增加最大高度 (1120-480=640，留一些邊距)
     };
     
-    // 標題背景條（如果底圖沒有包含的話）
+    // 標題背景條
     ctx.fillStyle = 'rgba(185, 169, 104, 0.9)'; // 金黃色半透明
     ctx.fillRect(titleBarArea.x, titleBarArea.y, titleBarArea.width, titleBarArea.height);
     
@@ -380,7 +380,7 @@ function drawTemplate1(title, subtitle, description) {
         ctx.font = '18px "Noto Sans TC"';
         ctx.fillStyle = '#34495e';
         ctx.textAlign = 'left';
-        wrapTextInArea(description, 100, startY + 100, 600, 28, 400);
+        wrapTextInArea(description, 100, startY + 100, 600, 28, 580);
     }
     
     // 添加邊框裝飾
@@ -419,37 +419,13 @@ function drawTemplate2(title, subtitle, description) {
         ctx.font = '18px "Noto Sans TC"';
         ctx.fillStyle = '#2c3e50';
         ctx.textAlign = 'left';
-        wrapTextInArea(description, 100, startY + barHeight + 20, 600, 28, 400);
+        wrapTextInArea(description, 100, startY + barHeight + 20, 600, 28, 620);
     }
     
     // 添加邊框裝飾
     ctx.strokeStyle = '#e0e0e0';
     ctx.lineWidth = 2;
     ctx.strokeRect(70, 10, 660, 350);
-}
-
-// 文字換行函數（原版保留）
-function wrapText(text, x, y, maxWidth, lineHeight) {
-    const words = text.split('');
-    let line = '';
-    let currentY = y;
-    
-    for (let i = 0; i < words.length; i++) {
-        const testLine = line + words[i];
-        const metrics = ctx.measureText(testLine);
-        
-        if (metrics.width > maxWidth && line !== '') {
-            ctx.fillText(line, x, currentY);
-            line = words[i];
-            currentY += lineHeight;
-        } else {
-            line = testLine;
-        }
-    }
-    
-    if (line !== '') {
-        ctx.fillText(line, x, currentY);
-    }
 }
 
 // 下載圖片
