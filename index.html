@@ -34,16 +34,16 @@
 
     <!-- 表單卡片區 -->
     <form class="form-area" autocomplete="off">
-      <input type="file" id="imgInput" accept="image/*">
-      <input type="text" id="titleInput" placeholder="大標題內容">
-      <input type="text" id="subtitleInput" placeholder="小標題/註解">
-      <textarea id="descInput" placeholder="詳細說明"></textarea>
-      <button type="button" id="makeBtn">生成預覽</button>
+      <input type="file" id="img-upload" accept="image/*">
+      <input type="text" id="title" placeholder="大標題內容">
+      <input type="text" id="subtitle" placeholder="小標題/註解">
+      <textarea id="desc" placeholder="詳細說明"></textarea>
+      <button type="button" id="make-btn">生成預覽</button>
     </form>
     <div class="preview-area">
       <canvas id="canvas" width="800" height="1120"></canvas>
     </div>
-    <button id="downloadBtn" class="download-btn">下載圖片</button>
+    <button id="download-btn" class="download-btn">下載圖片</button>
     <p class="tip">完全前端製作，圖片不會上傳伺服器。</p>
   </div>
   <script src="main.js"></script>
