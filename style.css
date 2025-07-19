@@ -12,7 +12,7 @@ body {
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
 }
@@ -50,96 +50,175 @@ section h2 {
     color: #444;
     border-bottom: 2px solid #667eea;
     padding-bottom: 10px;
+    font-weight: 600;
 }
 
-/* Template Selection */
+/* Template Section */
 .template-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
 }
 
 .template-card {
     border: 3px solid #e0e0e0;
-    border-radius: 10px;
+    border-radius: 15px;
     padding: 20px;
     cursor: pointer;
     transition: all 0.3s ease;
     display: block;
+    position: relative;
+    text-align: center;
 }
 
 .template-card:hover {
     border-color: #667eea;
-    transform: translateY(-2px);
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(102, 126, 234, 0.15);
 }
 
-.template-card input:checked + .template-preview {
+.template-card input:checked {
+    accent-color: #667eea;
+}
+
+.template-card input:checked ~ .template-preview {
     border-color: #667eea;
+    background: #f8fafe;
+}
+
+.template-card input:checked ~ .template-name {
+    color: #667eea;
+    font-weight: 700;
 }
 
 .template-card input {
-    display: none;
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
 }
 
 .template-preview {
     border: 2px solid #f0f0f0;
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 15px;
     margin-bottom: 15px;
-    transition: border-color 0.3s ease;
-}
-
-.template1-demo, .template2-demo {
-    text-align: center;
-}
-
-.demo-image {
-    background: #f5f5f5;
-    height: 80px;
+    background: #fafafa;
+    height: 400px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 5px;
-    margin-bottom: 10px;
-    color: #888;
-    font-size: 0.9rem;
+    transition: all 0.3s ease;
 }
 
-.demo-title {
-    font-weight: 700;
-    font-size: 1.1rem;
-    margin-bottom: 5px;
-    color: #3c2c12;
+/* 模板一預覽樣式 */
+.template1-demo {
+    width: 100%;
+    max-width: 200px;
+    background: #f5f3f0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.demo-subtitle {
-    font-size: 0.9rem;
-    color: #7d6c48;
-    margin-bottom: 8px;
+.template1-demo .demo-image {
+    width: 100%;
+    height: 120px;
+    background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%), 
+                linear-gradient(-45deg, #f0f0f0 25%, transparent 25%);
+    background-size: 15px 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #999;
+    border-bottom: 1px solid #e0e0e0;
 }
 
-.demo-desc {
-    font-size: 0.8rem;
-    color: #666;
+.template1-demo .demo-title {
+    padding: 10px 15px 5px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #2c3e50;
+    text-align: left;
+    border-left: 3px solid #8B4513;
+    margin-left: 15px;
+    margin-top: 10px;
+}
+
+.template1-demo .demo-subtitle {
+    padding: 0 15px 5px 18px;
+    font-size: 9px;
+    color: #7f8c8d;
     text-align: left;
 }
 
-.template2-demo .demo-title-bar {
-    background: #bfa968;
-    color: white;
-    padding: 10px;
-    border-radius: 5px;
-    margin-bottom: 10px;
+.template1-demo .demo-desc {
+    padding: 5px 15px 15px 18px;
+    font-size: 8px;
+    color: #555;
+    text-align: left;
+    line-height: 1.3;
 }
 
-.template2-demo .demo-title-bar .demo-title,
-.template2-demo .demo-title-bar .demo-subtitle {
+/* 模板二預覽樣式 */
+.template2-demo {
+    width: 100%;
+    max-width: 200px;
+    background: #f5f3f0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.template2-demo .demo-image {
+    width: 100%;
+    height: 120px;
+    background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%), 
+                linear-gradient(-45deg, #f0f0f0 25%, transparent 25%);
+    background-size: 15px 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #999;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.template2-demo .demo-title-bar {
+    background: rgba(185, 169, 104, 0.9);
+    padding: 10px;
+    text-align: center;
+}
+
+.template2-demo .demo-title-bar .demo-title {
+    font-size: 12px;
+    font-weight: bold;
     color: white;
+    margin-bottom: 3px;
+}
+
+.template2-demo .demo-title-bar .demo-subtitle {
+    font-size: 9px;
+    color: white;
+    opacity: 0.9;
+}
+
+.template2-demo .demo-desc {
+    padding: 10px 15px;
+    font-size: 8px;
+    color: #555;
+    text-align: left;
+    line-height: 1.3;
 }
 
 .template-name {
-    font-weight: 500;
-    color: #555;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    transition: color 0.3s ease;
 }
 
 /* Form Section */
@@ -160,6 +239,7 @@ section h2 {
     padding: 40px 20px;
     cursor: pointer;
     transition: all 0.3s ease;
+    background: #fafafa;
 }
 
 .upload-label:hover {
@@ -176,6 +256,7 @@ section h2 {
     display: block;
     font-weight: 500;
     margin-bottom: 5px;
+    color: #333;
 }
 
 .upload-label small {
@@ -184,7 +265,6 @@ section h2 {
 
 .image-preview {
     margin-top: 20px;
-    max-width: 100%;
 }
 
 .image-preview img {
@@ -214,48 +294,54 @@ section h2 {
     font-size: 1rem;
     transition: border-color 0.3s ease;
     font-family: inherit;
+    resize: vertical;
 }
 
 .input-group input:focus,
 .input-group textarea:focus {
     outline: none;
     border-color: #667eea;
-}
-
-.input-group textarea {
-    resize: vertical;
-    min-height: 100px;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 /* Preview Section */
 .preview-container {
     text-align: center;
     margin-bottom: 30px;
+    overflow: auto;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
 }
 
 #canvas {
+    /* Canvas 顯示尺寸（5倍放大） */
+    width: 1000px;  /* 800 × 1.25 */
+    height: 1250px; /* 1000 × 1.25 */
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    background: white;
     max-width: 100%;
     height: auto;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
 .action-buttons {
     display: flex;
-    gap: 15px;
+    gap: 20px;
     justify-content: center;
+    flex-wrap: wrap;
 }
 
 .btn {
-    padding: 12px 30px;
+    padding: 15px 30px;
     border: none;
-    border-radius: 8px;
-    font-size: 1rem;
+    border-radius: 10px;
+    font-size: 1.1rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
-    text-decoration: none;
+    min-width: 140px;
 }
 
 .btn-primary {
@@ -263,9 +349,10 @@ section h2 {
     color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
     background: #5a6fd8;
     transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
 }
 
 .btn-secondary {
@@ -273,15 +360,16 @@ section h2 {
     color: white;
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
     background: #218838;
     transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
 }
 
 .btn:disabled {
     background: #ccc;
     cursor: not-allowed;
-    transform: none;
+    opacity: 0.6;
 }
 
 /* Footer */
@@ -290,37 +378,58 @@ footer {
     color: white;
     opacity: 0.8;
     margin-top: 20px;
+    font-size: 0.9rem;
 }
 
-/* Responsive */
+/* Responsive Design */
 @media (max-width: 768px) {
     .container {
         padding: 15px;
     }
-    
+
     header h1 {
         font-size: 2rem;
     }
-    
+
     .form-grid {
         grid-template-columns: 1fr;
         gap: 20px;
     }
-    
+
     .template-grid {
         grid-template-columns: 1fr;
     }
-    
+
     section {
         padding: 20px;
     }
-    
+
+    #canvas {
+        width: 400px;
+        height: 500px;
+    }
+
     .action-buttons {
         flex-direction: column;
         align-items: center;
     }
-    
+
     .btn {
         width: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    header h1 {
+        font-size: 1.5rem;
+    }
+
+    #canvas {
+        width: 300px;
+        height: 375px;
+    }
+
+    .template-preview {
+        height: 300px;
     }
 }
