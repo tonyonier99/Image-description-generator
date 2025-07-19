@@ -1,51 +1,105 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=900, initial-scale=1">
-  <title>介紹圖片產生器</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖片描述產生器</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- 全部內容都包在卡片容器 -->
-  <div class="main-card">
-    <!-- 最上方大標題 -->
-    <h1 class="main-title">介紹圖片產生器</h1>
+    <div class="container">
+        <header>
+            <h1>圖片描述產生器</h1>
+            <p>輕鬆為你的圖片添加專業描述</p>
+        </header>
 
-    <!-- 模板選擇區 -->
-    <div class="template-select-area">
-      <div class="template-options-row">
-        <label class="template-option">
-          <img src="template1-demo.jpg" alt="模板一" class="template-img">
-          <div class="template-radio">
-            <input type="radio" name="template" value="1" checked>
-            <span class="template-label">模板一</span>
-          </div>
-        </label>
-        <label class="template-option">
-          <img src="template2-demo.jpg" alt="模板二" class="template-img">
-          <div class="template-radio">
-            <input type="radio" name="template" value="2">
-            <span class="template-label">模板二</span>
-          </div>
-        </label>
-      </div>
+        <main>
+            <!-- 模板選擇區 -->
+            <section class="template-section">
+                <h2>選擇模板</h2>
+                <div class="template-grid">
+                    <label class="template-card">
+                        <input type="radio" name="template" value="1" checked>
+                        <div class="template-preview">
+                            <div class="template1-demo">
+                                <div class="demo-image">圖片區域</div>
+                                <div class="demo-title">標題文字</div>
+                                <div class="demo-subtitle">副標題</div>
+                                <div class="demo-desc">描述內容...</div>
+                            </div>
+                        </div>
+                        <span class="template-name">經典模板</span>
+                    </label>
+                    
+                    <label class="template-card">
+                        <input type="radio" name="template" value="2">
+                        <div class="template-preview">
+                            <div class="template2-demo">
+                                <div class="demo-image">圖片區域</div>
+                                <div class="demo-title-bar">
+                                    <div class="demo-title">標題文字</div>
+                                    <div class="demo-subtitle">副標題</div>
+                                </div>
+                                <div class="demo-desc">描述內容...</div>
+                            </div>
+                        </div>
+                        <span class="template-name">現代模板</span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- 內容輸入區 -->
+            <section class="input-section">
+                <h2>填寫內容</h2>
+                <div class="form-grid">
+                    <div class="upload-area">
+                        <label for="image-upload" class="upload-label">
+                            <div class="upload-icon">📁</div>
+                            <span>點擊上傳圖片</span>
+                            <small>支援 JPG, PNG, GIF</small>
+                        </label>
+                        <input type="file" id="image-upload" accept="image/*" hidden>
+                        <div class="image-preview" id="image-preview"></div>
+                    </div>
+                    
+                    <div class="text-inputs">
+                        <div class="input-group">
+                            <label for="title">主標題</label>
+                            <input type="text" id="title" placeholder="輸入主標題">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="subtitle">副標題</label>
+                            <input type="text" id="subtitle" placeholder="輸入副標題">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="description">描述內容</label>
+                            <textarea id="description" rows="4" placeholder="輸入詳細描述..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 預覽與下載區 -->
+            <section class="preview-section">
+                <h2>預覽</h2>
+                <div class="preview-container">
+                    <canvas id="canvas" width="800" height="1000"></canvas>
+                </div>
+                <div class="action-buttons">
+                    <button id="generate-btn" class="btn btn-primary">生成圖片</button>
+                    <button id="download-btn" class="btn btn-secondary" disabled>下載圖片</button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>完全前端製作，圖片不會上傳到伺服器</p>
+        </footer>
     </div>
 
-    <!-- 表單卡片區 -->
-    <form class="form-area" autocomplete="off">
-      <input type="file" id="img-upload" accept="image/*">
-      <input type="text" id="title" placeholder="大標題內容">
-      <input type="text" id="subtitle" placeholder="小標題/註解">
-      <textarea id="desc" placeholder="詳細說明"></textarea>
-      <button type="button" id="make-btn">生成預覽</button>
-    </form>
-    <div class="preview-area">
-      <canvas id="canvas" width="800" height="1120"></canvas>
-    </div>
-    <button id="download-btn" class="download-btn">下載圖片</button>
-    <p class="tip">完全前端製作，圖片不會上傳伺服器。</p>
-  </div>
-  <script src="main.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
