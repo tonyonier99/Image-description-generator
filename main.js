@@ -1,3 +1,78 @@
+// DOM element variables
+let canvas, ctx, titleInput, subtitleInput, descInput, imgInput, makeBtn, downloadBtn;
+let uploadedImage = null;
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+  // Get DOM elements
+  canvas = document.getElementById('canvas');
+  ctx = canvas.getContext('2d');
+  titleInput = document.getElementById('titleInput');
+  subtitleInput = document.getElementById('subtitleInput');
+  descInput = document.getElementById('descInput');
+  imgInput = document.getElementById('imgInput');
+  makeBtn = document.getElementById('makeBtn');
+  downloadBtn = document.getElementById('downloadBtn');
+
+  // Set up event listeners
+  imgInput.addEventListener('change', handleImageUpload);
+  makeBtn.addEventListener('click', function() {
+    drawPreview(uploadedImage);
+  });
+  downloadBtn.addEventListener('click', downloadImage);
+});
+
+// Handle image upload
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        uploadedImage = img;
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+// Clear canvas
+function clearCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// Text wrapping function
+function wrapText(text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  let currentY = y;
+
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + ' ';
+    const metrics = ctx.measureText(testLine);
+    const testWidth = metrics.width;
+    
+    if (testWidth > maxWidth && n > 0) {
+      ctx.fillText(line, x, currentY);
+      line = words[n] + ' ';
+      currentY += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, x, currentY);
+}
+
+// Download image function
+function downloadImage() {
+  const link = document.createElement('a');
+  link.download = 'description-image.png';
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
 function drawPreview(img) {
   clearCanvas();
 
