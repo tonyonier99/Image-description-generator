@@ -349,7 +349,7 @@ section h2 {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* Preview Section - Canvas 縮小到十分之一 */
+/* Preview Section - Canvas 放大2倍（從十分之一改為五分之一） */
 .preview-container {
     text-align: center;
     margin-bottom: 30px;
@@ -360,9 +360,9 @@ section h2 {
 }
 
 #canvas {
-    /* Canvas 實際尺寸：800x1120，顯示尺寸縮小到十分之一 */
-    width: 80px;   /* 800 ÷ 10 = 80px */
-    height: 112px; /* 1120 ÷ 10 = 112px */
+    /* Canvas 實際尺寸：800x1120，顯示尺寸從十分之一放大2倍到五分之一 */
+    width: 160px;  /* 800 ÷ 5 = 160px (原本80px × 2) */
+    height: 224px; /* 1120 ÷ 5 = 224px (原本112px × 2) */
     border: 2px solid #ddd;
     border-radius: 8px;
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
@@ -446,6 +446,11 @@ footer {
         width: 280px;  /* 稍微縮小 */
         height: 392px;
     }
+    
+    #canvas {
+        width: 140px;  /* 稍微縮小但保持2倍比例 */
+        height: 196px;
+    }
 }
 
 @media (max-width: 900px) {
@@ -465,8 +470,8 @@ footer {
     }
     
     #canvas {
-        width: 60px;
-        height: 84px;
+        width: 120px;  /* 平板尺寸 */
+        height: 168px;
     }
 }
 
@@ -489,8 +494,8 @@ footer {
     }
 
     #canvas {
-        width: 50px;
-        height: 70px;
+        width: 100px;  /* 手機尺寸 */
+        height: 140px;
     }
 
     .action-buttons {
@@ -514,7 +519,7 @@ footer {
     }
 
     #canvas {
-        width: 40px;
-        height: 56px;
+        width: 80px;   /* 小螢幕尺寸 */
+        height: 112px;
     }
 }
