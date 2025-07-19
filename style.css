@@ -38,182 +38,199 @@ header p {
 /* Sections */
 section {
     background: white;
-    border-radius: 20px;
-    padding: 40px;
+    border-radius: 15px;
+    padding: 30px;
     margin-bottom: 30px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
 
 section h2 {
     font-size: 1.5rem;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
     color: #444;
     border-bottom: 2px solid #667eea;
-    padding-bottom: 15px;
-    font-weight: 600;
+    padding-bottom: 10px;
 }
 
-/* Template Selection - 完全對應圖片樣式 */
+/* Template Selection */
 .template-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 40px;
-    max-width: 1200px;
-    margin: 0 auto;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 30px;
 }
 
 .template-card {
     border: 3px solid #e0e0e0;
-    border-radius: 20px;
-    padding: 20px;
+    border-radius: 15px;
+    padding: 25px;
     cursor: pointer;
     transition: all 0.3s ease;
     display: block;
     position: relative;
     overflow: hidden;
-    background: white;
+    min-height: 900px; /* 增加高度配合圖片區域 */
 }
 
 .template-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    border-color: #667eea;
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(102, 126, 234, 0.15);
 }
 
-/* 經典模板選中狀態 */
-.template-classic input:checked ~ .template-preview {
-    border-color: #4A90E2;
-    background: #f8fafe;
+.template-card input:checked ~ .template-preview {
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
 }
 
-.template-classic input:checked {
-    background: #4A90E2;
-}
-
-/* 現代模板選中狀態 */
-.template-modern input:checked ~ .template-preview {
-    border-color: #e0e0e0;
-    background: #fafafa;
+.template-card input:checked ~ .template-info .template-name {
+    color: #667eea;
+    font-weight: 700;
 }
 
 .template-card input {
     position: absolute;
-    top: 25px;
-    right: 25px;
+    top: 20px;
+    right: 20px;
     width: 20px;
     height: 20px;
-    accent-color: #4A90E2;
+    accent-color: #667eea;
     cursor: pointer;
     z-index: 10;
 }
 
 .template-preview {
     border: 2px solid #f0f0f0;
-    border-radius: 15px;
-    padding: 0;
-    margin-bottom: 25px;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
     transition: all 0.3s ease;
-    background: white;
+    background: #fafafa;
     overflow: hidden;
-    height: 500px;
+    height: 750px; /* 增加高度配合圖片區域 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-/* 實際預覽內容 */
-.actual-preview {
+.template-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    display: block;
+}
+
+.template-fallback {
     width: 100%;
     height: 100%;
     display: flex;
-    flex-direction: column;
-    background: #f5f3f0;
+    align-items: center;
+    justify-content: center;
+    background: #f5f5f5;
+    border-radius: 8px;
+    color: #888;
 }
 
-.preview-image {
+.fallback-content {
     width: 100%;
-    height: 240px;
-    object-fit: cover;
+    padding: 20px;
+}
+
+/* 模板示意圖樣式 */
+.template-demo {
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.demo-image {
+    width: 100%;
+    height: 180px; /* 增加圖片高度配合 1.5 倍 */
+    background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%), 
+                linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #f0f0f0 75%), 
+                linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
     border-bottom: 1px solid #e0e0e0;
 }
 
-.preview-content {
-    flex: 1;
-    padding: 25px;
-    background: #f5f3f0;
-}
-
-/* 經典模板樣式 */
-.template-classic .preview-line {
+/* 模板一樣式（左對齊 + 垂直線） */
+.template-card:nth-child(1) .demo-line {
     width: 5px;
-    height: 80px;
+    height: 60px;
     background: #8B4513;
-    margin-bottom: 15px;
+    margin: 15px 0 15px 15px;
 }
 
-.template-classic .preview-title {
-    font-size: 20px;
+.template-card:nth-child(1) .demo-title {
+    font-size: 16px;
     font-weight: bold;
     color: #2c3e50;
-    margin-bottom: 8px;
-    margin-left: 0;
+    margin: 10px 15px 8px 25px;
 }
 
-.template-classic .preview-subtitle {
-    font-size: 14px;
-    color: #7f8c8d;
-    margin-bottom: 15px;
-    margin-left: 0;
-}
-
-.template-classic .preview-text {
+.template-card:nth-child(1) .demo-subtitle {
     font-size: 12px;
-    color: #555;
-    line-height: 1.5;
-    margin-bottom: 8px;
+    color: #7f8c8d;
+    margin: 0 15px 12px 25px;
 }
 
-/* 現代模板樣式 */
-.template-modern .preview-banner {
+.template-card:nth-child(1) .demo-text {
+    height: 8px;
+    background: #e0e0e0;
+    margin: 6px 15px 6px 25px;
+    border-radius: 2px;
+}
+
+/* 模板二樣式（標題背景條） */
+.template-card:nth-child(2) .demo-banner {
     background: rgba(185, 169, 104, 0.9);
-    margin: -25px -25px 20px -25px;
-    padding: 20px 25px;
-    border-radius: 15px 15px 0 0;
+    padding: 15px;
+    text-align: center;
 }
 
-.template-modern .banner-title {
-    font-size: 18px;
+.template-card:nth-child(2) .demo-banner-title {
+    font-size: 16px;
     font-weight: bold;
     color: white;
     margin-bottom: 5px;
-    text-align: center;
 }
 
-.template-modern .banner-subtitle {
-    font-size: 13px;
+.template-card:nth-child(2) .demo-banner-subtitle {
+    font-size: 12px;
     color: white;
     opacity: 0.9;
-    text-align: center;
 }
 
-.template-modern .preview-text {
-    font-size: 12px;
-    color: #555;
-    line-height: 1.5;
-    margin-bottom: 8px;
+.template-card:nth-child(2) .demo-text {
+    height: 8px;
+    background: #e0e0e0;
+    margin: 8px 15px;
+    border-radius: 2px;
 }
 
 .template-info {
     text-align: center;
+    margin-top: auto;
 }
 
 .template-name {
     display: block;
     font-weight: 600;
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     color: #333;
     margin-bottom: 8px;
+    transition: color 0.3s ease;
 }
 
 .template-desc {
     display: block;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: #666;
     line-height: 1.4;
 }
@@ -303,7 +320,7 @@ section h2 {
     min-height: 100px;
 }
 
-/* Preview Section */
+/* Preview Section - 預覽結果放大五倍 */
 .preview-container {
     text-align: center;
     margin-bottom: 30px;
@@ -313,8 +330,9 @@ section h2 {
 }
 
 #canvas {
-    width: 1000px;
-    height: 1400px;
+    /* Canvas 實際尺寸：800x1120，顯示時放大五倍 */
+    width: 1000px;  
+    height: 1400px; 
     border: 2px solid #ddd;
     border-radius: 12px;
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
@@ -412,10 +430,21 @@ footer {
         font-size: 2rem;
     }
     
-    .form-grid,
-    .template-grid {
+    .form-grid {
         grid-template-columns: 1fr;
         gap: 20px;
+    }
+    
+    .template-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .template-card {
+        min-height: 750px;
+    }
+    
+    .template-preview {
+        height: 600px;
     }
     
     section {
@@ -459,6 +488,20 @@ footer {
 }
 
 @media (min-width: 1400px) {
+    .template-grid {
+        grid-template-columns: repeat(2, 1fr);
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .template-card {
+        min-height: 975px;
+    }
+    
+    .template-preview {
+        height: 825px;
+    }
+    
     #canvas {
         width: 1000px;
         height: 1400px;
