@@ -53,12 +53,12 @@ section h2 {
     font-weight: 600;
 }
 
-/* Template Section - 800x1120 模板預覽 */
+/* Template Section - 固定左右兩側布局 */
 .template-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 40px;
-    max-width: 1200px;
+    grid-template-columns: 1fr 1fr; /* 固定兩欄 */
+    gap: 30px;
+    max-width: 1400px;
     margin: 0 auto;
 }
 
@@ -71,6 +71,7 @@ section h2 {
     display: block;
     position: relative;
     text-align: center;
+    width: 100%;
 }
 
 .template-card:hover {
@@ -103,15 +104,16 @@ section h2 {
     z-index: 10;
 }
 
-/* 模板預覽區域 - 800x1120 尺寸 */
+/* 模板預覽區域 - 響應式調整以適應左右布局 */
 .template-preview {
     border: 2px solid #f0f0f0;
     border-radius: 15px;
     padding: 0;
     margin-bottom: 20px;
     background: #fafafa;
-    width: 320px;  /* 800 ÷ 2.5 = 320px */
-    height: 448px; /* 1120 ÷ 2.5 = 448px */
+    width: 100%;
+    max-width: 450px; /* 限制最大寬度 */
+    height: 630px;    /* 保持 800:1120 比例 (450×1.4) */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -164,35 +166,35 @@ section h2 {
 }
 
 .template1-demo .demo-line {
-    width: 3px;
-    height: 40px;
+    width: 4px;
+    height: 50px;
     background: #8B4513;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .template1-demo .demo-title {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: bold;
     color: #2c3e50;
     text-align: left;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
     line-height: 1.2;
 }
 
 .template1-demo .demo-subtitle {
-    font-size: 10px;
+    font-size: 12px;
     color: #7f8c8d;
     text-align: left;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     line-height: 1.2;
 }
 
 .template1-demo .demo-text {
-    font-size: 8px;
+    font-size: 10px;
     color: #555;
     text-align: left;
-    line-height: 1.3;
-    margin-bottom: 5px;
+    line-height: 1.4;
+    margin-bottom: 6px;
 }
 
 /* 模板二預覽樣式（備用）800x1120 比例 */
@@ -223,20 +225,20 @@ section h2 {
 
 .template2-demo .demo-title-bar {
     background: rgba(185, 169, 104, 0.9);
-    padding: 12px;
+    padding: 15px;
     text-align: center;
 }
 
 .template2-demo .demo-title-bar .demo-title {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: bold;
     color: white;
-    margin-bottom: 3px;
+    margin-bottom: 4px;
     line-height: 1.2;
 }
 
 .template2-demo .demo-title-bar .demo-subtitle {
-    font-size: 10px;
+    font-size: 12px;
     color: white;
     opacity: 0.9;
     line-height: 1.2;
@@ -244,23 +246,23 @@ section h2 {
 
 .template2-demo .demo-content {
     flex: 1;
-    padding: 12px 15px;
+    padding: 15px;
 }
 
 .template2-demo .demo-text {
-    font-size: 8px;
+    font-size: 10px;
     color: #555;
     text-align: left;
-    line-height: 1.3;
-    margin-bottom: 5px;
+    line-height: 1.4;
+    margin-bottom: 6px;
 }
 
 .template-name {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     font-weight: 600;
     color: #333;
     transition: color 0.3s ease;
-    margin-top: 10px;
+    margin-top: 15px;
 }
 
 /* Form Section */
@@ -349,7 +351,7 @@ section h2 {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* Preview Section - Canvas 桌面版五分之一，手機版放大10倍 */
+/* Preview Section - Canvas 統一放大五倍 */
 .preview-container {
     text-align: center;
     margin-bottom: 30px;
@@ -357,14 +359,15 @@ section h2 {
     padding: 30px;
     background: #f8f9fa;
     border-radius: 15px;
+    max-height: 80vh;
 }
 
 #canvas {
-    /* Canvas 實際尺寸：800x1120，桌面版顯示五分之一 */
-    width: 160px;  /* 800 ÷ 5 = 160px */
-    height: 224px; /* 1120 ÷ 5 = 224px */
+    /* Canvas 實際尺寸：800x1120，顯示尺寸統一放大五倍 */
+    width: 400px;  /* 800 ÷ 2 = 400px (原本的5倍) */
+    height: 560px; /* 1120 ÷ 2 = 560px (原本的5倍) */
     border: 2px solid #ddd;
-    border-radius: 8px;
+    border-radius: 12px;
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     background: white;
     display: block;
@@ -435,28 +438,24 @@ footer {
     .container {
         max-width: 1400px;
     }
-    
-    .template-grid {
-        max-width: 1000px;
-    }
 }
 
 @media (max-width: 1200px) {
     .template-preview {
-        width: 280px;  /* 稍微縮小 */
-        height: 392px;
+        max-width: 380px;
+        height: 532px;
     }
     
     #canvas {
-        width: 140px;  /* 稍微縮小但保持比例 */
-        height: 196px;
+        width: 350px;
+        height: 490px;
     }
 }
 
-@media (max-width: 900px) {
-    .template-grid {
-        grid-template-columns: 1fr;
-        max-width: 500px;
+@media (max-width: 1000px) {
+    .template-preview {
+        max-width: 320px;
+        height: 448px;
     }
     
     .form-grid {
@@ -464,14 +463,9 @@ footer {
         gap: 30px;
     }
     
-    .template-preview {
-        width: 240px;
-        height: 336px;
-    }
-    
     #canvas {
-        width: 120px;  /* 平板尺寸 */
-        height: 168px;
+        width: 320px;
+        height: 448px;
     }
 }
 
@@ -488,24 +482,26 @@ footer {
         padding: 25px;
     }
 
-    .template-preview {
-        width: 200px;
-        height: 280px;
+    /* 手機版模板改為上下排列 */
+    .template-grid {
+        grid-template-columns: 1fr;
+        gap: 25px;
     }
 
-    /* 手機版預覽放大10倍：從原本100px×140px放大到1000px×1400px */
+    .template-preview {
+        max-width: 280px;
+        height: 392px;
+    }
+
     #canvas {
-        width: 1000px;  /* 100px × 10 = 1000px */
-        height: 1400px; /* 140px × 10 = 1400px */
-        max-width: calc(100vw - 80px); /* 確保不超出螢幕寬度 */
-        max-height: 70vh; /* 限制最大高度 */
-        object-fit: contain; /* 保持比例 */
+        width: 280px;
+        height: 392px;
+        max-width: calc(100vw - 80px);
     }
 
     .preview-container {
-        padding: 15px; /* 縮小容器padding以容納更大的canvas */
-        overflow-x: auto; /* 允許水平滾動 */
-        overflow-y: auto; /* 允許垂直滾動 */
+        padding: 15px;
+        max-height: 70vh;
     }
 
     .action-buttons {
@@ -528,20 +524,19 @@ footer {
     }
 
     .template-preview {
-        width: 160px;
-        height: 224px;
+        max-width: 240px;
+        height: 336px;
     }
 
-    /* 超小螢幕：保持手機版的放大效果，但稍微調整以適應更小螢幕 */
     #canvas {
-        width: 800px;   /* 稍微縮小但仍然很大 */
-        height: 1120px;
-        max-width: calc(100vw - 40px);
-        max-height: 60vh;
+        width: 240px;
+        height: 336px;
+        max-width: calc(100vw - 50px);
     }
 
     .preview-container {
         padding: 10px;
+        max-height: 60vh;
     }
 
     section {
@@ -550,11 +545,14 @@ footer {
 }
 
 @media (max-width: 360px) {
-    /* 極小螢幕：進一步調整 */
+    .template-preview {
+        max-width: 200px;
+        height: 280px;
+    }
+
     #canvas {
-        width: 640px;   /* 進一步縮小但保持大尺寸 */
-        height: 896px;
-        max-width: calc(100vw - 30px);
-        max-height: 50vh;
+        width: 200px;
+        height: 280px;
+        max-width: calc(100vw - 40px);
     }
 }
