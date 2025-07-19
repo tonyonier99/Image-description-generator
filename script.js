@@ -148,28 +148,58 @@ function generateImage() {
     const subtitle = elements.subtitle.value.trim();
     const description = elements.description.value.trim();
     
-    // 清空 canvas
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // 載入對應的底圖
+    const backgroundImg = new Image();
+    const bgImagePath = template === '1' ? 'bg-template1.png' : 'bg-template2.png';
     
-    // 繪製圖片
-    drawMainImage();
+    backgroundImg.onload = function() {
+        // 清空 canvas 並繪製底圖
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+        
+        // 繪製用戶上傳的圖片
+        drawMainImage();
+        
+        // 根據模板繪製文字內容
+        if (template === '1') {
+            drawTemplate1Text(title, subtitle, description);
+        } else {
+            drawTemplate2Text(title, subtitle, description);
+        }
+        
+        isGenerated = true;
+        elements.downloadBtn.disabled = false;
+        console.log(`使用 ${bgImagePath} 底圖生成完成`);
+    };
     
-    // 根據模板繪製內容
-    if (template === '1') {
-        drawTemplate1(title, subtitle, description);
-    } else {
-        drawTemplate2(title, subtitle, description);
-    }
+    backgroundImg.onerror = function() {
+        console.log(`底圖 ${bgImagePath} 載入失敗，使用預設背景`);
+        
+        // 如果底圖載入失敗，使用預設背景
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 繪製用戶上傳的圖片
+        drawMainImage();
+        
+        // 根據模板繪製內容
+        if (template === '1') {
+            drawTemplate1(title, subtitle, description);
+        } else {
+            drawTemplate2(title, subtitle, description);
+        }
+        
+        isGenerated = true;
+        elements.downloadBtn.disabled = false;
+        console.log('使用預設背景生成完成');
+    };
     
-    isGenerated = true;
-    elements.downloadBtn.disabled = false;
-    
-    console.log('圖片生成完成');
+    backgroundImg.src = bgImagePath;
 }
 
 // 繪製主圖片
 function drawMainImage() {
+    // 圖片區域設定（可根據模板調整）
     const imageArea = {
         x: 50,
         y: 50,
@@ -177,7 +207,7 @@ function drawMainImage() {
         height: 400
     };
     
-    // 計算縮放比例
+    // 計算縮放比例（保持比例）
     const scale = Math.min(
         imageArea.width / uploadedImage.width,
         imageArea.height / uploadedImage.height
@@ -192,15 +222,10 @@ function drawMainImage() {
     
     // 繪製圖片
     ctx.drawImage(uploadedImage, x, y, scaledWidth, scaledHeight);
-    
-    // 添加邊框
-    ctx.strokeStyle = '#e0e0e0';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(imageArea.x, imageArea.y, imageArea.width, imageArea.height);
 }
 
-// 模板一樣式
-function drawTemplate1(title, subtitle, description) {
+// 模板一文字樣式（有底圖版本）
+function drawTemplate1Text(title, subtitle, description) {
     const startY = 500;
     
     // 主標題
@@ -228,7 +253,75 @@ function drawTemplate1(title, subtitle, description) {
     }
 }
 
-// 模板二樣式
+// 模板二文字樣式（有底圖版本）
+function drawTemplate2Text(title, subtitle, description) {
+    const startY = 500;
+    const barHeight = 100;
+    
+    // 標題背景條（如果底圖沒有的話才畫）
+    ctx.fillStyle = 'rgba(52, 152, 219, 0.9)'; // 半透明藍色
+    ctx.fillRect(0, startY, canvas.width, barHeight);
+    
+    // 主標題
+    if (title) {
+        ctx.font = 'bold 42px "Noto Sans TC"';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, canvas.width / 2, startY + 40);
+    }
+    
+    // 副標題
+    if (subtitle) {
+        ctx.font = '24px "Noto Sans TC"';
+        ctx.fillStyle = '#ecf0f1';
+        ctx.textAlign = 'center';
+        ctx.fillText(subtitle, canvas.width / 2, startY + 75);
+    }
+    
+    // 描述
+    if (description) {
+        ctx.font = '20px "Noto Sans TC"';
+        ctx.fillStyle = '#2c3e50';
+        ctx.textAlign = 'left';
+        wrapText(description, 80, startY + barHeight + 50, canvas.width - 160, 32);
+    }
+}
+
+// 模板一樣式（無底圖備用版本）
+function drawTemplate1(title, subtitle, description) {
+    const startY = 500;
+    
+    // 主標題
+    if (title) {
+        ctx.font = 'bold 48px "Noto Sans TC"';
+        ctx.fillStyle = '#2c3e50';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, canvas.width / 2, startY);
+    }
+    
+    // 副標題
+    if (subtitle) {
+        ctx.font = '28px "Noto Sans TC"';
+        ctx.fillStyle = '#7f8c8d';
+        ctx.textAlign = 'center';
+        ctx.fillText(subtitle, canvas.width / 2, startY + 60);
+    }
+    
+    // 描述
+    if (description) {
+        ctx.font = '20px "Noto Sans TC"';
+        ctx.fillStyle = '#34495e';
+        ctx.textAlign = 'left';
+        wrapText(description, 80, startY + 120, canvas.width - 160, 32);
+    }
+    
+    // 添加邊框裝飾
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(50, 50, canvas.width - 100, 400);
+}
+
+// 模板二樣式（無底圖備用版本）
 function drawTemplate2(title, subtitle, description) {
     const startY = 500;
     const barHeight = 100;
@@ -260,6 +353,11 @@ function drawTemplate2(title, subtitle, description) {
         ctx.textAlign = 'left';
         wrapText(description, 80, startY + barHeight + 50, canvas.width - 160, 32);
     }
+    
+    // 添加邊框裝飾
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(50, 50, canvas.width - 100, 400);
 }
 
 // 文字換行函數
@@ -296,8 +394,9 @@ function downloadImage() {
     try {
         const link = document.createElement('a');
         const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+        const template = getSelectedTemplate();
         
-        link.download = `圖片描述_${timestamp}.png`;
+        link.download = `圖片描述_模板${template}_${timestamp}.png`;
         link.href = canvas.toDataURL('image/png', 1.0);
         
         document.body.appendChild(link);
