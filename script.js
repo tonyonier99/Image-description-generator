@@ -130,14 +130,18 @@ function generateImage() {
     const subtitle = document.getElementById('subtitle').value.trim();
     const description = document.getElementById('description').value.trim();
     
-    // 載入對應的底圖
+    // 根據模板選擇對應的底圖
     const backgroundImg = new Image();
     const bgImagePath = template === '1' ? 'bg-template1.png' : 'bg-template2.png';
+    
+    console.log(`載入底圖: ${bgImagePath}`);
     
     backgroundImg.onload = function() {
         // 清空 canvas 並繪製底圖
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+        
+        console.log(`底圖 ${bgImagePath} 載入成功`);
         
         // 繪製用戶上傳的圖片
         drawMainImage();
@@ -151,11 +155,11 @@ function generateImage() {
         
         isGenerated = true;
         document.getElementById('download-btn').disabled = false;
-        console.log(`使用 ${bgImagePath} 底圖生成完成`);
+        console.log(`模板 ${template} 生成完成`);
     };
     
     backgroundImg.onerror = function() {
-        console.log(`底圖 ${bgImagePath} 載入失敗，使用預設背景`);
+        console.warn(`底圖 ${bgImagePath} 載入失敗，使用預設背景`);
         
         // 如果底圖載入失敗，使用預設背景
         ctx.fillStyle = '#ffffff';
@@ -164,11 +168,11 @@ function generateImage() {
         // 繪製用戶上傳的圖片
         drawMainImage();
         
-        // 根據模板繪製內容
+        // 根據模板繪製內容（使用備用樣式）
         if (template === '1') {
-            drawTemplate1(title, subtitle, description);
+            drawTemplate1Fallback(title, subtitle, description);
         } else {
-            drawTemplate2(title, subtitle, description);
+            drawTemplate2Fallback(title, subtitle, description);
         }
         
         isGenerated = true;
@@ -217,7 +221,7 @@ function drawMainImage() {
     ctx.strokeRect(imageArea.x, imageArea.y, imageArea.width, imageArea.height);
 }
 
-// 模板一文字樣式（左對齊 + 垂直線）
+// 模板一文字樣式（在底圖基礎上繪製）
 function drawTemplate1Text(title, subtitle, description) {
     const decorLine = {
         x: 80,
@@ -258,7 +262,7 @@ function drawTemplate1Text(title, subtitle, description) {
     }
 }
 
-// 模板二文字樣式（標題背景條）
+// 模板二文字樣式（在底圖基礎上繪製）
 function drawTemplate2Text(title, subtitle, description) {
     const titleBarArea = {
         x: 0,
@@ -296,8 +300,8 @@ function drawTemplate2Text(title, subtitle, description) {
     }
 }
 
-// 模板一樣式（無底圖備用版本）
-function drawTemplate1(title, subtitle, description) {
+// 模板一備用樣式（無底圖時使用）
+function drawTemplate1Fallback(title, subtitle, description) {
     // 繪製垂直裝飾線
     ctx.fillStyle = '#8B4513';
     ctx.fillRect(80, 790, 6, 280);
@@ -334,8 +338,8 @@ function drawTemplate1(title, subtitle, description) {
     ctx.strokeRect(50, 10, 700, 750);
 }
 
-// 模板二樣式（無底圖備用版本）
-function drawTemplate2(title, subtitle, description) {
+// 模板二備用樣式（無底圖時使用）
+function drawTemplate2Fallback(title, subtitle, description) {
     const startY = 780;
     const barHeight = 80;
     
