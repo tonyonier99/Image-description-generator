@@ -9,123 +9,96 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <header>
             <h1>圖片描述產生器</h1>
-            <p>輕鬆製作專業的圖片描述卡片</p>
+            <p>輕鬆為你的圖片添加專業描述</p>
         </header>
 
-        <!-- 選擇模板 -->
-        <section>
-            <h2>選擇模板</h2>
-            <div class="template-grid">
-                <!-- 模板一：經典模板 -->
-                <label class="template-card">
-                    <input type="radio" name="template" value="1" checked>
-                    <div class="template-preview">
-                        <img src="template1-preview.jpg" alt="經典模板預覽" class="template-image" 
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <div class="template-fallback" style="display: none;">
-                            <div class="fallback-content">
-                                <div class="template-demo">
-                                    <div class="demo-image"></div>
-                                    <div class="demo-line"></div>
-                                    <div class="demo-title">大標題內容在這裡</div>
-                                    <div class="demo-subtitle">小標題附註說明內容，附註說明內容</div>
-                                    <div class="demo-text"></div>
-                                    <div class="demo-text"></div>
-                                    <div class="demo-text"></div>
-                                </div>
+        <main>
+            <!-- 模板選擇區 -->
+            <section class="template-section">
+                <h2>選擇模板</h2>
+                <div class="template-grid">
+                    <label class="template-card">
+                        <input type="radio" name="template" value="1" checked>
+                        <div class="template-preview">
+                            <div class="template1-demo">
+                                <div class="demo-image">圖片區域</div>
+                                <div class="demo-title">標題文字</div>
+                                <div class="demo-subtitle">副標題</div>
+                                <div class="demo-desc">描述內容...</div>
                             </div>
                         </div>
-                    </div>
-                    <div class="template-info">
                         <span class="template-name">經典模板</span>
-                        <span class="template-desc">簡潔優雅，適合正式場合</span>
-                    </div>
-                </label>
-
-                <!-- 模板二：現代模板 -->
-                <label class="template-card">
-                    <input type="radio" name="template" value="2">
-                    <div class="template-preview">
-                        <img src="template2-preview.jpg" alt="現代模板預覽" class="template-image"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <div class="template-fallback" style="display: none;">
-                            <div class="fallback-content">
-                                <div class="template-demo">
-                                    <div class="demo-image"></div>
-                                    <div class="demo-banner">
-                                        <div class="demo-banner-title">大標題內容在這裡</div>
-                                        <div class="demo-banner-subtitle">小標題附註說明內容，附註說明內容</div>
-                                    </div>
-                                    <div class="demo-text"></div>
-                                    <div class="demo-text"></div>
-                                    <div class="demo-text"></div>
+                    </label>
+                    
+                    <label class="template-card">
+                        <input type="radio" name="template" value="2">
+                        <div class="template-preview">
+                            <div class="template2-demo">
+                                <div class="demo-image">圖片區域</div>
+                                <div class="demo-title-bar">
+                                    <div class="demo-title">標題文字</div>
+                                    <div class="demo-subtitle">副標題</div>
                                 </div>
+                                <div class="demo-desc">描述內容...</div>
                             </div>
                         </div>
-                    </div>
-                    <div class="template-info">
                         <span class="template-name">現代模板</span>
-                        <span class="template-desc">時尚設計，視覺效果突出</span>
-                    </div>
-                </label>
-            </div>
-        </section>
-
-        <!-- 填寫內容 -->
-        <section>
-            <h2>填寫內容</h2>
-            <div class="form-grid">
-                <!-- 上傳圖片 -->
-                <div class="upload-area">
-                    <label for="image-upload" class="upload-label">
-                        <div class="upload-icon">📁</div>
-                        <span>點擊上傳圖片</span>
-                        <small>支援 JPG、PNG、GIF 格式</small>
                     </label>
-                    <input type="file" id="image-upload" accept="image/*" style="display: none;">
-                    <div id="image-preview" class="image-preview"></div>
                 </div>
+            </section>
 
-                <!-- 文字內容 -->
-                <div class="text-inputs">
-                    <div class="input-group">
-                        <label for="title">主標題</label>
-                        <input type="text" id="title" placeholder="輸入主標題">
+            <!-- 內容輸入區 -->
+            <section class="input-section">
+                <h2>填寫內容</h2>
+                <div class="form-grid">
+                    <div class="upload-area">
+                        <label for="image-upload" class="upload-label">
+                            <div class="upload-icon">📁</div>
+                            <span>點擊上傳圖片</span>
+                            <small>支援 JPG, PNG, GIF</small>
+                        </label>
+                        <input type="file" id="image-upload" accept="image/*" hidden>
+                        <div class="image-preview" id="image-preview"></div>
                     </div>
-
-                    <div class="input-group">
-                        <label for="subtitle">副標題</label>
-                        <input type="text" id="subtitle" placeholder="輸入副標題">
-                    </div>
-
-                    <div class="input-group">
-                        <label for="description">描述內容</label>
-                        <textarea id="description" placeholder="輸入詳細描述內容..."></textarea>
+                    
+                    <div class="text-inputs">
+                        <div class="input-group">
+                            <label for="title">主標題</label>
+                            <input type="text" id="title" placeholder="輸入主標題">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="subtitle">副標題</label>
+                            <input type="text" id="subtitle" placeholder="輸入副標題">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="description">描述內容</label>
+                            <textarea id="description" rows="4" placeholder="輸入詳細描述..."></textarea>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- 預覽結果 -->
-        <section>
-            <h2>預覽結果</h2>
-            <div class="preview-container">
-                <canvas id="canvas"></canvas>
-            </div>
-            <div class="action-buttons">
-                <button id="generate-btn" class="btn btn-primary" disabled>生成圖片</button>
-                <button id="download-btn" class="btn btn-secondary" disabled>下載圖片</button>
-            </div>
-        </section>
+            <!-- 預覽與下載區 -->
+            <section class="preview-section">
+                <h2>預覽</h2>
+                <div class="preview-container">
+                    <canvas id="canvas" width="800" height="1000"></canvas>
+                </div>
+                <div class="action-buttons">
+                    <button id="generate-btn" class="btn btn-primary">生成圖片</button>
+                    <button id="download-btn" class="btn btn-secondary" disabled>下載圖片</button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>完全前端製作，圖片不會上傳到伺服器</p>
+        </footer>
     </div>
-
-    <!-- Footer -->
-    <footer>
-        <p>完全前端製作，圖片不會上傳到伺服器</p>
-    </footer>
 
     <script src="script.js"></script>
 </body>
