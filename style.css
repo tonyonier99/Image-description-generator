@@ -304,7 +304,7 @@ section h2 {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* Preview Section */
+/* Preview Section - Canvas 縮小到五分之一 */
 .preview-container {
     text-align: center;
     margin-bottom: 30px;
@@ -315,15 +315,18 @@ section h2 {
 }
 
 #canvas {
-    /* Canvas 顯示尺寸（5倍放大） */
-    width: 1000px;  /* 800 × 1.25 */
-    height: 1250px; /* 1000 × 1.25 */
+    /* Canvas 實際尺寸：800x1120，顯示尺寸縮小到五分之一 */
+    width: 160px;   /* 800 ÷ 5 = 160px */
+    height: 224px;  /* 1120 ÷ 5 = 224px */
     border: 2px solid #ddd;
     border-radius: 12px;
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     background: white;
-    max-width: 100%;
-    height: auto;
+    display: block;
+    margin: 0 auto;
+    image-rendering: auto;
+    image-rendering: crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
 }
 
 .action-buttons {
@@ -405,8 +408,8 @@ footer {
     }
 
     #canvas {
-        width: 400px;
-        height: 500px;
+        width: 120px;   /* 在手機上再稍微縮小一點 */
+        height: 168px;
     }
 
     .action-buttons {
@@ -425,11 +428,18 @@ footer {
     }
 
     #canvas {
-        width: 300px;
-        height: 375px;
+        width: 100px;   /* 小螢幕上進一步縮小 */
+        height: 140px;
     }
 
     .template-preview {
         height: 300px;
+    }
+}
+
+@media (min-width: 1200px) {
+    #canvas {
+        width: 200px;   /* 大螢幕稍微放大一點，但仍保持五分之一比例 */
+        height: 280px;
     }
 }
