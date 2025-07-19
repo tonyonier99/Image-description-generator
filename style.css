@@ -349,7 +349,7 @@ section h2 {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* Preview Section - Canvas 放大2倍（從十分之一改為五分之一） */
+/* Preview Section - Canvas 桌面版五分之一，手機版放大10倍 */
 .preview-container {
     text-align: center;
     margin-bottom: 30px;
@@ -360,9 +360,9 @@ section h2 {
 }
 
 #canvas {
-    /* Canvas 實際尺寸：800x1120，顯示尺寸從十分之一放大2倍到五分之一 */
-    width: 160px;  /* 800 ÷ 5 = 160px (原本80px × 2) */
-    height: 224px; /* 1120 ÷ 5 = 224px (原本112px × 2) */
+    /* Canvas 實際尺寸：800x1120，桌面版顯示五分之一 */
+    width: 160px;  /* 800 ÷ 5 = 160px */
+    height: 224px; /* 1120 ÷ 5 = 224px */
     border: 2px solid #ddd;
     border-radius: 8px;
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
@@ -448,7 +448,7 @@ footer {
     }
     
     #canvas {
-        width: 140px;  /* 稍微縮小但保持2倍比例 */
+        width: 140px;  /* 稍微縮小但保持比例 */
         height: 196px;
     }
 }
@@ -493,18 +493,32 @@ footer {
         height: 280px;
     }
 
+    /* 手機版預覽放大10倍：從原本100px×140px放大到1000px×1400px */
     #canvas {
-        width: 100px;  /* 手機尺寸 */
-        height: 140px;
+        width: 1000px;  /* 100px × 10 = 1000px */
+        height: 1400px; /* 140px × 10 = 1400px */
+        max-width: calc(100vw - 80px); /* 確保不超出螢幕寬度 */
+        max-height: 70vh; /* 限制最大高度 */
+        object-fit: contain; /* 保持比例 */
+    }
+
+    .preview-container {
+        padding: 15px; /* 縮小容器padding以容納更大的canvas */
+        overflow-x: auto; /* 允許水平滾動 */
+        overflow-y: auto; /* 允許垂直滾動 */
     }
 
     .action-buttons {
         flex-direction: column;
         align-items: center;
+        gap: 15px;
     }
 
     .btn {
-        width: 200px;
+        width: 100%;
+        max-width: 300px;
+        padding: 15px 25px;
+        font-size: 1.1rem;
     }
 }
 
@@ -518,8 +532,29 @@ footer {
         height: 224px;
     }
 
+    /* 超小螢幕：保持手機版的放大效果，但稍微調整以適應更小螢幕 */
     #canvas {
-        width: 80px;   /* 小螢幕尺寸 */
-        height: 112px;
+        width: 800px;   /* 稍微縮小但仍然很大 */
+        height: 1120px;
+        max-width: calc(100vw - 40px);
+        max-height: 60vh;
+    }
+
+    .preview-container {
+        padding: 10px;
+    }
+
+    section {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 360px) {
+    /* 極小螢幕：進一步調整 */
+    #canvas {
+        width: 640px;   /* 進一步縮小但保持大尺寸 */
+        height: 896px;
+        max-width: calc(100vw - 30px);
+        max-height: 50vh;
     }
 }
