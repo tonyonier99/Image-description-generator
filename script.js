@@ -3,6 +3,14 @@ let canvas, ctx;
 let uploadedImage = null;
 let isGenerated = false;
 
+// 拖曳相關變數
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let imageOffsetX = 0;  // 圖片在區域內的偏移
+let imageOffsetY = 0;
+let imageScale = 1;    // 圖片縮放比例
+
 // 設計規格 - 基於你的AI檔案
 const DESIGN_SPECS = {
     canvas: {
@@ -11,14 +19,12 @@ const DESIGN_SPECS = {
     },
     
     template1: {
-        // 圖片區域 - 精確位置（基於你的設計稿）
         imageArea: {
             x: 54,
             y: 54,
             width: 692,
             height: 462
         },
-        // 垂直裝飾線
         decorLine: {
             x: 54,
             y: 546,
@@ -26,14 +32,12 @@ const DESIGN_SPECS = {
             height: 120,
             color: '#8B4513'
         },
-        // 文字區域
         textArea: {
             x: 80,
             y: 546,
             maxWidth: 640,
             maxHeight: 500
         },
-        // 標題樣式
         titleStyle: {
             baseFontSize: 48,
             minFontSize: 32,
@@ -43,7 +47,6 @@ const DESIGN_SPECS = {
             lineHeight: 1.2,
             marginBottom: 20
         },
-        // 副標題樣式
         subtitleStyle: {
             baseFontSize: 24,
             minFontSize: 18,
@@ -53,7 +56,6 @@ const DESIGN_SPECS = {
             lineHeight: 1.3,
             marginBottom: 25
         },
-        // 內文樣式
         descriptionStyle: {
             baseFontSize: 18,
             minFontSize: 14,
@@ -65,14 +67,12 @@ const DESIGN_SPECS = {
     },
     
     template2: {
-        // 圖片區域
         imageArea: {
             x: 54,
             y: 54,
             width: 692,
             height: 462
         },
-        // 標題背景條
         titleBar: {
             x: 0,
             y: 516,
@@ -80,14 +80,12 @@ const DESIGN_SPECS = {
             height: 100,
             backgroundColor: 'rgba(185, 169, 104, 0.9)'
         },
-        // 文字區域
         textArea: {
             x: 80,
             y: 636,
             maxWidth: 640,
             maxHeight: 420
         },
-        // 標題樣式（在背景條中）
         titleStyle: {
             baseFontSize: 36,
             minFontSize: 28,
@@ -97,7 +95,6 @@ const DESIGN_SPECS = {
             lineHeight: 1.2,
             textAlign: 'center'
         },
-        // 副標題樣式（在背景條中）
         subtitleStyle: {
             baseFontSize: 20,
             minFontSize: 16,
@@ -108,7 +105,6 @@ const DESIGN_SPECS = {
             textAlign: 'center',
             opacity: 0.9
         },
-        // 內文樣式
         descriptionStyle: {
             baseFontSize: 18,
             minFontSize: 14,
@@ -124,7 +120,9 @@ const DESIGN_SPECS = {
 document.addEventListener('DOMContentLoaded', function() {
     initializeCanvas();
     setupEventListeners();
-    console.log('智能排版系統初始化完成');
+    setupDragListeners();
+    addResetButton();
+    console.log('拖曳功能已啟用');
 });
 
 // 初始化 Canvas
@@ -147,9 +145,10 @@ function clearCanvas() {
     ctx.font = '24px "Noto Sans TC"';
     ctx.textAlign = 'center';
     ctx.fillText('請上傳圖片並點擊生成', canvas.width / 2, canvas.height / 2);
+    ctx.fillText('生成後可拖曳圖片調整位置', canvas.width / 2, canvas.height / 2 + 40);
 }
 
-// 設定事件監聽器
+// 設定基本事件監聽器
 function setupEventListeners() {
     document.getElementById('image-upload').addEventListener('change', handleImageUpload);
     document.getElementById('generate-btn').addEventListener('click', generateImage);
@@ -159,6 +158,7 @@ function setupEventListeners() {
     templateInputs.forEach(input => {
         input.addEventListener('change', function() {
             if (uploadedImage && isGenerated) {
+                resetImagePosition();
                 generateImage();
             }
         });
@@ -175,6 +175,40 @@ function setupEventListeners() {
             });
         }
     });
+}
+
+// 設定拖曳事件監聽器
+function setupDragListeners() {
+    // 滑鼠事件
+    canvas.addEventListener('mousedown', handleDragStart);
+    canvas.addEventListener('mousemove', handleDragMove);
+    canvas.addEventListener('mouseup', handleDragEnd);
+    canvas.addEventListener('mouseleave', handleDragEnd);
+    
+    // 觸控事件（手機支援）
+    canvas.addEventListener('touchstart', handleTouchStart);
+    canvas.addEventListener('touchmove', handleTouchMove);
+    canvas.addEventListener('touchend', handleDragEnd);
+    
+    // 滾輪縮放
+    canvas.addEventListener('wheel', handleWheel);
+}
+
+// 添加重置按鈕
+function addResetButton() {
+    const actionButtons = document.querySelector('.action-buttons');
+    if (actionButtons && !document.getElementById('reset-btn')) {
+        const resetBtn = document.createElement('button');
+        resetBtn.className = 'btn';
+        resetBtn.innerHTML = '重置圖片位置';
+        resetBtn.onclick = resetImagePosition;
+        resetBtn.style.background = '#6c757d';
+        resetBtn.style.color = 'white';
+        resetBtn.disabled = true;
+        resetBtn.id = 'reset-btn';
+        
+        actionButtons.appendChild(resetBtn);
+    }
 }
 
 // 處理圖片上傳
@@ -195,13 +229,10 @@ function handleImageUpload(event) {
         
         img.onload = function() {
             uploadedImage = img;
+            resetImagePosition();
             showImagePreview(e.target.result);
             document.getElementById('generate-btn').disabled = false;
             console.log('圖片上傳成功');
-        };
-        
-        img.onerror = function() {
-            alert('圖片載入失敗，請重新選擇！');
         };
         
         img.src = e.target.result;
@@ -210,16 +241,140 @@ function handleImageUpload(event) {
     reader.readAsDataURL(file);
 }
 
+// 重置圖片位置
+function resetImagePosition() {
+    imageOffsetX = 0;
+    imageOffsetY = 0;
+    imageScale = 1;
+    
+    if (uploadedImage && isGenerated) {
+        generateImage();
+    }
+}
+
 // 顯示圖片預覽
 function showImagePreview(src) {
     const preview = document.getElementById('image-preview');
-    preview.innerHTML = `<img src="${src}" alt="預覽圖片">`;
+    if (preview) {
+        preview.innerHTML = `<img src="${src}" alt="預覽圖片">`;
+    }
 }
 
 // 取得選中的模板
 function getSelectedTemplate() {
     const selectedTemplate = document.querySelector('input[name="template"]:checked');
     return selectedTemplate ? selectedTemplate.value : '1';
+}
+
+// 獲取滑鼠在Canvas上的相對位置
+function getCanvasPosition(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+    };
+}
+
+// 檢查點是否在圖片區域內
+function isPointInImageArea(x, y) {
+    const template = getSelectedTemplate();
+    const specs = DESIGN_SPECS[`template${template}`];
+    const imageArea = specs.imageArea;
+    
+    return x >= imageArea.x && 
+           x <= imageArea.x + imageArea.width && 
+           y >= imageArea.y && 
+           y <= imageArea.y + imageArea.height;
+}
+
+// 處理拖曳開始
+function handleDragStart(e) {
+    if (!isGenerated || !uploadedImage) return;
+    
+    const pos = getCanvasPosition(e);
+    
+    if (isPointInImageArea(pos.x, pos.y)) {
+        isDragging = true;
+        dragStartX = pos.x;
+        dragStartY = pos.y;
+        canvas.style.cursor = 'grabbing';
+        
+        e.preventDefault();
+    }
+}
+
+// 處理拖曳移動
+function handleDragMove(e) {
+    if (!isDragging) {
+        const pos = getCanvasPosition(e);
+        if (isGenerated && uploadedImage && isPointInImageArea(pos.x, pos.y)) {
+            canvas.style.cursor = 'grab';
+        } else {
+            canvas.style.cursor = 'default';
+        }
+        return;
+    }
+    
+    const pos = getCanvasPosition(e);
+    const deltaX = pos.x - dragStartX;
+    const deltaY = pos.y - dragStartY;
+    
+    imageOffsetX += deltaX;
+    imageOffsetY += deltaY;
+    
+    dragStartX = pos.x;
+    dragStartY = pos.y;
+    
+    generateImage();
+    
+    e.preventDefault();
+}
+
+// 處理拖曳結束
+function handleDragEnd(e) {
+    if (isDragging) {
+        isDragging = false;
+        canvas.style.cursor = 'default';
+    }
+}
+
+// 處理觸控開始
+function handleTouchStart(e) {
+    if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        handleDragStart(touch);
+    }
+}
+
+// 處理觸控移動
+function handleTouchMove(e) {
+    if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        handleDragMove(touch);
+    }
+    e.preventDefault();
+}
+
+// 處理滾輪縮放
+function handleWheel(e) {
+    if (!isGenerated || !uploadedImage) return;
+    
+    const pos = getCanvasPosition(e);
+    
+    if (isPointInImageArea(pos.x, pos.y)) {
+        e.preventDefault();
+        
+        const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
+        const newScale = imageScale * scaleFactor;
+        
+        if (newScale >= 0.5 && newScale <= 3) {
+            imageScale = newScale;
+            generateImage();
+        }
+    }
 }
 
 // 生成圖片
@@ -234,19 +389,15 @@ function generateImage() {
     const subtitle = document.getElementById('subtitle').value.trim();
     const description = document.getElementById('description').value.trim();
     
-    // 根據模板選擇對應的底圖
     const backgroundImg = new Image();
     const bgImagePath = template === '1' ? 'bg-template1.png' : 'bg-template2.png';
     
     backgroundImg.onload = function() {
-        // 清空 canvas 並繪製底圖
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
         
-        // 繪製用戶上傳的圖片（智能裁切）
-        drawSmartCroppedImage(template);
+        drawDraggableImage(template);
         
-        // 根據模板繪製智能文字
         if (template === '1') {
             drawTemplate1SmartText(title, subtitle, description);
         } else {
@@ -255,17 +406,15 @@ function generateImage() {
         
         isGenerated = true;
         document.getElementById('download-btn').disabled = false;
-        console.log(`智能排版模板 ${template} 生成完成`);
+        const resetBtn = document.getElementById('reset-btn');
+        if (resetBtn) resetBtn.disabled = false;
     };
     
     backgroundImg.onerror = function() {
-        console.warn(`底圖 ${bgImagePath} 載入失敗，使用預設背景`);
-        
-        // 使用預設背景
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        drawSmartCroppedImage(template);
+        drawDraggableImage(template);
         
         if (template === '1') {
             drawTemplate1SmartText(title, subtitle, description);
@@ -275,54 +424,59 @@ function generateImage() {
         
         isGenerated = true;
         document.getElementById('download-btn').disabled = false;
+        const resetBtn = document.getElementById('reset-btn');
+        if (resetBtn) resetBtn.disabled = false;
     };
     
     backgroundImg.src = bgImagePath;
 }
 
-// 智能圖片裁切和放置
-function drawSmartCroppedImage(template) {
+// 繪製可拖曳的圖片
+function drawDraggableImage(template) {
     const specs = DESIGN_SPECS[`template${template}`];
     const imageArea = specs.imageArea;
     
-    // 計算圖片縮放比例（cover 模式 - 填滿區域，可能裁切）
+    ctx.save();
+    
+    ctx.beginPath();
+    ctx.rect(imageArea.x, imageArea.y, imageArea.width, imageArea.height);
+    ctx.clip();
+    
     const imgRatio = uploadedImage.width / uploadedImage.height;
     const areaRatio = imageArea.width / imageArea.height;
     
-    let sourceX, sourceY, sourceWidth, sourceHeight;
+    let baseWidth, baseHeight;
     
     if (imgRatio > areaRatio) {
-        // 圖片比較寬，以高度為準，左右裁切
-        sourceHeight = uploadedImage.height;
-        sourceWidth = uploadedImage.height * areaRatio;
-        sourceX = (uploadedImage.width - sourceWidth) / 2;
-        sourceY = 0;
+        baseHeight = imageArea.height;
+        baseWidth = imageArea.height * imgRatio;
     } else {
-        // 圖片比較高，以寬度為準，上下裁切
-        sourceWidth = uploadedImage.width;
-        sourceHeight = uploadedImage.width / areaRatio;
-        sourceX = 0;
-        sourceY = (uploadedImage.height - sourceHeight) / 2;
+        baseWidth = imageArea.width;
+        baseHeight = imageArea.width / imgRatio;
     }
     
-    // 繪製裁切後的圖片，完全填滿指定區域
-    ctx.drawImage(
-        uploadedImage,
-        sourceX, sourceY, sourceWidth, sourceHeight,
-        imageArea.x, imageArea.y, imageArea.width, imageArea.height
-    );
+    const scaledWidth = baseWidth * imageScale;
+    const scaledHeight = baseHeight * imageScale;
     
-    console.log(`圖片智能裁切完成: 原始${uploadedImage.width}x${uploadedImage.height} → 裁切區域${sourceWidth.toFixed(0)}x${sourceHeight.toFixed(0)} → 顯示${imageArea.width}x${imageArea.height}`);
+    const drawX = imageArea.x + (imageArea.width - scaledWidth) / 2 + imageOffsetX;
+    const drawY = imageArea.y + (imageArea.height - scaledHeight) / 2 + imageOffsetY;
+    
+    ctx.drawImage(uploadedImage, drawX, drawY, scaledWidth, scaledHeight);
+    
+    ctx.restore();
+    
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(imageArea.x, imageArea.y, imageArea.width, imageArea.height);
 }
 
-// 計算智能字體大小
+// 智能文字大小計算
 function calculateSmartFontSize(text, style, maxWidth, maxLines = 999) {
     if (!text) return style.baseFontSize;
     
     const words = text.length;
     let fontSize = style.baseFontSize;
     
-    // 根據文字長度調整基礎大小
     if (words > 50) {
         fontSize = Math.max(style.minFontSize, fontSize - 8);
     } else if (words > 30) {
@@ -333,7 +487,6 @@ function calculateSmartFontSize(text, style, maxWidth, maxLines = 999) {
         fontSize = Math.min(style.maxFontSize, fontSize + 4);
     }
     
-    // 測試實際渲染寬度
     for (let testSize = fontSize; testSize >= style.minFontSize; testSize -= 2) {
         ctx.font = `${style.fontWeight} ${testSize}px "Noto Sans TC"`;
         const lines = wrapText(text, maxWidth);
@@ -376,11 +529,9 @@ function drawTemplate1SmartText(title, subtitle, description) {
     const specs = DESIGN_SPECS.template1;
     let currentY = specs.textArea.y;
     
-    // 繪製垂直裝飾線
     ctx.fillStyle = specs.decorLine.color;
     ctx.fillRect(specs.decorLine.x, specs.decorLine.y, specs.decorLine.width, specs.decorLine.height);
     
-    // 主標題
     if (title) {
         const titleFontSize = calculateSmartFontSize(title, specs.titleStyle, specs.textArea.maxWidth, 2);
         ctx.font = `${specs.titleStyle.fontWeight} ${titleFontSize}px "Noto Sans TC"`;
@@ -398,7 +549,6 @@ function drawTemplate1SmartText(title, subtitle, description) {
         currentY += (titleLines.length - 1) * titleLineHeight + specs.titleStyle.marginBottom;
     }
     
-    // 副標題
     if (subtitle) {
         const subtitleFontSize = calculateSmartFontSize(subtitle, specs.subtitleStyle, specs.textArea.maxWidth, 2);
         ctx.font = `${specs.subtitleStyle.fontWeight} ${subtitleFontSize}px "Noto Sans TC"`;
@@ -415,7 +565,6 @@ function drawTemplate1SmartText(title, subtitle, description) {
         currentY += (subtitleLines.length * subtitleLineHeight) + specs.subtitleStyle.marginBottom;
     }
     
-    // 描述內文
     if (description) {
         const remainingHeight = specs.textArea.maxHeight - (currentY - specs.textArea.y);
         const maxDescriptionLines = Math.floor(remainingHeight / (specs.descriptionStyle.baseFontSize * specs.descriptionStyle.lineHeight));
@@ -428,7 +577,6 @@ function drawTemplate1SmartText(title, subtitle, description) {
         const descriptionLines = wrapText(description, specs.textArea.maxWidth);
         const descriptionLineHeight = descriptionFontSize * specs.descriptionStyle.lineHeight;
         
-        // 只顯示能夠完整放入的行數
         const displayLines = descriptionLines.slice(0, maxDescriptionLines);
         
         displayLines.forEach((line, index) => {
@@ -441,14 +589,11 @@ function drawTemplate1SmartText(title, subtitle, description) {
 function drawTemplate2SmartText(title, subtitle, description) {
     const specs = DESIGN_SPECS.template2;
     
-    // 繪製標題背景條
     ctx.fillStyle = specs.titleBar.backgroundColor;
     ctx.fillRect(specs.titleBar.x, specs.titleBar.y, specs.titleBar.width, specs.titleBar.height);
     
-    // 標題在背景條中的位置
     let titleBarY = specs.titleBar.y + 30;
     
-    // 主標題（在背景條中）
     if (title) {
         const titleFontSize = calculateSmartFontSize(title, specs.titleStyle, specs.titleBar.width - 100, 1);
         ctx.font = `${specs.titleStyle.fontWeight} ${titleFontSize}px "Noto Sans TC"`;
@@ -459,7 +604,6 @@ function drawTemplate2SmartText(title, subtitle, description) {
         titleBarY += titleFontSize + 10;
     }
     
-    // 副標題（在背景條中）
     if (subtitle) {
         const subtitleFontSize = calculateSmartFontSize(subtitle, specs.subtitleStyle, specs.titleBar.width - 100, 1);
         ctx.font = `${specs.subtitleStyle.fontWeight} ${subtitleFontSize}px "Noto Sans TC"`;
@@ -471,7 +615,6 @@ function drawTemplate2SmartText(title, subtitle, description) {
         ctx.globalAlpha = 1.0;
     }
     
-    // 描述內文（在背景條下方）
     if (description) {
         const maxDescriptionLines = Math.floor(specs.textArea.maxHeight / (specs.descriptionStyle.baseFontSize * specs.descriptionStyle.lineHeight));
         
@@ -483,7 +626,6 @@ function drawTemplate2SmartText(title, subtitle, description) {
         const descriptionLines = wrapText(description, specs.textArea.maxWidth);
         const descriptionLineHeight = descriptionFontSize * specs.descriptionStyle.lineHeight;
         
-        // 只顯示能夠完整放入的行數
         const displayLines = descriptionLines.slice(0, maxDescriptionLines);
         
         displayLines.forEach((line, index) => {
@@ -504,7 +646,7 @@ function downloadImage() {
         const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
         const template = getSelectedTemplate();
         
-        link.download = `智能排版圖片_模板${template}_${timestamp}.png`;
+        link.download = `可拖曳圖片_模板${template}_${timestamp}.png`;
         link.href = canvas.toDataURL('image/png', 1.0);
         
         document.body.appendChild(link);
