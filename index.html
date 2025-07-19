@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=900, initial-scale=1">
+  <title>介紹圖片產生器</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 全部內容都包在卡片容器 -->
+  <div class="main-card">
+    <!-- 最上方大標題 -->
+    <h1 class="main-title">介紹圖片產生器</h1>
+
+    <!-- 模板選擇區 -->
+    <div class="template-select-area">
+      <div class="template-options-row">
+        <label class="template-option">
+          <img src="template1-demo.jpg" alt="模板一" class="template-img">
+          <div class="template-radio">
+            <input type="radio" name="template" value="1" checked>
+            <span class="template-label">模板一</span>
+          </div>
+        </label>
+        <label class="template-option">
+          <img src="template2-demo.jpg" alt="模板二" class="template-img">
+          <div class="template-radio">
+            <input type="radio" name="template" value="2">
+            <span class="template-label">模板二</span>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- 表單卡片區 -->
+    <form class="form-area" autocomplete="off">
+      <input type="file" id="imgInput" accept="image/*">
+      <input type="text" id="titleInput" placeholder="大標題內容">
+      <input type="text" id="subtitleInput" placeholder="小標題/註解">
+      <textarea id="descInput" placeholder="詳細說明"></textarea>
+      <button type="button" id="makeBtn">生成預覽</button>
+    </form>
+    <div class="preview-area">
+      <canvas id="canvas" width="800" height="1120"></canvas>
+    </div>
+    <button id="downloadBtn" class="download-btn">下載圖片</button>
+    <p class="tip">完全前端製作，圖片不會上傳伺服器。</p>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>
