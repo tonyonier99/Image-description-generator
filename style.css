@@ -12,7 +12,7 @@ body {
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 1400px; /* 增加容器寬度以容納更大的預覽 */
     margin: 0 auto;
     padding: 20px;
 }
@@ -242,45 +242,51 @@ section h2 {
     min-height: 100px;
 }
 
-/* Preview Section - 放大五倍 */
+/* Preview Section - 預覽結果放大五倍 */
 .preview-container {
     text-align: center;
     margin-bottom: 30px;
-    overflow-x: auto; /* 如果太大可以橫向滾動 */
+    overflow-x: auto; /* 橫向滾動以防超出 */
+    overflow-y: auto; /* 縱向滾動以防超出 */
+    padding: 20px; /* 增加內邊距 */
 }
 
 #canvas {
     /* Canvas 實際尺寸：800x1120，顯示時放大五倍 */
-    width: 1000px;  /* 200px × 5 = 1000px */
-    height: 1400px; /* 280px × 5 = 1400px */
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    width: 1000px;  /* 原本 200px × 5 = 1000px */
+    height: 1400px; /* 原本 280px × 5 = 1400px */
+    border: 2px solid #ddd; /* 稍微加粗邊框 */
+    border-radius: 12px; /* 稍微增加圓角 */
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15); /* 增強陰影 */
     /* 讓圖片保持清晰 */
     image-rendering: auto;
     image-rendering: crisp-edges;
     image-rendering: -webkit-optimize-contrast;
-    /* 確保在容器中居中 */
-    max-width: 100%;
-    height: auto; /* 響應式高度 */
+    /* 確保居中顯示 */
+    display: block;
+    margin: 0 auto;
+    /* 背景色，避免透明區域 */
+    background-color: #ffffff;
 }
 
 .action-buttons {
     display: flex;
-    gap: 15px;
+    gap: 20px; /* 增加按鈕間距 */
     justify-content: center;
-    margin-top: 20px; /* 增加一些上邊距 */
+    margin-top: 30px; /* 增加上邊距 */
+    flex-wrap: wrap; /* 允許按鈕換行 */
 }
 
 .btn {
-    padding: 12px 30px;
+    padding: 15px 40px; /* 增加按鈕大小 */
     border: none;
-    border-radius: 8px;
-    font-size: 1rem;
+    border-radius: 10px; /* 增加圓角 */
+    font-size: 1.1rem; /* 增加字體大小 */
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
     text-decoration: none;
+    min-width: 150px; /* 設定最小寬度 */
 }
 
 .btn-primary {
@@ -290,7 +296,8 @@ section h2 {
 
 .btn-primary:hover {
     background: #5a6fd8;
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
 }
 
 .btn-secondary {
@@ -300,13 +307,15 @@ section h2 {
 
 .btn-secondary:hover {
     background: #218838;
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
 }
 
 .btn:disabled {
     background: #ccc;
     cursor: not-allowed;
     transform: none;
+    box-shadow: none;
 }
 
 /* Footer */
@@ -317,19 +326,23 @@ footer {
     margin-top: 20px;
 }
 
-/* Responsive */
+/* Responsive - 響應式調整 */
 @media (max-width: 1200px) {
+    .container {
+        max-width: 1200px;
+    }
+    
     #canvas {
-        /* 中等螢幕稍微縮小 */
-        width: 800px;   /* 4倍大小 */
+        /* 大螢幕稍微縮小到 4倍 */
+        width: 800px;   
         height: 1120px;
     }
 }
 
 @media (max-width: 900px) {
     #canvas {
-        /* 較小螢幕進一步縮小 */
-        width: 600px;   /* 3倍大小 */
+        /* 中等螢幕縮小到 3倍 */
+        width: 600px;   
         height: 840px;
     }
 }
@@ -337,6 +350,7 @@ footer {
 @media (max-width: 768px) {
     .container {
         padding: 15px;
+        max-width: 100%;
     }
     
     header h1 {
@@ -367,24 +381,39 @@ footer {
     .action-buttons {
         flex-direction: column;
         align-items: center;
+        gap: 15px;
     }
     
     .btn {
         width: 200px;
+        padding: 12px 30px;
+        font-size: 1rem;
     }
     
-    /* 手機版調整 Canvas 尺寸 */
+    /* 平板調整 Canvas 尺寸到 2.5倍 */
     #canvas {
-        width: 400px;   /* 2倍大小，適合手機 */
+        width: 500px;   
+        height: 700px;
+    }
+}
+
+@media (max-width: 600px) {
+    #canvas {
+        /* 手機縮小到 2倍 */
+        width: 400px;   
         height: 560px;
     }
 }
 
 @media (max-width: 480px) {
     #canvas {
-        /* 小手機進一步縮小 */
-        width: 300px;   /* 1.5倍大小 */
+        /* 小手機縮小到 1.5倍 */
+        width: 300px;   
         height: 420px;
+    }
+    
+    .preview-container {
+        padding: 10px;
     }
 }
 
@@ -404,9 +433,21 @@ footer {
         height: 550px;
     }
     
-    /* 超大螢幕可以顯示完整的5倍大小 */
+    /* 超大螢幕顯示完整的 5倍大小 */
     #canvas {
         width: 1000px;
         height: 1400px;
+    }
+}
+
+@media (min-width: 1600px) {
+    .container {
+        max-width: 1600px;
+    }
+    
+    /* 更大螢幕可以顯示更大的預覽 */
+    #canvas {
+        width: 1200px;  /* 6倍大小 */
+        height: 1680px;
     }
 }
