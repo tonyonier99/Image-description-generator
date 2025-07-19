@@ -22,7 +22,9 @@
                     <label class="template-card">
                         <input type="radio" name="template" value="1" checked>
                         <div class="template-preview">
-                            <div class="template1-demo">
+                            <img src="template1-demo.jpg" alt="經典模板預覽" class="template-image" 
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="template1-demo" style="display: none;">
                                 <div class="demo-image">圖片區域</div>
                                 <div class="demo-title">標題文字</div>
                                 <div class="demo-subtitle">副標題</div>
@@ -35,7 +37,9 @@
                     <label class="template-card">
                         <input type="radio" name="template" value="2">
                         <div class="template-preview">
-                            <div class="template2-demo">
+                            <img src="template2-demo.jpg" alt="現代模板預覽" class="template-image"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="template2-demo" style="display: none;">
                                 <div class="demo-image">圖片區域</div>
                                 <div class="demo-title-bar">
                                     <div class="demo-title">標題文字</div>
@@ -86,7 +90,7 @@
             <section class="preview-section">
                 <h2>預覽</h2>
                 <div class="preview-container">
-                    <canvas id="canvas" width="800" height="1000"></canvas>
+                    <canvas id="canvas" width="800" height="1120"></canvas>
                 </div>
                 <div class="action-buttons">
                     <button id="generate-btn" class="btn btn-primary">生成圖片</button>
