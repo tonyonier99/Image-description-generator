@@ -111,9 +111,19 @@ section h2 {
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
+    overflow: hidden;
 }
 
-/* 模板一預覽樣式 */
+/* 模板預覽圖片樣式 */
+.template-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    display: block;
+}
+
+/* 模板一預覽樣式（備用） */
 .template1-demo {
     width: 100%;
     max-width: 200px;
@@ -163,7 +173,7 @@ section h2 {
     line-height: 1.3;
 }
 
-/* 模板二預覽樣式 */
+/* 模板二預覽樣式（備用） */
 .template2-demo {
     width: 100%;
     max-width: 200px;
@@ -408,7 +418,7 @@ footer {
     }
 
     #canvas {
-        width: 120px;   /* 在手機上再稍微縮小一點 */
+        width: 120px;
         height: 168px;
     }
 
@@ -428,7 +438,7 @@ footer {
     }
 
     #canvas {
-        width: 100px;   /* 小螢幕上進一步縮小 */
+        width: 100px;
         height: 140px;
     }
 
@@ -439,7 +449,7 @@ footer {
 
 @media (min-width: 1200px) {
     #canvas {
-        width: 200px;   /* 大螢幕稍微放大一點，但仍保持五分之一比例 */
+        width: 200px;
         height: 280px;
     }
 }
