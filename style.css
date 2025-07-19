@@ -244,11 +244,16 @@ section h2 {
 }
 
 #canvas {
-    max-width: 100%;
-    height: auto;
+    /* Canvas 實際尺寸保持 800x1000，但顯示時縮小十倍 */
+    width: 80px;   /* 顯示寬度：800px → 80px */
+    height: 100px; /* 顯示高度：1000px → 100px */
     border: 1px solid #ddd;
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    /* 讓圖片保持清晰 */
+    image-rendering: auto;
+    image-rendering: crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
 }
 
 .action-buttons {
@@ -332,5 +337,11 @@ footer {
     
     .btn {
         width: 200px;
+    }
+    
+    /* 手機版也保持 Canvas 縮小十倍 */
+    #canvas {
+        width: 80px;
+        height: 100px;
     }
 }
