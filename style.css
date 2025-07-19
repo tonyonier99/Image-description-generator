@@ -12,7 +12,7 @@ body {
 }
 
 .container {
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 0 auto;
     padding: 20px;
 }
@@ -39,31 +39,33 @@ header p {
 section {
     background: white;
     border-radius: 15px;
-    padding: 30px;
+    padding: 40px;
     margin-bottom: 30px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
 
 section h2 {
     font-size: 1.5rem;
-    margin-bottom: 20px;
+    margin-bottom: 30px;
     color: #444;
     border-bottom: 2px solid #667eea;
-    padding-bottom: 10px;
+    padding-bottom: 15px;
     font-weight: 600;
 }
 
-/* Template Section */
+/* Template Section - 800x1120 模板預覽 */
 .template-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 30px;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 40px;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 .template-card {
     border: 3px solid #e0e0e0;
-    border-radius: 15px;
-    padding: 20px;
+    border-radius: 20px;
+    padding: 25px;
     cursor: pointer;
     transition: all 0.3s ease;
     display: block;
@@ -93,149 +95,179 @@ section h2 {
 
 .template-card input {
     position: absolute;
-    top: 15px;
-    right: 15px;
-    width: 20px;
-    height: 20px;
+    top: 20px;
+    right: 20px;
+    width: 22px;
+    height: 22px;
     cursor: pointer;
+    z-index: 10;
 }
 
+/* 模板預覽區域 - 800x1120 尺寸 */
 .template-preview {
     border: 2px solid #f0f0f0;
-    border-radius: 10px;
-    padding: 15px;
-    margin-bottom: 15px;
+    border-radius: 15px;
+    padding: 0;
+    margin-bottom: 20px;
     background: #fafafa;
-    height: 400px;
+    width: 320px;  /* 800 ÷ 2.5 = 320px */
+    height: 448px; /* 1120 ÷ 2.5 = 448px */
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
     overflow: hidden;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
 }
 
 /* 模板預覽圖片樣式 */
 .template-image {
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    border-radius: 8px;
+    object-fit: cover;
+    border-radius: 13px;
     display: block;
 }
 
-/* 模板一預覽樣式（備用） */
+/* 模板一預覽樣式（備用）800x1120 比例 */
 .template1-demo {
     width: 100%;
-    max-width: 200px;
+    height: 100%;
     background: #f5f3f0;
-    border-radius: 8px;
+    border-radius: 13px;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    position: relative;
 }
 
 .template1-demo .demo-image {
     width: 100%;
-    height: 120px;
+    height: 67%; /* 約 750/1120 */
     background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%), 
                 linear-gradient(-45deg, #f0f0f0 25%, transparent 25%);
     background-size: 15px 15px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 12px;
     color: #999;
     border-bottom: 1px solid #e0e0e0;
 }
 
+.template1-demo .demo-content {
+    flex: 1;
+    padding: 15px;
+    position: relative;
+}
+
+.template1-demo .demo-line {
+    width: 3px;
+    height: 40px;
+    background: #8B4513;
+    margin-bottom: 8px;
+}
+
 .template1-demo .demo-title {
-    padding: 10px 15px 5px;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: bold;
     color: #2c3e50;
     text-align: left;
-    border-left: 3px solid #8B4513;
-    margin-left: 15px;
-    margin-top: 10px;
+    margin-bottom: 5px;
+    line-height: 1.2;
 }
 
 .template1-demo .demo-subtitle {
-    padding: 0 15px 5px 18px;
-    font-size: 9px;
+    font-size: 10px;
     color: #7f8c8d;
     text-align: left;
+    margin-bottom: 8px;
+    line-height: 1.2;
 }
 
-.template1-demo .demo-desc {
-    padding: 5px 15px 15px 18px;
+.template1-demo .demo-text {
     font-size: 8px;
     color: #555;
     text-align: left;
     line-height: 1.3;
+    margin-bottom: 5px;
 }
 
-/* 模板二預覽樣式（備用） */
+/* 模板二預覽樣式（備用）800x1120 比例 */
 .template2-demo {
     width: 100%;
-    max-width: 200px;
+    height: 100%;
     background: #f5f3f0;
-    border-radius: 8px;
+    border-radius: 13px;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    position: relative;
 }
 
 .template2-demo .demo-image {
     width: 100%;
-    height: 120px;
+    height: 67%; /* 約 750/1120 */
     background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%), 
                 linear-gradient(-45deg, #f0f0f0 25%, transparent 25%);
     background-size: 15px 15px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 12px;
     color: #999;
     border-bottom: 1px solid #e0e0e0;
 }
 
 .template2-demo .demo-title-bar {
     background: rgba(185, 169, 104, 0.9);
-    padding: 10px;
+    padding: 12px;
     text-align: center;
 }
 
 .template2-demo .demo-title-bar .demo-title {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: bold;
     color: white;
     margin-bottom: 3px;
+    line-height: 1.2;
 }
 
 .template2-demo .demo-title-bar .demo-subtitle {
-    font-size: 9px;
+    font-size: 10px;
     color: white;
     opacity: 0.9;
+    line-height: 1.2;
 }
 
-.template2-demo .demo-desc {
-    padding: 10px 15px;
+.template2-demo .demo-content {
+    flex: 1;
+    padding: 12px 15px;
+}
+
+.template2-demo .demo-text {
     font-size: 8px;
     color: #555;
     text-align: left;
     line-height: 1.3;
+    margin-bottom: 5px;
 }
 
 .template-name {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     font-weight: 600;
     color: #333;
     transition: color 0.3s ease;
+    margin-top: 10px;
 }
 
 /* Form Section */
 .form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 30px;
+    gap: 40px;
 }
 
 .upload-area {
@@ -245,8 +277,8 @@ section h2 {
 .upload-label {
     display: block;
     border: 3px dashed #ccc;
-    border-radius: 10px;
-    padding: 40px 20px;
+    border-radius: 15px;
+    padding: 50px 30px;
     cursor: pointer;
     transition: all 0.3s ease;
     background: #fafafa;
@@ -258,49 +290,52 @@ section h2 {
 }
 
 .upload-icon {
-    font-size: 3rem;
-    margin-bottom: 10px;
+    font-size: 3.5rem;
+    margin-bottom: 15px;
 }
 
 .upload-label span {
     display: block;
     font-weight: 500;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     color: #333;
+    font-size: 1.1rem;
 }
 
 .upload-label small {
     color: #888;
+    font-size: 0.9rem;
 }
 
 .image-preview {
-    margin-top: 20px;
+    margin-top: 25px;
 }
 
 .image-preview img {
     max-width: 100%;
-    max-height: 200px;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    max-height: 250px;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
 }
 
 .input-group {
-    margin-bottom: 20px;
+    margin-bottom: 25px;
 }
 
 .input-group label {
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     font-weight: 500;
     color: #555;
+    font-size: 1rem;
 }
 
 .input-group input,
 .input-group textarea {
     width: 100%;
-    padding: 12px;
+    padding: 15px;
     border: 2px solid #e0e0e0;
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 1rem;
     transition: border-color 0.3s ease;
     font-family: inherit;
@@ -314,22 +349,22 @@ section h2 {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* Preview Section - Canvas 縮小到五分之一 */
+/* Preview Section - Canvas 縮小到十分之一 */
 .preview-container {
     text-align: center;
     margin-bottom: 30px;
     overflow: auto;
-    padding: 20px;
+    padding: 30px;
     background: #f8f9fa;
-    border-radius: 10px;
+    border-radius: 15px;
 }
 
 #canvas {
-    /* Canvas 實際尺寸：800x1120，顯示尺寸縮小到五分之一 */
-    width: 160px;   /* 800 ÷ 5 = 160px */
-    height: 224px;  /* 1120 ÷ 5 = 224px */
+    /* Canvas 實際尺寸：800x1120，顯示尺寸縮小到十分之一 */
+    width: 80px;   /* 800 ÷ 10 = 80px */
+    height: 112px; /* 1120 ÷ 10 = 112px */
     border: 2px solid #ddd;
-    border-radius: 12px;
+    border-radius: 8px;
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     background: white;
     display: block;
@@ -341,20 +376,21 @@ section h2 {
 
 .action-buttons {
     display: flex;
-    gap: 20px;
+    gap: 25px;
     justify-content: center;
     flex-wrap: wrap;
+    margin-top: 30px;
 }
 
 .btn {
-    padding: 15px 30px;
+    padding: 18px 35px;
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     font-size: 1.1rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
-    min-width: 140px;
+    min-width: 160px;
 }
 
 .btn-primary {
@@ -390,11 +426,50 @@ footer {
     text-align: center;
     color: white;
     opacity: 0.8;
-    margin-top: 20px;
+    margin-top: 30px;
     font-size: 0.9rem;
 }
 
 /* Responsive Design */
+@media (max-width: 1400px) {
+    .container {
+        max-width: 1400px;
+    }
+    
+    .template-grid {
+        max-width: 1000px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .template-preview {
+        width: 280px;  /* 稍微縮小 */
+        height: 392px;
+    }
+}
+
+@media (max-width: 900px) {
+    .template-grid {
+        grid-template-columns: 1fr;
+        max-width: 500px;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+    
+    .template-preview {
+        width: 240px;
+        height: 336px;
+    }
+    
+    #canvas {
+        width: 60px;
+        height: 84px;
+    }
+}
+
 @media (max-width: 768px) {
     .container {
         padding: 15px;
@@ -404,22 +479,18 @@ footer {
         font-size: 2rem;
     }
 
-    .form-grid {
-        grid-template-columns: 1fr;
-        gap: 20px;
-    }
-
-    .template-grid {
-        grid-template-columns: 1fr;
-    }
-
     section {
-        padding: 20px;
+        padding: 25px;
+    }
+
+    .template-preview {
+        width: 200px;
+        height: 280px;
     }
 
     #canvas {
-        width: 120px;
-        height: 168px;
+        width: 50px;
+        height: 70px;
     }
 
     .action-buttons {
@@ -437,19 +508,13 @@ footer {
         font-size: 1.5rem;
     }
 
-    #canvas {
-        width: 100px;
-        height: 140px;
-    }
-
     .template-preview {
-        height: 300px;
+        width: 160px;
+        height: 224px;
     }
-}
 
-@media (min-width: 1200px) {
     #canvas {
-        width: 200px;
-        height: 280px;
+        width: 40px;
+        height: 56px;
     }
 }
