@@ -22,29 +22,29 @@
                     <label class="template-card">
                         <input type="radio" name="template" value="1" checked>
                         <div class="template-preview">
-                            <div class="template1-demo">
-                                <div class="demo-image">圖片區域</div>
-                                <div class="demo-title">標題文字</div>
-                                <div class="demo-subtitle">副標題</div>
-                                <div class="demo-desc">描述內容...</div>
+                            <img src="template1-demo.jpg" alt="模板一示意圖" class="template-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div class="template-fallback" style="display: none;">
+                                <div class="fallback-content">模板一預覽圖載入中...</div>
                             </div>
                         </div>
-                        <span class="template-name">經典模板</span>
+                        <div class="template-info">
+                            <span class="template-name">經典模板</span>
+                            <span class="template-desc">簡潔優雅，適合正式場合</span>
+                        </div>
                     </label>
                     
                     <label class="template-card">
                         <input type="radio" name="template" value="2">
                         <div class="template-preview">
-                            <div class="template2-demo">
-                                <div class="demo-image">圖片區域</div>
-                                <div class="demo-title-bar">
-                                    <div class="demo-title">標題文字</div>
-                                    <div class="demo-subtitle">副標題</div>
-                                </div>
-                                <div class="demo-desc">描述內容...</div>
+                            <img src="template2-demo.jpg" alt="模板二示意圖" class="template-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div class="template-fallback" style="display: none;">
+                                <div class="fallback-content">模板二預覽圖載入中...</div>
                             </div>
                         </div>
-                        <span class="template-name">現代模板</span>
+                        <div class="template-info">
+                            <span class="template-name">現代模板</span>
+                            <span class="template-desc">時尚設計，視覺效果突出</span>
+                        </div>
                     </label>
                 </div>
             </section>
@@ -66,17 +66,17 @@
                     <div class="text-inputs">
                         <div class="input-group">
                             <label for="title">主標題</label>
-                            <input type="text" id="title" placeholder="輸入主標題">
+                            <input type="text" id="title" placeholder="輸入主標題" value="美味料理">
                         </div>
                         
                         <div class="input-group">
                             <label for="subtitle">副標題</label>
-                            <input type="text" id="subtitle" placeholder="輸入副標題">
+                            <input type="text" id="subtitle" placeholder="輸入副標題" value="家常菜的藝術">
                         </div>
                         
                         <div class="input-group">
                             <label for="description">描述內容</label>
-                            <textarea id="description" rows="4" placeholder="輸入詳細描述..."></textarea>
+                            <textarea id="description" rows="4" placeholder="輸入詳細描述...">這道菜色香味俱全，採用新鮮食材精心烹製，展現了家常菜的溫暖與美味。</textarea>
                         </div>
                     </div>
                 </div>
@@ -84,7 +84,7 @@
 
             <!-- 預覽與下載區 -->
             <section class="preview-section">
-                <h2>預覽</h2>
+                <h2>預覽結果</h2>
                 <div class="preview-container">
                     <canvas id="canvas" width="800" height="1000"></canvas>
                 </div>
