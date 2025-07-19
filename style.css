@@ -351,16 +351,18 @@ section h2 {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* Preview Section - Canvas 恢復正常一倍大小 */
+/* Preview Section - Canvas 正常一倍大小並正確置中 */
 .preview-container {
     text-align: center;
     margin-bottom: 30px;
-    overflow: auto;
     padding: 30px;
     background: #f8f9fa;
     border-radius: 15px;
-    /* 調整容器高度以適應正常大小的Canvas */
-    max-height: none;
+    /* 確保容器能正確置中內容 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 #canvas {
@@ -371,13 +373,12 @@ section h2 {
     border-radius: 12px;
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     background: white;
+    /* 確保Canvas居中 */
     display: block;
     margin: 0 auto;
     image-rendering: auto;
     image-rendering: crisp-edges;
     image-rendering: -webkit-optimize-contrast;
-    /* 確保大尺寸Canvas不會破壞布局 */
-    max-width: calc(100vw - 100px);
 }
 
 .action-buttons {
@@ -386,6 +387,7 @@ section h2 {
     justify-content: center;
     flex-wrap: wrap;
     margin-top: 30px;
+    width: 100%;
 }
 
 .btn {
@@ -483,7 +485,7 @@ footer {
     }
 
     section {
-        padding: 25px;
+        padding: 20px;
     }
 
     /* 手機版模板改為上下排列 */
@@ -497,22 +499,29 @@ footer {
         height: 392px;
     }
 
-    /* 手機版Canvas適中大小 */
-    #canvas {
-        width: 400px;
-        height: 560px;
-        max-width: calc(100vw - 50px);
-    }
-
+    /* 手機版Canvas置中優化 */
     .preview-container {
         padding: 15px;
-        overflow-x: auto; /* 允許水平滾動 */
+        /* 確保手機版也能正確置中 */
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+
+    #canvas {
+        width: 320px;
+        height: 448px;
+        /* 手機版強制置中 */
+        margin: 0 auto;
+        display: block;
+        /* 確保不超出容器 */
+        max-width: 100%;
     }
 
     .action-buttons {
         flex-direction: column;
         align-items: center;
         gap: 15px;
+        width: 100%;
     }
 
     .btn {
@@ -528,24 +537,26 @@ footer {
         font-size: 1.5rem;
     }
 
+    section {
+        padding: 15px;
+    }
+
     .template-preview {
         max-width: 240px;
         height: 336px;
     }
 
-    /* 小螢幕Canvas縮小 */
-    #canvas {
-        width: 320px;
-        height: 448px;
-        max-width: calc(100vw - 40px);
-    }
-
+    /* 小螢幕Canvas進一步調整 */
     .preview-container {
         padding: 10px;
     }
 
-    section {
-        padding: 15px;
+    #canvas {
+        width: 280px;
+        height: 392px;
+        /* 確保在小螢幕上也能居中 */
+        margin: 0 auto;
+        max-width: calc(100% - 20px);
     }
 }
 
@@ -555,10 +566,11 @@ footer {
         height: 280px;
     }
 
-    /* 極小螢幕Canvas進一步縮小 */
+    /* 極小螢幕Canvas */
     #canvas {
-        width: 280px;
-        height: 392px;
-        max-width: calc(100vw - 30px);
+        width: 240px;
+        height: 336px;
+        margin: 0 auto;
+        max-width: calc(100% - 10px);
     }
 }
