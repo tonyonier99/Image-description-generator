@@ -3,25 +3,21 @@ let canvas, ctx;
 let uploadedImage = null;
 let isGenerated = false;
 
-// 拖曳變數
-let isDragging = false;
-let lastMouseX = 0;
-let lastMouseY = 0;
-let imageOffsetX = 0;
-let imageOffsetY = 0;
-
-// 設計規格
+// 設計規格 - 針對兩個模板的不同需求
 const DESIGN_SPECS = {
     canvas: {
         width: 800,
         height: 1120
     },
+    
     template1: {
         imageArea: {
             x: 54,
             y: 54,
             width: 692,
-            height: 462
+            height: 462,
+            mode: 'cover',           // 智能填滿模式
+            borderRadius: 0          // 無圓角
         },
         decorLine: {
             x: 54,
@@ -63,12 +59,16 @@ const DESIGN_SPECS = {
             lineHeight: 1.6
         }
     },
+    
     template2: {
         imageArea: {
             x: 54,
             y: 54,
             width: 692,
-            height: 462
+            height: 462,
+            mode: 'contain',         // 完整顯示模式
+            borderRadius: 20,        // 圓角半徑
+            backgroundColor: '#f8f9fa' // 留白區域背景色
         },
         titleBar: {
             x: 0,
@@ -115,24 +115,20 @@ const DESIGN_SPECS = {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('開始初始化...');
+    console.log('🎯 啟動模板專用圖片規範化系統');
     
-    try {
-        initializeCanvas();
-        setupEventListeners();
-        setupSimpleDrag();
-        addResetButton();
-        console.log('✅ 初始化完成');
-    } catch (error) {
-        console.error('❌ 初始化失敗:', error);
-    }
+    initializeCanvas();
+    setupBasicEvents();
+    
+    console.log('✅ 初始化完成');
 });
 
 // 初始化 Canvas
 function initializeCanvas() {
     canvas = document.getElementById('canvas');
     if (!canvas) {
-        throw new Error('找不到 canvas 元素');
+        console.error('❌ 找不到 canvas 元素');
+        return;
     }
     
     ctx = canvas.getContext('2d');
@@ -140,47 +136,83 @@ function initializeCanvas() {
     canvas.height = DESIGN_SPECS.canvas.height;
     
     clearCanvas();
-    console.log('✅ Canvas 初始化完成');
+    console.log('✅ Canvas 設定完成');
 }
 
-// 清空 Canvas
+// 清空 Canvas 並顯示提示
 function clearCanvas() {
+    // 清空背景
     ctx.fillStyle = '#f8f9fa';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    ctx.fillStyle = '#999';
+    // 繪製模板一和模板二的圖片區域預覽
+    drawImageAreaPreview();
+    
+    // 顯示提示文字
+    ctx.fillStyle = '#666';
     ctx.font = '24px "Noto Sans TC"';
     ctx.textAlign = 'center';
-    ctx.fillText('請上傳圖片並點擊生成', canvas.width / 2, canvas.height / 2);
-    ctx.fillText('生成後可拖曳圖片', canvas.width / 2, canvas.height / 2 + 40);
+    ctx.fillText('請上傳圖片並選擇模板', canvas.width / 2, canvas.height / 2 + 100);
+    ctx.font = '16px "Noto Sans TC"';
+    ctx.fillText('模板一：智能填滿 | 模板二：完整顯示+圓角', canvas.width / 2, canvas.height / 2 + 130);
+}
+
+// 繪製圖片區域預覽
+function drawImageAreaPreview() {
+    const template1Area = DESIGN_SPECS.template1.imageArea;
+    const template2Area = DESIGN_SPECS.template2.imageArea;
+    
+    // 模板一區域預覽（直角）
+    ctx.strokeStyle = '#007bff';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 5]);
+    ctx.strokeRect(template1Area.x, template1Area.y, template1Area.width, template1Area.height);
+    
+    // 模板二區域預覽（圓角）
+    ctx.strokeStyle = '#28a745';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 10]);
+    drawRoundedRect(ctx, template2Area.x, template2Area.y, template2Area.width, template2Area.height, template2Area.borderRadius, false, true);
+    
+    ctx.setLineDash([]);
+    
+    // 標籤
+    ctx.fillStyle = '#007bff';
+    ctx.font = '14px "Noto Sans TC"';
+    ctx.textAlign = 'left';
+    ctx.fillText('模板一：智能填滿', template1Area.x, template1Area.y - 10);
+    
+    ctx.fillStyle = '#28a745';
+    ctx.fillText('模板二：完整顯示+圓角', template2Area.x, template2Area.y - 30);
 }
 
 // 設定基本事件
-function setupEventListeners() {
+function setupBasicEvents() {
     const imageUpload = document.getElementById('image-upload');
     const generateBtn = document.getElementById('generate-btn');
     const downloadBtn = document.getElementById('download-btn');
     
     if (!imageUpload || !generateBtn || !downloadBtn) {
-        throw new Error('找不到必要的DOM元素');
+        console.error('❌ 找不到必要的DOM元素');
+        return;
     }
     
     imageUpload.addEventListener('change', handleImageUpload);
     generateBtn.addEventListener('click', generateImage);
     downloadBtn.addEventListener('click', downloadImage);
     
-    // 模板切換
+    // 模板切換事件
     const templateInputs = document.querySelectorAll('input[name="template"]');
     templateInputs.forEach(input => {
         input.addEventListener('change', function() {
+            console.log(`🔄 切換到模板${this.value}`);
             if (uploadedImage && isGenerated) {
-                resetImagePosition();
                 generateImage();
             }
         });
     });
     
-    // 文字輸入
+    // 文字輸入即時更新
     const textInputs = ['title', 'subtitle', 'description'];
     textInputs.forEach(id => {
         const input = document.getElementById(id);
@@ -196,136 +228,6 @@ function setupEventListeners() {
     console.log('✅ 事件監聽器設定完成');
 }
 
-// 簡化版拖曳設定
-function setupSimpleDrag() {
-    console.log('設定拖曳功能...');
-    
-    // 滑鼠按下
-    canvas.addEventListener('mousedown', function(e) {
-        console.log('🖱️ 滑鼠按下');
-        
-        if (!isGenerated || !uploadedImage) {
-            console.log('❌ 圖片未生成或未上傳');
-            return;
-        }
-        
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
-        const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
-        
-        console.log(`滑鼠位置: ${mouseX}, ${mouseY}`);
-        
-        // 檢查是否在圖片區域內
-        const template = getSelectedTemplate();
-        const imageArea = DESIGN_SPECS[`template${template}`].imageArea;
-        
-        if (mouseX >= imageArea.x && mouseX <= imageArea.x + imageArea.width &&
-            mouseY >= imageArea.y && mouseY <= imageArea.y + imageArea.height) {
-            
-            isDragging = true;
-            lastMouseX = mouseX;
-            lastMouseY = mouseY;
-            canvas.style.cursor = 'grabbing';
-            
-            console.log('✅ 開始拖曳');
-            e.preventDefault();
-        }
-    });
-    
-    // 滑鼠移動
-    canvas.addEventListener('mousemove', function(e) {
-        if (!isDragging) {
-            // 改變游標
-            if (isGenerated && uploadedImage) {
-                const rect = canvas.getBoundingClientRect();
-                const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
-                const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
-                
-                const template = getSelectedTemplate();
-                const imageArea = DESIGN_SPECS[`template${template}`].imageArea;
-                
-                if (mouseX >= imageArea.x && mouseX <= imageArea.x + imageArea.width &&
-                    mouseY >= imageArea.y && mouseY <= imageArea.y + imageArea.height) {
-                    canvas.style.cursor = 'grab';
-                } else {
-                    canvas.style.cursor = 'default';
-                }
-            }
-            return;
-        }
-        
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
-        const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
-        
-        const deltaX = mouseX - lastMouseX;
-        const deltaY = mouseY - lastMouseY;
-        
-        imageOffsetX += deltaX;
-        imageOffsetY += deltaY;
-        
-        lastMouseX = mouseX;
-        lastMouseY = mouseY;
-        
-        console.log(`🖱️ 拖曳中 offset: ${imageOffsetX}, ${imageOffsetY}`);
-        
-        // 重新繪製
-        generateImage();
-        
-        e.preventDefault();
-    });
-    
-    // 滑鼠放開
-    canvas.addEventListener('mouseup', function(e) {
-        if (isDragging) {
-            isDragging = false;
-            canvas.style.cursor = 'default';
-            console.log('✅ 停止拖曳');
-        }
-    });
-    
-    // 滑鼠離開canvas
-    canvas.addEventListener('mouseleave', function(e) {
-        if (isDragging) {
-            isDragging = false;
-            canvas.style.cursor = 'default';
-            console.log('✅ 滑鼠離開，停止拖曳');
-        }
-    });
-    
-    console.log('✅ 拖曳功能設定完成');
-}
-
-// 添加重置按鈕
-function addResetButton() {
-    const actionButtons = document.querySelector('.action-buttons');
-    if (actionButtons && !document.getElementById('reset-btn')) {
-        const resetBtn = document.createElement('button');
-        resetBtn.className = 'btn';
-        resetBtn.innerHTML = '🔄 重置位置';
-        resetBtn.onclick = resetImagePosition;
-        resetBtn.style.background = '#6c757d';
-        resetBtn.style.color = 'white';
-        resetBtn.style.marginLeft = '10px';
-        resetBtn.disabled = true;
-        resetBtn.id = 'reset-btn';
-        
-        actionButtons.appendChild(resetBtn);
-        console.log('✅ 重置按鈕已添加');
-    }
-}
-
-// 重置圖片位置
-function resetImagePosition() {
-    imageOffsetX = 0;
-    imageOffsetY = 0;
-    console.log('🔄 重置圖片位置');
-    
-    if (uploadedImage && isGenerated) {
-        generateImage();
-    }
-}
-
 // 處理圖片上傳
 function handleImageUpload(event) {
     const file = event.target.files[0];
@@ -337,6 +239,8 @@ function handleImageUpload(event) {
         return;
     }
     
+    console.log('📁 開始處理上傳圖片...');
+    
     const reader = new FileReader();
     
     reader.onload = function(e) {
@@ -344,13 +248,15 @@ function handleImageUpload(event) {
         
         img.onload = function() {
             uploadedImage = img;
-            resetImagePosition();
             showImagePreview(e.target.result);
             document.getElementById('generate-btn').disabled = false;
-            console.log('✅ 圖片上傳成功:', img.width, 'x', img.height);
+            
+            console.log(`✅ 圖片載入成功: ${img.width} × ${img.height}`);
+            console.log(`📊 圖片比例: ${(img.width / img.height).toFixed(2)}`);
         };
         
         img.onerror = function() {
+            console.error('❌ 圖片載入失敗');
             alert('圖片載入失敗！');
         };
         
@@ -364,7 +270,10 @@ function handleImageUpload(event) {
 function showImagePreview(src) {
     const preview = document.getElementById('image-preview');
     if (preview) {
-        preview.innerHTML = `<img src="${src}" alt="預覽圖片" style="max-width: 100%; height: auto;">`;
+        preview.innerHTML = `
+            <img src="${src}" alt="預覽圖片" style="max-width: 100%; height: auto; border-radius: 8px;">
+            <p style="margin-top: 8px; font-size: 12px; color: #666;">原始圖片預覽</p>
+        `;
     }
 }
 
@@ -381,9 +290,9 @@ function generateImage() {
         return;
     }
     
-    console.log('🎨 開始生成圖片...');
-    
     const template = getSelectedTemplate();
+    console.log(`🎨 開始生成模板${template}...`);
+    
     const title = document.getElementById('title').value.trim();
     const subtitle = document.getElementById('subtitle').value.trim();
     const description = document.getElementById('description').value.trim();
@@ -394,19 +303,19 @@ function generateImage() {
     
     backgroundImg.onload = function() {
         console.log('✅ 背景圖載入成功');
-        drawComplete(backgroundImg, template, title, subtitle, description);
+        drawCompleteImage(backgroundImg, template, title, subtitle, description);
     };
     
     backgroundImg.onerror = function() {
         console.log('⚠️ 背景圖載入失敗，使用預設背景');
-        drawComplete(null, template, title, subtitle, description);
+        drawCompleteImage(null, template, title, subtitle, description);
     };
     
     backgroundImg.src = bgImagePath;
 }
 
-// 完整繪製
-function drawComplete(backgroundImg, template, title, subtitle, description) {
+// 完整繪製圖片
+function drawCompleteImage(backgroundImg, template, title, subtitle, description) {
     // 清空canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
@@ -418,58 +327,111 @@ function drawComplete(backgroundImg, template, title, subtitle, description) {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
     
-    // 繪製拖曳圖片
-    drawDraggableImage(template);
-    
-    // 繪製文字
+    // 根據模板選擇不同的圖片處理方式
     if (template === '1') {
+        drawTemplate1Image();
         drawTemplate1Text(title, subtitle, description);
     } else {
+        drawTemplate2Image();
         drawTemplate2Text(title, subtitle, description);
     }
     
     isGenerated = true;
     document.getElementById('download-btn').disabled = false;
-    const resetBtn = document.getElementById('reset-btn');
-    if (resetBtn) resetBtn.disabled = false;
     
-    console.log('✅ 圖片生成完成');
+    console.log(`✅ 模板${template}生成完成`);
 }
 
-// 繪製可拖曳圖片
-function drawDraggableImage(template) {
-    const specs = DESIGN_SPECS[`template${template}`];
+// 模板一：智能填滿圖片 (Cover 模式)
+function drawTemplate1Image() {
+    const specs = DESIGN_SPECS.template1;
     const imageArea = specs.imageArea;
     
-    console.log(`🖼️ 繪製圖片 offset: ${imageOffsetX}, ${imageOffsetY}`);
+    console.log('🖼️ 模板一：智能填滿模式');
     
     // 保存canvas狀態
     ctx.save();
     
-    // 設定裁切區域
+    // 設定裁切區域（直角）
     ctx.beginPath();
     ctx.rect(imageArea.x, imageArea.y, imageArea.width, imageArea.height);
     ctx.clip();
     
-    // 計算圖片顯示大小（保持比例填滿）
+    // 計算Cover模式的尺寸和位置
     const imgRatio = uploadedImage.width / uploadedImage.height;
     const areaRatio = imageArea.width / imageArea.height;
     
-    let drawWidth, drawHeight;
+    let sourceX, sourceY, sourceWidth, sourceHeight;
     
     if (imgRatio > areaRatio) {
-        // 圖片比較寬
-        drawHeight = imageArea.height;
-        drawWidth = imageArea.height * imgRatio;
+        // 圖片比較寬，按高度縮放，裁切左右
+        sourceHeight = uploadedImage.height;
+        sourceWidth = uploadedImage.height * areaRatio;
+        sourceX = (uploadedImage.width - sourceWidth) / 2;
+        sourceY = 0;
     } else {
-        // 圖片比較高
-        drawWidth = imageArea.width;
-        drawHeight = imageArea.width / imgRatio;
+        // 圖片比較高，按寬度縮放，裁切上下
+        sourceWidth = uploadedImage.width;
+        sourceHeight = uploadedImage.width / areaRatio;
+        sourceX = 0;
+        sourceY = (uploadedImage.height - sourceHeight) / 2;
     }
     
-    // 計算繪製位置（考慮偏移）
-    const drawX = imageArea.x + (imageArea.width - drawWidth) / 2 + imageOffsetX;
-    const drawY = imageArea.y + (imageArea.height - drawHeight) / 2 + imageOffsetY;
+    // 繪製圖片（填滿整個區域）
+    ctx.drawImage(
+        uploadedImage,
+        sourceX, sourceY, sourceWidth, sourceHeight,
+        imageArea.x, imageArea.y, imageArea.width, imageArea.height
+    );
+    
+    // 恢復canvas狀態
+    ctx.restore();
+    
+    // 繪製邊框
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(imageArea.x, imageArea.y, imageArea.width, imageArea.height);
+    
+    console.log(`📏 Cover模式 - 原圖:${uploadedImage.width}×${uploadedImage.height} → 裁切:${sourceWidth.toFixed(0)}×${sourceHeight.toFixed(0)} → 顯示:${imageArea.width}×${imageArea.height}`);
+}
+
+// 模板二：完整顯示圓角圖片 (Contain 模式)
+function drawTemplate2Image() {
+    const specs = DESIGN_SPECS.template2;
+    const imageArea = specs.imageArea;
+    
+    console.log('🖼️ 模板二：完整顯示+圓角模式');
+    
+    // 保存canvas狀態
+    ctx.save();
+    
+    // 計算Contain模式的尺寸和位置
+    const imgRatio = uploadedImage.width / uploadedImage.height;
+    const areaRatio = imageArea.width / imageArea.height;
+    
+    let drawWidth, drawHeight, drawX, drawY;
+    
+    if (imgRatio > areaRatio) {
+        // 圖片比較寬，以寬度為準
+        drawWidth = imageArea.width;
+        drawHeight = imageArea.width / imgRatio;
+        drawX = imageArea.x;
+        drawY = imageArea.y + (imageArea.height - drawHeight) / 2;
+    } else {
+        // 圖片比較高，以高度為準
+        drawHeight = imageArea.height;
+        drawWidth = imageArea.height * imgRatio;
+        drawX = imageArea.x + (imageArea.width - drawWidth) / 2;
+        drawY = imageArea.y;
+    }
+    
+    // 先填充背景色（圓角區域）
+    ctx.fillStyle = imageArea.backgroundColor;
+    drawRoundedRect(ctx, imageArea.x, imageArea.y, imageArea.width, imageArea.height, imageArea.borderRadius, true, false);
+    
+    // 設定圓角裁切路徑
+    drawRoundedRect(ctx, drawX, drawY, drawWidth, drawHeight, imageArea.borderRadius, false, false);
+    ctx.clip();
     
     // 繪製圖片
     ctx.drawImage(uploadedImage, drawX, drawY, drawWidth, drawHeight);
@@ -477,13 +439,64 @@ function drawDraggableImage(template) {
     // 恢復canvas狀態
     ctx.restore();
     
-    // 繪製邊框
+    // 繪製圓角邊框
     ctx.strokeStyle = '#ddd';
     ctx.lineWidth = 2;
-    ctx.strokeRect(imageArea.x, imageArea.y, imageArea.width, imageArea.height);
+    drawRoundedRect(ctx, imageArea.x, imageArea.y, imageArea.width, imageArea.height, imageArea.borderRadius, false, true);
+    
+    console.log(`📏 Contain模式 - 原圖:${uploadedImage.width}×${uploadedImage.height} → 顯示:${drawWidth.toFixed(0)}×${drawHeight.toFixed(0)} 位置:(${drawX.toFixed(0)},${drawY.toFixed(0)})`);
 }
 
-// 文字換行
+// 繪製圓角矩形的輔助函數
+function drawRoundedRect(ctx, x, y, width, height, radius, fill = false, stroke = false) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.arcTo(x + width, y, x + width, y + height, radius);
+    ctx.arcTo(x + width, y + height, x, y + height, radius);
+    ctx.arcTo(x, y + height, x, y, radius);
+    ctx.arcTo(x, y, x + width, y, radius);
+    ctx.closePath();
+    
+    if (fill) {
+        ctx.fill();
+    }
+    if (stroke) {
+        ctx.stroke();
+    }
+}
+
+// 智能文字大小計算
+function calculateSmartFontSize(text, style, maxWidth, maxLines = 999) {
+    if (!text) return style.baseFontSize;
+    
+    const words = text.length;
+    let fontSize = style.baseFontSize;
+    
+    // 根據文字長度調整基礎大小
+    if (words > 50) {
+        fontSize = Math.max(style.minFontSize, fontSize - 8);
+    } else if (words > 30) {
+        fontSize = Math.max(style.minFontSize, fontSize - 4);
+    } else if (words > 15) {
+        fontSize = Math.max(style.minFontSize, fontSize - 2);
+    } else if (words < 8) {
+        fontSize = Math.min(style.maxFontSize, fontSize + 4);
+    }
+    
+    // 測試是否能在指定行數內顯示
+    for (let testSize = fontSize; testSize >= style.minFontSize; testSize -= 2) {
+        ctx.font = `${style.fontWeight} ${testSize}px "Noto Sans TC"`;
+        const lines = wrapText(text, maxWidth);
+        
+        if (lines.length <= maxLines) {
+            return testSize;
+        }
+    }
+    
+    return style.minFontSize;
+}
+
+// 文字換行處理
 function wrapText(text, maxWidth) {
     const words = text.split('');
     const lines = [];
@@ -508,83 +521,96 @@ function wrapText(text, maxWidth) {
     return lines;
 }
 
-// 模板一文字
+// 模板一文字繪製
 function drawTemplate1Text(title, subtitle, description) {
     const specs = DESIGN_SPECS.template1;
     let currentY = specs.textArea.y;
     
-    // 裝飾線
+    // 繪製裝飾線
     ctx.fillStyle = specs.decorLine.color;
     ctx.fillRect(specs.decorLine.x, specs.decorLine.y, specs.decorLine.width, specs.decorLine.height);
     
     // 標題
     if (title) {
-        ctx.font = `${specs.titleStyle.fontWeight} ${specs.titleStyle.baseFontSize}px "Noto Sans TC"`;
+        const titleFontSize = calculateSmartFontSize(title, specs.titleStyle, specs.textArea.maxWidth, 2);
+        ctx.font = `${specs.titleStyle.fontWeight} ${titleFontSize}px "Noto Sans TC"`;
         ctx.fillStyle = specs.titleStyle.color;
         ctx.textAlign = 'left';
         
         const titleLines = wrapText(title, specs.textArea.maxWidth);
-        currentY += specs.titleStyle.baseFontSize * specs.titleStyle.lineHeight;
+        const titleLineHeight = titleFontSize * specs.titleStyle.lineHeight;
         
+        currentY += titleLineHeight;
         titleLines.forEach((line, index) => {
-            ctx.fillText(line, specs.textArea.x, currentY + (index * specs.titleStyle.baseFontSize * specs.titleStyle.lineHeight));
+            ctx.fillText(line, specs.textArea.x, currentY + (index * titleLineHeight));
         });
         
-        currentY += (titleLines.length - 1) * specs.titleStyle.baseFontSize * specs.titleStyle.lineHeight + specs.titleStyle.marginBottom;
+        currentY += (titleLines.length - 1) * titleLineHeight + specs.titleStyle.marginBottom;
     }
     
     // 副標題
     if (subtitle) {
-        ctx.font = `${specs.subtitleStyle.fontWeight} ${specs.subtitleStyle.baseFontSize}px "Noto Sans TC"`;
+        const subtitleFontSize = calculateSmartFontSize(subtitle, specs.subtitleStyle, specs.textArea.maxWidth, 2);
+        ctx.font = `${specs.subtitleStyle.fontWeight} ${subtitleFontSize}px "Noto Sans TC"`;
         ctx.fillStyle = specs.subtitleStyle.color;
         ctx.textAlign = 'left';
         
         const subtitleLines = wrapText(subtitle, specs.textArea.maxWidth);
+        const subtitleLineHeight = subtitleFontSize * specs.subtitleStyle.lineHeight;
         
         subtitleLines.forEach((line, index) => {
-            ctx.fillText(line, specs.textArea.x, currentY + (index * specs.subtitleStyle.baseFontSize * specs.subtitleStyle.lineHeight));
+            ctx.fillText(line, specs.textArea.x, currentY + (index * subtitleLineHeight));
         });
         
-        currentY += (subtitleLines.length * specs.subtitleStyle.baseFontSize * specs.subtitleStyle.lineHeight) + specs.subtitleStyle.marginBottom;
+        currentY += (subtitleLines.length * subtitleLineHeight) + specs.subtitleStyle.marginBottom;
     }
     
-    // 描述
+    // 描述文字
     if (description) {
-        ctx.font = `${specs.descriptionStyle.fontWeight} ${specs.descriptionStyle.baseFontSize}px "Noto Sans TC"`;
+        const remainingHeight = specs.textArea.maxHeight - (currentY - specs.textArea.y);
+        const maxDescriptionLines = Math.floor(remainingHeight / (specs.descriptionStyle.baseFontSize * specs.descriptionStyle.lineHeight));
+        
+        const descriptionFontSize = calculateSmartFontSize(description, specs.descriptionStyle, specs.textArea.maxWidth, maxDescriptionLines);
+        ctx.font = `${specs.descriptionStyle.fontWeight} ${descriptionFontSize}px "Noto Sans TC"`;
         ctx.fillStyle = specs.descriptionStyle.color;
         ctx.textAlign = 'left';
         
         const descriptionLines = wrapText(description, specs.textArea.maxWidth);
+        const descriptionLineHeight = descriptionFontSize * specs.descriptionStyle.lineHeight;
         
-        descriptionLines.forEach((line, index) => {
-            ctx.fillText(line, specs.textArea.x, currentY + (index * specs.descriptionStyle.baseFontSize * specs.descriptionStyle.lineHeight));
+        const displayLines = descriptionLines.slice(0, maxDescriptionLines);
+        
+        displayLines.forEach((line, index) => {
+            ctx.fillText(line, specs.textArea.x, currentY + (index * descriptionLineHeight));
         });
     }
 }
 
-// 模板二文字
+// 模板二文字繪製
 function drawTemplate2Text(title, subtitle, description) {
     const specs = DESIGN_SPECS.template2;
     
-    // 標題背景條
+    // 繪製標題背景條
     ctx.fillStyle = specs.titleBar.backgroundColor;
     ctx.fillRect(specs.titleBar.x, specs.titleBar.y, specs.titleBar.width, specs.titleBar.height);
     
-    let titleBarY = specs.titleBar.y + 40;
+    let titleBarY = specs.titleBar.y + 30;
     
     // 標題
     if (title) {
-        ctx.font = `${specs.titleStyle.fontWeight} ${specs.titleStyle.baseFontSize}px "Noto Sans TC"`;
+        const titleFontSize = calculateSmartFontSize(title, specs.titleStyle, specs.titleBar.width - 100, 1);
+        ctx.font = `${specs.titleStyle.fontWeight} ${titleFontSize}px "Noto Sans TC"`;
         ctx.fillStyle = specs.titleStyle.color;
         ctx.textAlign = 'center';
         
         ctx.fillText(title, specs.titleBar.width / 2, titleBarY);
-        titleBarY += specs.titleStyle.baseFontSize + 10;
+        titleBarY += titleFontSize + 10;
     }
     
     // 副標題
     if (subtitle) {
-        ctx.font = `${specs.subtitleStyle.fontWeight} ${specs.subtitleStyle.baseFontSize}px "Noto Sans TC"`;
+        const subtitleFontSize = calculateSmartFontSize(subtitle, specs.subtitleStyle, specs.titleBar.width - 100, 1);
+        ctx.font = `${specs.subtitleStyle.fontWeight} ${subtitleFontSize}px "Noto Sans TC"`;
         ctx.fillStyle = specs.subtitleStyle.color;
         ctx.globalAlpha = specs.subtitleStyle.opacity || 1;
         ctx.textAlign = 'center';
@@ -593,16 +619,22 @@ function drawTemplate2Text(title, subtitle, description) {
         ctx.globalAlpha = 1.0;
     }
     
-    // 描述
+    // 描述文字
     if (description) {
-        ctx.font = `${specs.descriptionStyle.fontWeight} ${specs.descriptionStyle.baseFontSize}px "Noto Sans TC"`;
+        const maxDescriptionLines = Math.floor(specs.textArea.maxHeight / (specs.descriptionStyle.baseFontSize * specs.descriptionStyle.lineHeight));
+        
+        const descriptionFontSize = calculateSmartFontSize(description, specs.descriptionStyle, specs.textArea.maxWidth, maxDescriptionLines);
+        ctx.font = `${specs.descriptionStyle.fontWeight} ${descriptionFontSize}px "Noto Sans TC"`;
         ctx.fillStyle = specs.descriptionStyle.color;
         ctx.textAlign = 'left';
         
         const descriptionLines = wrapText(description, specs.textArea.maxWidth);
+        const descriptionLineHeight = descriptionFontSize * specs.descriptionStyle.lineHeight;
         
-        descriptionLines.forEach((line, index) => {
-            ctx.fillText(line, specs.textArea.x, specs.textArea.y + ((index + 1) * specs.descriptionStyle.baseFontSize * specs.descriptionStyle.lineHeight));
+        const displayLines = descriptionLines.slice(0, maxDescriptionLines);
+        
+        displayLines.forEach((line, index) => {
+            ctx.fillText(line, specs.textArea.x, specs.textArea.y + ((index + 1) * descriptionLineHeight));
         });
     }
 }
@@ -618,17 +650,23 @@ function downloadImage() {
         const link = document.createElement('a');
         const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
         const template = getSelectedTemplate();
+        const mode = template === '1' ? 'Cover' : 'Contain-RoundCorner';
         
-        link.download = `拖曳圖片_模板${template}_${timestamp}.png`;
+        link.download = `圖片生成器_模板${template}_${mode}_${timestamp}.png`;
         link.href = canvas.toDataURL('image/png', 1.0);
         
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         
-        console.log('✅ 圖片下載完成');
+        console.log(`✅ 下載完成: 模板${template} (${mode}模式)`);
     } catch (error) {
         console.error('❌ 下載失敗:', error);
         alert('下載失敗，請重試！');
     }
 }
+
+// 錯誤處理
+window.addEventListener('error', function(e) {
+    console.error('發生錯誤:', e.error);
+});
