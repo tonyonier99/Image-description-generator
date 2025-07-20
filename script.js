@@ -66,9 +66,9 @@ let imageSettings = {
 // 文字偏移（兩個模板分別記錄）
 let textOffsets = {
     template1: {
-        title: { x: 0, y: 0 },
-        subtitle: { x: 0, y: 0 },
-        description: { x: 0, y: 0 }
+        title: { x: -2, y: 20 },
+        subtitle: { x: 1, y: 39 },
+        description: { x: -38, y: 35 }
     },
     template2: {
         title: { x: -50, y: -190 },
@@ -81,7 +81,7 @@ let textOffsets = {
 let userTextStyles = {
     template1: {
         title: {
-            fontSize: 48,
+            fontSize: 75,
             fontFamily: 'Noto Sans TC',
             color: '#564529',
             fontWeight: 'bold',
@@ -91,24 +91,24 @@ let userTextStyles = {
             height: 80
         },
         subtitle: {
-            fontSize: 24,
+            fontSize: 26,
             fontFamily: 'Noto Sans TC',
             color: '#564529',
-            fontWeight: 'normal',
+            fontWeight: 'lighter',
             letterSpacing: 0,
             lineHeight: 1.3,
             width: 640,
             height: 60
         },
         description: {
-            fontSize: 18,
+            fontSize: 20,
             fontFamily: 'Noto Sans TC',
             color: '#8E7F69',
-            fontWeight: 'normal',
-            letterSpacing: 0,
-            lineHeight: 1.6,
-            width: 640,
-            height: 380
+            fontWeight: 'lighter',
+            letterSpacing: 1,
+            lineHeight: 1.8,
+            width: 700,
+            height: 300
         }
     },
     template2: {
