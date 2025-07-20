@@ -14,6 +14,36 @@ let imageOffsetX = 0;
 let imageOffsetY = 0;
 let imageScale = 1;
 
+// 🖼️ 新增：圖片設定變數
+let imageSettings = {
+    template1: {
+        borderRadius: 0,
+        offsetX: 0,
+        offsetY: 0,
+        width: 800,
+        height: 504,
+        scale: 1,
+        opacity: 1,
+        blur: 0,
+        brightness: 100,
+        contrast: 100,
+        saturation: 100
+    },
+    template2: {
+        borderRadius: 20,
+        offsetX: 25,
+        offsetY: 25,
+        width: 750,
+        height: 480,
+        scale: 1,
+        opacity: 1,
+        blur: 0,
+        brightness: 100,
+        contrast: 100,
+        saturation: 100
+    }
+};
+
 // 文字偏移（兩個模板分別記錄）
 let textOffsets = {
     template1: {
@@ -205,6 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupBasicEvents();
     setupDragSystem();
     setupTextStyleControls();
+    setupImageControls(); // 🖼️ 新增：設置圖片控制面板
     addControlButtons();
     addPositionLogger();
     
@@ -391,11 +422,14 @@ function setupBasicEvents() {
             
             // 不要重置樣式，保持用戶的預設值
             updateTextStylePanel();
+            // 🖼️ 新增：更新圖片控制面板
+            updateImageControlPanel();
             
             // 記錄當前模板的設定
             const template = this.value;
             console.log(`模板${template}標題設定:`, userTextStyles[`template${template}`].title);
             console.log(`模板${template}位置偏移:`, textOffsets[`template${template}`]);
+            console.log(`模板${template}圖片設定:`, imageSettings[`template${template}`]);
             
             if (uploadedImage && isGenerated) {
                 generateImage();
@@ -424,6 +458,13 @@ function setupTextStyleControls() {
     createTextStylePanel();
     updateTextStylePanel();
     console.log('✅ 文字樣式控制面板設定完成');
+}
+
+// 🖼️ 新增：設定圖片控制面板
+function setupImageControls() {
+    createImageControlPanel();
+    updateImageControlPanel();
+    console.log('✅ 圖片控制面板設定完成');
 }
 
 // 創建文字樣式控制面板（預設收合）
@@ -1201,9 +1242,16 @@ function detectClickArea(x, y) {
     
     const template = getSelectedTemplate();
     const specs = DESIGN_SPECS[`template${template}`];
+    const settings = imageSettings[`template${template}`];
     
-    // 檢查圖片區域
-    const imageArea = specs.imageArea;
+    // 🖼️ 修改：檢查動態圖片區域
+    const imageArea = {
+        x: settings.offsetX,
+        y: settings.offsetY,
+        width: settings.width,
+        height: settings.height
+    };
+    
     if (x >= imageArea.x && x <= imageArea.x + imageArea.width &&
         y >= imageArea.y && y <= imageArea.y + imageArea.height) {
         return 'image';
@@ -1410,6 +1458,7 @@ function handleImageUpload(event) {
             resetImagePosition();
             resetTextPositions();
             showImagePreview(e.target.result);
+            updateCurrentImageInfo(); // 🖼️ 新增：更新圖片資訊
             document.getElementById('generate-btn').disabled = false;
             
             console.log(`✅ 圖片載入成功: ${img.width} × ${img.height}`);
@@ -1433,6 +1482,22 @@ function showImagePreview(src) {
         preview.innerHTML = `
             <img src="${src}" alt="預覽圖片" style="max-width: 100%; height: auto; border-radius: 8px;">
             <p style="margin-top: 8px; font-size: 12px; color: #666;">原始圖片預覽</p>
+        `;
+    }
+    
+    // 🖼️ 新增：更新當前圖片資訊
+    updateCurrentImageInfo();
+}
+
+// 🖼️ 新增：更新當前圖片資訊
+function updateCurrentImageInfo() {
+    const infoElement = document.getElementById('current-image-info');
+    if (infoElement && uploadedImage) {
+        infoElement.innerHTML = `
+            <div class="current-image-info">
+                📸 已載入圖片：${uploadedImage.width} × ${uploadedImage.height} pixels<br>
+                🎛️ 可在下方調整圖片位置、尺寸與效果
+            </div>
         `;
     }
 }
@@ -1508,18 +1573,436 @@ function drawCompleteImage(backgroundImg, template, title, subtitle, description
     console.log(`✅ 模板${template}生成完成（最終版）`);
 }
 
-// 模板一：45%滿版圖片
-function drawTemplate1_45PercentImage() {
-    const specs = DESIGN_SPECS.template1;
-    const imageArea = specs.imageArea;
+// 🖼️ 新增：創建圖片控制面板
+function createImageControlPanel() {
+    const container = document.querySelector('.container');
+    if (!container) return;
     
-    console.log('🖼️ 模板一：45%滿版圖片（800×504）');
+    if (document.getElementById('image-control-panel')) return;
+    
+    const imagePanel = document.createElement('div');
+    imagePanel.id = 'image-control-panel';
+    imagePanel.className = 'style-panel';
+    imagePanel.innerHTML = `
+        <div class="panel-header">
+            <h3>🖼️ 圖片控制面板</h3>
+            <button id="toggle-image-panel" class="btn-small">展開</button>
+        </div>
+        <div class="panel-content" id="image-panel-content" style="display: block;">
+            <!-- 額外的圖片上傳入口 -->
+            <div class="image-upload-section">
+                <h4>📁 圖片管理</h4>
+                <label for="image-upload-alt" class="upload-label-small">
+                    <span>🔄 更換圖片</span>
+                </label>
+                <input type="file" id="image-upload-alt" accept="image/*" hidden>
+                <div id="current-image-info"></div>
+            </div>
+            
+            <div class="image-controls" id="image-controls">
+                <!-- 動態生成內容 -->
+            </div>
+        </div>
+    `;
+    
+    // 找到文字控制面板，在其後插入圖片控制面板
+    const textStylePanel = document.getElementById('text-style-panel');
+    if (textStylePanel) {
+        textStylePanel.insertAdjacentElement('afterend', imagePanel);
+    } else {
+        const inputSection = document.querySelector('.input-section');
+        if (inputSection) {
+            inputSection.insertAdjacentElement('afterend', imagePanel);
+        } else {
+            container.appendChild(imagePanel);
+        }
+    }
+    
+    setupImagePanelEvents();
+}
+
+// 🖼️ 新增：設置圖片面板事件
+function setupImagePanelEvents() {
+    const toggleBtn = document.getElementById('toggle-image-panel');
+    const panelContent = document.getElementById('image-panel-content');
+    
+    if (toggleBtn && panelContent) {
+        toggleBtn.addEventListener('click', function() {
+            const isCollapsed = panelContent.style.display === 'none';
+            panelContent.style.display = isCollapsed ? 'block' : 'none';
+            this.textContent = isCollapsed ? '收合' : '展開';
+        });
+    }
+    
+    // 額外圖片上傳入口
+    const altImageUpload = document.getElementById('image-upload-alt');
+    if (altImageUpload) {
+        altImageUpload.addEventListener('change', handleImageUpload);
+    }
+}
+
+// 🖼️ 新增：更新圖片控制面板
+function updateImageControlPanel() {
+    const template = getSelectedTemplate();
+    const controlsContainer = document.getElementById('image-controls');
+    
+    if (!controlsContainer) return;
+    
+    const currentSettings = imageSettings[`template${template}`];
+    
+    controlsContainer.innerHTML = `
+        <div class="template-info">
+            📐 當前模板${template}圖片設定：<br>
+            位置：X=${currentSettings.offsetX}, Y=${currentSettings.offsetY}<br>
+            尺寸：${currentSettings.width}×${currentSettings.height} | 縮放：${currentSettings.scale}x<br>
+            圓角：${currentSettings.borderRadius}px | 透明度：${currentSettings.opacity * 100}% | 模糊：${currentSettings.blur}px
+        </div>
+        
+        <div class="section-title">📍 位置與尺寸</div>
+        
+        <div class="control-group two-column">
+            <label>位置調整</label>
+            <div class="xy-controls">
+                <div class="xy-input">
+                    <label>X軸</label>
+                    <input type="range" id="img-offsetX" min="-200" max="200" value="${currentSettings.offsetX}" step="1">
+                    <span class="range-value">${currentSettings.offsetX}px</span>
+                </div>
+                <div class="xy-input">
+                    <label>Y軸</label>
+                    <input type="range" id="img-offsetY" min="-200" max="200" value="${currentSettings.offsetY}" step="1">
+                    <span class="range-value">${currentSettings.offsetY}px</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="control-group two-column">
+            <label>尺寸調整</label>
+            <div class="control-group-inline">
+                <div class="control-item">
+                    <label>寬度 (px)</label>
+                    <input type="range" id="img-width" min="300" max="800" value="${currentSettings.width}" step="10">
+                    <span class="range-value">${currentSettings.width}px</span>
+                </div>
+                <div class="control-item">
+                    <label>高度 (px)</label>
+                    <input type="range" id="img-height" min="200" max="600" value="${currentSettings.height}" step="10">
+                    <span class="range-value">${currentSettings.height}px</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label>縮放比例</label>
+            <input type="range" id="img-scale" min="0.5" max="3" value="${currentSettings.scale}" step="0.1">
+            <div class="range-value">${currentSettings.scale}x</div>
+        </div>
+        
+        <div class="section-divider"></div>
+        <div class="section-title">🎨 外觀效果</div>
+        
+        <div class="control-group">
+            <label>圓角半徑 (0-100px)</label>
+            <input type="range" id="img-borderRadius" min="0" max="100" value="${currentSettings.borderRadius}" step="1">
+            <div class="range-value">${currentSettings.borderRadius}px</div>
+        </div>
+        
+        <div class="control-group">
+            <label>透明度 (10-100%)</label>
+            <input type="range" id="img-opacity" min="0.1" max="1" value="${currentSettings.opacity}" step="0.05">
+            <div class="range-value">${Math.round(currentSettings.opacity * 100)}%</div>
+        </div>
+        
+        <div class="control-group">
+            <label>模糊效果 (0-15px)</label>
+            <input type="range" id="img-blur" min="0" max="15" value="${currentSettings.blur}" step="0.5">
+            <div class="range-value">${currentSettings.blur}px</div>
+        </div>
+        
+        <div class="section-divider"></div>
+        <div class="section-title">🌈 色彩濾鏡</div>
+        
+        <div class="control-group">
+            <label>亮度 (30-200%)</label>
+            <input type="range" id="img-brightness" min="30" max="200" value="${currentSettings.brightness}" step="5">
+            <div class="range-value">${currentSettings.brightness}%</div>
+        </div>
+        
+        <div class="control-group">
+            <label>對比度 (30-200%)</label>
+            <input type="range" id="img-contrast" min="30" max="200" value="${currentSettings.contrast}" step="5">
+            <div class="range-value">${currentSettings.contrast}%</div>
+        </div>
+        
+        <div class="control-group">
+            <label>飽和度 (0-300%)</label>
+            <input type="range" id="img-saturation" min="0" max="300" value="${currentSettings.saturation}" step="10">
+            <div class="range-value">${currentSettings.saturation}%</div>
+        </div>
+        
+        <div class="section-divider"></div>
+        <div class="section-title">⚡ 快速預設</div>
+        
+        <div class="control-group">
+            <label>預設樣式</label>
+            <div class="preset-buttons">
+                <button class="preset-btn" onclick="applyImagePreset('default')">預設樣式</button>
+                <button class="preset-btn" onclick="applyImagePreset('rounded')">圓角效果</button>
+                <button class="preset-btn" onclick="applyImagePreset('circle')">圓形裁切</button>
+                <button class="preset-btn" onclick="applyImagePreset('vintage')">復古濾鏡</button>
+                <button class="preset-btn" onclick="applyImagePreset('vibrant')">鮮豔色彩</button>
+                <button class="preset-btn" onclick="applyImagePreset('soft')">柔和效果</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div class="preset-buttons">
+                <button class="preset-btn" onclick="resetImageSettings()">重置所有設定</button>
+            </div>
+        </div>
+    `;
+    
+    bindImageControlEvents();
+}
+
+// 🖼️ 新增：綁定圖片控制事件
+function bindImageControlEvents() {
+    const template = getSelectedTemplate();
+    
+    // 位置控制
+    ['offsetX', 'offsetY'].forEach(prop => {
+        const input = document.getElementById(`img-${prop}`);
+        if (input) {
+            input.addEventListener('input', function() {
+                imageSettings[`template${template}`][prop] = parseInt(this.value);
+                this.nextElementSibling.textContent = this.value + 'px';
+                updateImageInfo();
+                if (uploadedImage && isGenerated) {
+                    generateImage();
+                }
+            });
+        }
+    });
+    
+    // 尺寸控制
+    ['width', 'height'].forEach(prop => {
+        const input = document.getElementById(`img-${prop}`);
+        if (input) {
+            input.addEventListener('input', function() {
+                imageSettings[`template${template}`][prop] = parseInt(this.value);
+                this.nextElementSibling.textContent = this.value + 'px';
+                updateImageInfo();
+                if (uploadedImage && isGenerated) {
+                    generateImage();
+                }
+            });
+        }
+    });
+    
+    // 縮放控制
+    const scaleInput = document.getElementById('img-scale');
+    if (scaleInput) {
+        scaleInput.addEventListener('input', function() {
+            imageSettings[`template${template}`].scale = parseFloat(this.value);
+            this.nextElementSibling.textContent = this.value + 'x';
+            updateImageInfo();
+            if (uploadedImage && isGenerated) {
+                generateImage();
+            }
+        });
+    }
+    
+    // 外觀效果控制
+    const borderRadiusInput = document.getElementById('img-borderRadius');
+    if (borderRadiusInput) {
+        borderRadiusInput.addEventListener('input', function() {
+            imageSettings[`template${template}`].borderRadius = parseInt(this.value);
+            this.nextElementSibling.textContent = this.value + 'px';
+            updateImageInfo();
+            if (uploadedImage && isGenerated) {
+                generateImage();
+            }
+        });
+    }
+    
+    const opacityInput = document.getElementById('img-opacity');
+    if (opacityInput) {
+        opacityInput.addEventListener('input', function() {
+            imageSettings[`template${template}`].opacity = parseFloat(this.value);
+            this.nextElementSibling.textContent = Math.round(this.value * 100) + '%';
+            updateImageInfo();
+            if (uploadedImage && isGenerated) {
+                generateImage();
+            }
+        });
+    }
+    
+    const blurInput = document.getElementById('img-blur');
+    if (blurInput) {
+        blurInput.addEventListener('input', function() {
+            imageSettings[`template${template}`].blur = parseFloat(this.value);
+            this.nextElementSibling.textContent = this.value + 'px';
+            updateImageInfo();
+            if (uploadedImage && isGenerated) {
+                generateImage();
+            }
+        });
+    }
+    
+    // 色彩濾鏡控制
+    ['brightness', 'contrast', 'saturation'].forEach(prop => {
+        const input = document.getElementById(`img-${prop}`);
+        if (input) {
+            input.addEventListener('input', function() {
+                imageSettings[`template${template}`][prop] = parseInt(this.value);
+                this.nextElementSibling.textContent = this.value + '%';
+                updateImageInfo();
+                if (uploadedImage && isGenerated) {
+                    generateImage();
+                }
+            });
+        }
+    });
+}
+
+// 🖼️ 新增：更新圖片資訊顯示
+function updateImageInfo() {
+    const template = getSelectedTemplate();
+    const settings = imageSettings[`template${template}`];
+    const infoElement = document.querySelector('.template-info');
+    
+    if (infoElement) {
+        infoElement.innerHTML = `
+            📐 當前模板${template}圖片設定：<br>
+            位置：X=${settings.offsetX}, Y=${settings.offsetY}<br>
+            尺寸：${settings.width}×${settings.height} | 縮放：${settings.scale}x<br>
+            圓角：${settings.borderRadius}px | 透明度：${Math.round(settings.opacity * 100)}% | 模糊：${settings.blur}px<br>
+            濾鏡：亮度${settings.brightness}% | 對比度${settings.contrast}% | 飽和度${settings.saturation}%
+        `;
+    }
+}
+
+// 🖼️ 新增：全局函數 - 應用圖片預設
+window.applyImagePreset = function(presetName) {
+    const template = getSelectedTemplate();
+    const settings = imageSettings[`template${template}`];
+    
+    const presets = {
+        default: {
+            borderRadius: template === '1' ? 0 : 20,
+            opacity: 1,
+            blur: 0,
+            brightness: 100,
+            contrast: 100,
+            saturation: 100,
+            scale: 1
+        },
+        rounded: {
+            borderRadius: 30,
+            opacity: 1,
+            blur: 0,
+            brightness: 100,
+            contrast: 100,
+            saturation: 100
+        },
+        circle: {
+            borderRadius: Math.min(settings.width, settings.height) / 2,
+            opacity: 1,
+            blur: 0,
+            brightness: 100,
+            contrast: 100,
+            saturation: 100
+        },
+        vintage: {
+            brightness: 85,
+            contrast: 120,
+            saturation: 70,
+            opacity: 0.9,
+            blur: 0.5
+        },
+        vibrant: {
+            brightness: 110,
+            contrast: 130,
+            saturation: 150,
+            opacity: 1,
+            blur: 0
+        },
+        soft: {
+            brightness: 105,
+            contrast: 90,
+            saturation: 80,
+            opacity: 0.8,
+            blur: 1
+        }
+    };
+    
+    if (presets[presetName]) {
+        Object.assign(settings, presets[presetName]);
+        updateImageControlPanel();
+        if (uploadedImage && isGenerated) {
+            generateImage();
+        }
+        console.log(`🎨 應用圖片預設: ${presetName}`);
+    }
+};
+
+// 🖼️ 新增：全局函數 - 重置圖片設定
+window.resetImageSettings = function() {
+    const template = getSelectedTemplate();
+    
+    // 重置到模板預設值
+    imageSettings[`template${template}`] = {
+        borderRadius: template === '1' ? 0 : 20,
+        offsetX: template === '1' ? 0 : 25,
+        offsetY: template === '1' ? 0 : 25,
+        width: template === '1' ? 800 : 750,
+        height: template === '1' ? 504 : 480,
+        scale: 1,
+        opacity: 1,
+        blur: 0,
+        brightness: 100,
+        contrast: 100,
+        saturation: 100
+    };
+    
+    updateImageControlPanel();
+    if (uploadedImage && isGenerated) {
+        generateImage();
+    }
+    console.log(`🔄 重置模板${template}圖片設定`);
+};
+
+// 模板一：45%滿版圖片（使用圖片設定）
+function drawTemplate1_45PercentImage() {
+    const template = getSelectedTemplate();
+    const settings = imageSettings[`template${template}`];
+    const specs = DESIGN_SPECS.template1;
+    
+    // 使用設定中的位置和尺寸
+    const imageArea = {
+        x: settings.offsetX,
+        y: settings.offsetY,
+        width: settings.width,
+        height: settings.height
+    };
+    
+    console.log('🖼️ 模板一：動態圖片設定', imageArea);
     
     ctx.save();
     
-    ctx.beginPath();
-    ctx.rect(imageArea.x, imageArea.y, imageArea.width, imageArea.height);
-    ctx.clip();
+    // 應用濾鏡效果
+    ctx.filter = `brightness(${settings.brightness}%) contrast(${settings.contrast}%) saturate(${settings.saturation}%) blur(${settings.blur}px)`;
+    ctx.globalAlpha = settings.opacity;
+    
+    // 裁切區域（應用圓角）
+    if (settings.borderRadius > 0) {
+        drawRoundedRect(ctx, imageArea.x, imageArea.y, imageArea.width, imageArea.height, settings.borderRadius, false, false);
+        ctx.clip();
+    } else {
+        ctx.beginPath();
+        ctx.rect(imageArea.x, imageArea.y, imageArea.width, imageArea.height);
+        ctx.clip();
+    }
     
     const imgRatio = uploadedImage.width / uploadedImage.height;
     const areaRatio = imageArea.width / imageArea.height;
@@ -1534,8 +2017,8 @@ function drawTemplate1_45PercentImage() {
         baseHeight = imageArea.width / imgRatio;
     }
     
-    const scaledWidth = baseWidth * imageScale;
-    const scaledHeight = baseHeight * imageScale;
+    const scaledWidth = baseWidth * settings.scale;
+    const scaledHeight = baseHeight * settings.scale;
     
     const centerX = imageArea.x + (imageArea.width - scaledWidth) / 2;
     const centerY = imageArea.y + (imageArea.height - scaledHeight) / 2;
@@ -1556,19 +2039,33 @@ function drawTemplate1_45PercentImage() {
         ctx.setLineDash([]);
     }
     
-    console.log(`📏 45%滿版圖片 - 區域:${imageArea.width}×${imageArea.height}(45%)`);
+    console.log(`📏 模板一動態圖片 - 區域:${imageArea.width}×${imageArea.height}, 圓角:${settings.borderRadius}px, 濾鏡:亮度${settings.brightness}%`);
 }
 
-// 模板二：延伸圓角圖片（無色塊）
+// 模板二：延伸圓角圖片（使用圖片設定）
 function drawTemplate2ExtendedImage() {
+    const template = getSelectedTemplate();
+    const settings = imageSettings[`template${template}`];
     const specs = DESIGN_SPECS.template2;
-    const imageArea = specs.imageArea;
     
-    console.log(`🖼️ 模板二：延伸圓角圖片 (${imageArea.width}×${imageArea.height}) 位置:(${imageArea.x},${imageArea.y})`);
+    // 使用設定中的位置和尺寸
+    const imageArea = {
+        x: settings.offsetX,
+        y: settings.offsetY,
+        width: settings.width,
+        height: settings.height
+    };
+    
+    console.log(`🖼️ 模板二：動態圓角圖片 (${imageArea.width}×${imageArea.height}) 位置:(${imageArea.x},${imageArea.y})`);
     
     ctx.save();
     
-    drawRoundedRect(ctx, imageArea.x, imageArea.y, imageArea.width, imageArea.height, imageArea.borderRadius, false, false);
+    // 應用濾鏡效果
+    ctx.filter = `brightness(${settings.brightness}%) contrast(${settings.contrast}%) saturate(${settings.saturation}%) blur(${settings.blur}px)`;
+    ctx.globalAlpha = settings.opacity;
+    
+    // 裁切區域（使用設定中的圓角半徑）
+    drawRoundedRect(ctx, imageArea.x, imageArea.y, imageArea.width, imageArea.height, settings.borderRadius, false, false);
     ctx.clip();
     
     const imgRatio = uploadedImage.width / uploadedImage.height;
@@ -1584,8 +2081,8 @@ function drawTemplate2ExtendedImage() {
         baseHeight = imageArea.width / imgRatio;
     }
     
-    const scaledWidth = baseWidth * imageScale;
-    const scaledHeight = baseHeight * imageScale;
+    const scaledWidth = baseWidth * settings.scale;
+    const scaledHeight = baseHeight * settings.scale;
     
     const centerX = imageArea.x + (imageArea.width - scaledWidth) / 2;
     const centerY = imageArea.y + (imageArea.height - scaledHeight) / 2;
@@ -1602,11 +2099,11 @@ function drawTemplate2ExtendedImage() {
         ctx.strokeStyle = '#dc3545';
         ctx.lineWidth = 3;
         ctx.setLineDash([5, 5]);
-        drawRoundedRect(ctx, imageArea.x, imageArea.y, imageArea.width, imageArea.height, imageArea.borderRadius, false, true);
+        drawRoundedRect(ctx, imageArea.x, imageArea.y, imageArea.width, imageArea.height, settings.borderRadius, false, true);
         ctx.setLineDash([]);
     }
     
-    console.log(`📏 模板二延伸圖片 - 區域:${imageArea.width}×${imageArea.height} (無色塊)`);
+    console.log(`📏 模板二動態圖片 - 區域:${imageArea.width}×${imageArea.height}, 圓角:${settings.borderRadius}px, 濾鏡效果已應用`);
 }
 
 // 模板一：純文字

@@ -574,3 +574,78 @@ footer {
         max-width: calc(100% - 10px);
     }
 }
+
+/* 🖼️ 新增：圖片控制面板專用樣式 */
+.image-upload-section {
+    background: #f0f8ff;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #e0e8f0;
+}
+
+.image-upload-section h4 {
+    margin: 0 0 10px 0;
+    color: #495057;
+    font-size: 14px;
+}
+
+.upload-label-small {
+    display: inline-block;
+    padding: 8px 16px;
+    background: #667eea;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease;
+    margin-bottom: 10px;
+}
+
+.upload-label-small:hover {
+    background: #5a6fd8;
+}
+
+.image-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.xy-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    align-items: end;
+}
+
+.xy-input {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    text-align: center;
+}
+
+.xy-input label {
+    font-size: 12px;
+    color: #666;
+    margin: 0;
+}
+
+.xy-input input[type="range"] {
+    width: 100%;
+}
+
+.xy-input .range-value {
+    font-size: 11px;
+    color: #888;
+}
+
+.current-image-info {
+    font-size: 12px;
+    color: #666;
+    margin-top: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
