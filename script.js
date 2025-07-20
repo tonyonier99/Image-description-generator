@@ -281,11 +281,11 @@ const FONT_NAME_MAPPING = {
     'Chen': '晨',
     'Yuluoyan': '雨洛雁',
     'Monospaced': '等寬',
-    '极影': '極影',
-    '毁片': '毀片',
-    '和圆': '和圓',
-    '圆': '圓',
-    '荧圆': '熒圓'
+    '極影': '極影',
+    '段片': '段片',
+    '和圓': '和圓',
+    '圓': '圓',
+    '英圓': '英圓'
 };
 
 const WEIGHT_MAPPING = {
@@ -307,15 +307,20 @@ async function scanFontsDirectory() {
     const commonFontFiles = [
         'ChenYuluoyan-2.0-Thin.ttf',
         'ChenYuluoyan-Thin-Monospaced.ttf',
-        'ChenYuluoyan-Thin.ttf'
+        'ChenYuluoyan-Thin.ttf',
+        '極影段片和圓.ttf',
+        '極影段片圓.ttf',
+        '極影段片英圓.ttf'
     ];
     
     for (const fontFile of commonFontFiles) {
         try {
             const fontData = await loadAndValidateFont(fontFile);
+            detectedFonts.push(fontData);
             if (fontData.loaded) {
-                detectedFonts.push(fontData);
                 console.log(`✅ 成功載入字體: ${fontFile} → ${fontData.displayName} (${fontData.fontName})`);
+            } else {
+                console.log(`⚠️ 字體文件存在但無法使用: ${fontFile} → ${fontData.displayName} (${fontData.error})`);
             }
         } catch (error) {
             console.log(`❌ 字體載入失敗: ${fontFile} - ${error.message}`);
@@ -339,6 +344,17 @@ async function loadAndValidateFont(fontFile) {
     const displayName = generateFontDisplayName(fontFile);
     
     try {
+        // 首先檢查字體文件是否可訪問
+        const response = await fetch(fontPath);
+        if (!response.ok) {
+            throw new Error(`無法載入字體文件: HTTP ${response.status}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        if (arrayBuffer.byteLength < 100) {
+            throw new Error(`字體文件過小或已損壞: ${arrayBuffer.byteLength} bytes`);
+        }
+        
         const font = new FontFace(fontName, `url(${fontPath})`);
         await font.load();
         document.fonts.add(font);
@@ -355,7 +371,18 @@ async function loadAndValidateFont(fontFile) {
         };
     } catch (error) {
         FONT_LOAD_STATUS[fontName] = 'failed';
-        throw error;
+        console.warn(`⚠️ 字體載入失敗但會繼續: ${fontFile} - ${error.message}`);
+        
+        // 回傳失敗但標記的字體信息，以便在選單中顯示為不可用
+        return {
+            fileName: fontFile,
+            fontName: fontName,
+            displayName: displayName,
+            path: fontPath,
+            loaded: false,
+            error: error.message,
+            category: categorizeFontByName(fontFile, displayName)
+        };
     }
 }
 
@@ -406,14 +433,17 @@ function getAllAvailableFonts() {
     const systemFonts = FONT_FAMILIES.map(font => ({
         value: font,
         display: font,
-        type: 'system'
+        type: 'system',
+        available: true
     }));
     
     const detectedFonts = DETECTED_FONTS.map(font => ({
         value: font.fontName,
-        display: `${font.displayName} ✨`,
+        display: font.loaded ? `${font.displayName} ✨` : `${font.displayName} ❌ (無法載入)`,
         type: 'detected',
-        status: FONT_LOAD_STATUS[font.fontName]
+        status: FONT_LOAD_STATUS[font.fontName],
+        available: font.loaded,
+        error: font.error
     }));
     
     return [...systemFonts, ...detectedFonts];
@@ -436,9 +466,11 @@ function updateFontSelector(selector, textType) {
     const currentStyle = userTextStyles[`template${template}`][textType];
     const allFonts = getAllAvailableFonts();
     
-    selector.innerHTML = allFonts.map(font => 
-        `<option value="${font.value}" ${currentStyle.fontFamily === font.value ? 'selected' : ''}>${font.display}</option>`
-    ).join('');
+    selector.innerHTML = allFonts.map(font => {
+        const disabled = font.available === false ? 'disabled' : '';
+        const selected = currentStyle.fontFamily === font.value ? 'selected' : '';
+        return `<option value="${font.value}" ${selected} ${disabled}>${font.display}</option>`;
+    }).join('');
 }
 
 function updateFontStatusDisplay() {
@@ -469,7 +501,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setupMultiImageControls();
     setupTextStyleControls();
     addControlButtons();
-    addPositionLogger();
     setupMobileOptimizations(); // 🔧 新增：手機版優化
     
     // 🆕 新增：自動字體檢測
@@ -699,70 +730,6 @@ function validateSettings() {
     }
     
     return isCorrect;
-}
-
-// 添加位置記錄器
-function addPositionLogger() {
-    const actionButtons = document.querySelector('.action-buttons');
-    if (!actionButtons) return;
-    
-    if (!document.getElementById('log-positions-btn')) {
-        const logBtn = document.createElement('button');
-        logBtn.className = 'btn';
-        logBtn.innerHTML = '📍 記錄當前位置';
-        logBtn.onclick = logCurrentPositions;
-        logBtn.style.background = '#17a2b8';
-        logBtn.style.color = 'white';
-        logBtn.style.marginLeft = '10px';
-        logBtn.id = 'log-positions-btn';
-        actionButtons.appendChild(logBtn);
-    }
-    
-    console.log('✅ 位置記錄器已添加');
-}
-
-function logCurrentPositions() {
-    console.log('🔍 執行設定驗證...');
-    validateSettings();
-    
-    const template = getSelectedTemplate();
-    const currentOffsets = textOffsets[`template${template}`];
-    const currentStyles = userTextStyles[`template${template}`];
-    
-    console.log('\n🎯 ===== 完整設定記錄 =====');
-    console.log(`模板 ${template} 的設定：`);
-    console.log(`圖片數量: ${uploadedImages.length}`);
-    console.log(`當前選中圖片: ${currentImageIndex}`);
-    
-    Object.keys(currentOffsets).forEach(textType => {
-        const offset = currentOffsets[textType];
-        const style = currentStyles[textType];
-        const baseArea = DESIGN_SPECS[`template${template}`].draggableAreas[textType];
-        const finalX = baseArea.x + offset.x;
-        const finalY = baseArea.y + offset.y;
-        
-        console.log(`${textType}:`);
-        console.log(`  位置 - 偏移: (${offset.x}, ${offset.y}), 最終: (${finalX}, ${finalY})`);
-        console.log(`  樣式 - 大小: ${style.fontSize}px, 顏色: ${style.color}, 粗細: ${style.fontWeight}`);
-        console.log(`  間距 - 字元間距: ${style.letterSpacing}px, 行距: ${style.lineHeight}`);
-        console.log(`  框架 - 寬: ${style.width}px, 高: ${style.height}px`);
-    });
-    
-    if (uploadedImages.length > 0) {
-        console.log('圖片設定:');
-        uploadedImages.forEach((img, index) => {
-            const imgSettings = multiImageSettings[`template${template}`][index];
-            console.log(`  圖片${index}: ${img.fileName}`);
-            console.log(`    位置: (${imgSettings.offsetX}, ${imgSettings.offsetY})`);
-            console.log(`    尺寸: ${imgSettings.width}×${imgSettings.height}`);
-            console.log(`    縮放: ${Math.round(imgSettings.scale * 100)}%`);
-            console.log(`    可見: ${imgSettings.visible}, 層級: ${imgSettings.zIndex}`);
-        });
-    }
-    
-    console.log('🎯 ===========================\n');
-    
-    alert(`模板${template}完整設定已記錄到控制台，包含${uploadedImages.length}張圖片！`);
 }
 
 // 初始化 Canvas
