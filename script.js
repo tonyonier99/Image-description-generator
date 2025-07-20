@@ -88,7 +88,10 @@ let userTextStyles = {
             letterSpacing: 0,
             lineHeight: 1.2,
             width: 640,
-            height: 80
+            height: 80,
+            italic: false,
+            underline: false,
+            strikethrough: false
         },
         subtitle: {
             fontSize: 26,
@@ -98,7 +101,10 @@ let userTextStyles = {
             letterSpacing: 0,
             lineHeight: 1.3,
             width: 640,
-            height: 60
+            height: 60,
+            italic: false,
+            underline: false,
+            strikethrough: false
         },
         description: {
             fontSize: 20,
@@ -108,7 +114,10 @@ let userTextStyles = {
             letterSpacing: 1,
             lineHeight: 1.8,
             width: 700,
-            height: 300
+            height: 300,
+            italic: false,
+            underline: false,
+            strikethrough: false
         }
     },
     template2: {
@@ -120,7 +129,10 @@ let userTextStyles = {
             letterSpacing: 0,
             lineHeight: 1.2,
             width: 700,
-            height: 40
+            height: 40,
+            italic: false,
+            underline: false,
+            strikethrough: false
         },
         subtitle: {
             fontSize: 28,
@@ -130,7 +142,10 @@ let userTextStyles = {
             letterSpacing: 0,
             lineHeight: 1.3,
             width: 600,
-            height: 30
+            height: 30,
+            italic: false,
+            underline: false,
+            strikethrough: false
         },
         description: {
             fontSize: 20,
@@ -140,7 +155,10 @@ let userTextStyles = {
             letterSpacing: 3,
             lineHeight: 1.6,
             width: 700,
-            height: 350
+            height: 350,
+            italic: false,
+            underline: false,
+            strikethrough: false
         }
     }
 };
@@ -1938,6 +1956,29 @@ function createTextStylePanel() {
         .two-column {
             grid-column: span 2;
         }
+        .format-checkboxes {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #333;
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+        .checkbox-item span {
+            user-select: none;
+        }
     `;
     document.head.appendChild(style);
     
@@ -2055,9 +2096,6 @@ function updateStyleControls(textType) {
                 <option value="normal" ${currentStyle.fontWeight === 'normal' ? 'selected' : ''}>普通</option>
                 <option value="bold" ${currentStyle.fontWeight === 'bold' ? 'selected' : ''}>粗體</option>
                 <option value="lighter" ${currentStyle.fontWeight === 'lighter' ? 'selected' : ''}>細體</option>
-                <option value="thin" ${currentStyle.fontWeight === 'thin' ? 'selected' : ''}>極細體</option>
-                <option value="600" ${currentStyle.fontWeight === '600' ? 'selected' : ''}>半粗體</option>
-                <option value="800" ${currentStyle.fontWeight === '800' ? 'selected' : ''}>特粗體</option>
             </select>
         </div>
         
@@ -2068,6 +2106,24 @@ function updateStyleControls(textType) {
                     `<option value="${font.value}" ${currentStyle.fontFamily === font.value ? 'selected' : ''}>${font.display}</option>`
                 ).join('')}
             </select>
+        </div>
+        
+        <div class="control-group">
+            <label>文字格式</label>
+            <div class="format-checkboxes">
+                <label class="checkbox-item">
+                    <input type="checkbox" id="italic-${textType}" ${currentStyle.italic ? 'checked' : ''}>
+                    <span>斜體</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="underline-${textType}" ${currentStyle.underline ? 'checked' : ''}>
+                    <span>底線</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="strikethrough-${textType}" ${currentStyle.strikethrough ? 'checked' : ''}>
+                    <span>刪除線</span>
+                </label>
+            </div>
         </div>
         
         <div class="section-divider"></div>
@@ -2176,6 +2232,40 @@ function bindStyleControlEvents(textType) {
     if (fontFamilySelect) {
         fontFamilySelect.addEventListener('change', function() {
             userTextStyles[`template${template}`][textType].fontFamily = this.value;
+            if (uploadedImages.length > 0 && isGenerated) {
+                generateImage();
+            }
+        });
+    }
+    
+    // 格式化選項控制
+    const italicCheckbox = document.getElementById(`italic-${textType}`);
+    if (italicCheckbox) {
+        italicCheckbox.addEventListener('change', function() {
+            userTextStyles[`template${template}`][textType].italic = this.checked;
+            console.log(`📝 ${textType} 斜體: ${this.checked}`);
+            if (uploadedImages.length > 0 && isGenerated) {
+                generateImage();
+            }
+        });
+    }
+    
+    const underlineCheckbox = document.getElementById(`underline-${textType}`);
+    if (underlineCheckbox) {
+        underlineCheckbox.addEventListener('change', function() {
+            userTextStyles[`template${template}`][textType].underline = this.checked;
+            console.log(`📝 ${textType} 底線: ${this.checked}`);
+            if (uploadedImages.length > 0 && isGenerated) {
+                generateImage();
+            }
+        });
+    }
+    
+    const strikethroughCheckbox = document.getElementById(`strikethrough-${textType}`);
+    if (strikethroughCheckbox) {
+        strikethroughCheckbox.addEventListener('change', function() {
+            userTextStyles[`template${template}`][textType].strikethrough = this.checked;
+            console.log(`📝 ${textType} 刪除線: ${this.checked}`);
             if (uploadedImages.length > 0 && isGenerated) {
                 generateImage();
             }
@@ -2366,7 +2456,10 @@ window.applyPreset = function(textType, presetName) {
             color: baseColors[textType],
             fontWeight: 'normal',
             letterSpacing: 1,
-            lineHeight: 1.5
+            lineHeight: 1.5,
+            italic: false,
+            underline: false,
+            strikethrough: false
         },
         modern: {
             fontSize: textType === 'title' ? 48 : textType === 'subtitle' ? 26 : 18,
@@ -2374,15 +2467,21 @@ window.applyPreset = function(textType, presetName) {
             color: baseColors[textType],
             fontWeight: 'bold',
             letterSpacing: 0,
-            lineHeight: 1.3
+            lineHeight: 1.3,
+            italic: false,
+            underline: false,
+            strikethrough: false
         },
         classic: {
             fontSize: textType === 'title' ? 36 : textType === 'subtitle' ? 20 : 16,
             fontFamily: 'Microsoft JhengHei',
             color: baseColors[textType],
-            fontWeight: '600',
+            fontWeight: 'normal',
             letterSpacing: 0.5,
-            lineHeight: 1.4
+            lineHeight: 1.4,
+            italic: false,
+            underline: false,
+            strikethrough: false
         },
         bold: {
             fontSize: textType === 'title' ? 56 : textType === 'subtitle' ? 32 : 20,
@@ -2390,7 +2489,10 @@ window.applyPreset = function(textType, presetName) {
             color: baseColors[textType],
             fontWeight: 'bold',
             letterSpacing: 2,
-            lineHeight: 1.2
+            lineHeight: 1.2,
+            italic: false,
+            underline: false,
+            strikethrough: false
         }
     };
     
@@ -2988,7 +3090,8 @@ function drawDraggableTextWithSpacing(templateKey, textType, text, area) {
     const userStyle = userTextStyles[templateKey][textType];
     
     // 設定基本文字樣式
-    ctx.font = `${userStyle.fontWeight} ${userStyle.fontSize}px "${userStyle.fontFamily}"`;
+    const fontStyle = userStyle.italic ? 'italic' : 'normal';
+    ctx.font = `${fontStyle} ${userStyle.fontWeight} ${userStyle.fontSize}px "${userStyle.fontFamily}"`;
     ctx.fillStyle = userStyle.color;
     ctx.textAlign = area.centerAlign ? 'center' : 'left';
     
@@ -3027,6 +3130,36 @@ function drawDraggableTextWithSpacing(templateKey, textType, text, area) {
         const textY = drawY + userStyle.fontSize + (index * lineHeight);
         if (line !== '') { // 不繪製空行
             ctx.fillText(line, textX, textY);
+            
+            // 繪製底線
+            if (userStyle.underline) {
+                const metrics = ctx.measureText(line);
+                const underlineY = textY + userStyle.fontSize * 0.1;
+                const startX = area.centerAlign ? textX - metrics.width / 2 : textX;
+                ctx.save();
+                ctx.strokeStyle = userStyle.color;
+                ctx.lineWidth = Math.max(1, userStyle.fontSize * 0.05);
+                ctx.beginPath();
+                ctx.moveTo(startX, underlineY);
+                ctx.lineTo(startX + metrics.width, underlineY);
+                ctx.stroke();
+                ctx.restore();
+            }
+            
+            // 繪製刪除線
+            if (userStyle.strikethrough) {
+                const metrics = ctx.measureText(line);
+                const strikethroughY = textY - userStyle.fontSize * 0.3;
+                const startX = area.centerAlign ? textX - metrics.width / 2 : textX;
+                ctx.save();
+                ctx.strokeStyle = userStyle.color;
+                ctx.lineWidth = Math.max(1, userStyle.fontSize * 0.05);
+                ctx.beginPath();
+                ctx.moveTo(startX, strikethroughY);
+                ctx.lineTo(startX + metrics.width, strikethroughY);
+                ctx.stroke();
+                ctx.restore();
+            }
         }
     });
     
