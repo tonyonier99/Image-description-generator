@@ -267,6 +267,12 @@ const FONT_FAMILIES = [
 let DETECTED_FONTS = [];
 let FONT_LOAD_STATUS = {};
 
+// 🔧 新增：字體載入佇列管理系統
+let FONT_LOADING_QUEUE = [];
+let IS_FONT_LOADING = false;
+let FONT_LOADING_CALLBACKS = new Map();
+let LOADED_FONTS_CACHE = new Set();
+
 // 🆕 智能字體命名映射
 const FONT_NAME_MAPPING = {
     'lihsianti': '李西安蒂',
@@ -296,11 +302,63 @@ const WEIGHT_MAPPING = {
     'Heavy': '特粗體'
 };
 
-// 🆕 字體檢測與載入系統
-async function scanFontsDirectory() {
-    console.log('🔍 開始掃描 fonts/ 資料夾...');
+// 🔧 修改：字體佇列管理系統
+async function processNextFontInQueue() {
+    if (IS_FONT_LOADING || FONT_LOADING_QUEUE.length === 0) {
+        return;
+    }
     
-    const fontFormats = ['woff2', 'woff', 'ttf', 'otf'];
+    IS_FONT_LOADING = true;
+    const { fontFile, resolve, reject } = FONT_LOADING_QUEUE.shift();
+    
+    try {
+        console.log(`⏳ 開始載入字體佇列中的字體: ${fontFile}`);
+        const fontData = await loadAndValidateFontSafely(fontFile);
+        
+        // 更新狀態
+        FONT_LOAD_STATUS[fontData.fontName] = fontData.loaded ? 'loaded' : 'failed';
+        if (fontData.loaded) {
+            LOADED_FONTS_CACHE.add(fontData.fontName);
+        }
+        
+        resolve(fontData);
+        console.log(`✅ 字體佇列載入完成: ${fontFile} → ${fontData.displayName}`);
+    } catch (error) {
+        console.error(`❌ 字體佇列載入失敗: ${fontFile} - ${error.message}`);
+        reject(error);
+    } finally {
+        IS_FONT_LOADING = false;
+        
+        // 同步更新所有字體選擇器
+        updateAllFontSelectors();
+        
+        // 處理下一個字體
+        setTimeout(() => processNextFontInQueue(), 100);
+    }
+}
+
+function queueFontLoad(fontFile) {
+    return new Promise((resolve, reject) => {
+        // 檢查是否已載入
+        const fontName = extractFontName(fontFile);
+        if (LOADED_FONTS_CACHE.has(fontName)) {
+            console.log(`♻️ 字體已載入，跳過: ${fontFile}`);
+            const existingFont = DETECTED_FONTS.find(f => f.fontName === fontName);
+            if (existingFont) {
+                resolve(existingFont);
+                return;
+            }
+        }
+        
+        FONT_LOADING_QUEUE.push({ fontFile, resolve, reject });
+        processNextFontInQueue();
+    });
+}
+
+// 🆕 字體檢測與載入系統（使用佇列管理）
+async function scanFontsDirectory() {
+    console.log('🔍 開始掃描 fonts/ 資料夾（佇列管理模式）...');
+    
     const detectedFonts = [];
     
     // 常見字體檔案名稱列表（可配置）
@@ -313,9 +371,10 @@ async function scanFontsDirectory() {
         '極影段片英圓.ttf'
     ];
     
+    // 使用字體載入佇列
     for (const fontFile of commonFontFiles) {
         try {
-            const fontData = await loadAndValidateFont(fontFile);
+            const fontData = await queueFontLoad(fontFile);
             detectedFonts.push(fontData);
             if (fontData.loaded) {
                 console.log(`✅ 成功載入字體: ${fontFile} → ${fontData.displayName} (${fontData.fontName})`);
@@ -338,12 +397,25 @@ async function scanFontsDirectory() {
     return detectedFonts;
 }
 
-async function loadAndValidateFont(fontFile) {
+async function loadAndValidateFontSafely(fontFile) {
     const fontPath = `fonts/${fontFile}`;
     const fontName = extractFontName(fontFile);
     const displayName = generateFontDisplayName(fontFile);
     
     try {
+        // 檢查字體是否已經載入到文檔中
+        if (document.fonts.check(`16px "${fontName}"`)) {
+            console.log(`♻️ 字體已存在於文檔中: ${fontName}`);
+            return {
+                fileName: fontFile,
+                fontName: fontName,
+                displayName: displayName,
+                path: fontPath,
+                loaded: true,
+                category: categorizeFontByName(fontFile, displayName)
+            };
+        }
+        
         // 首先檢查字體文件是否可訪問
         const response = await fetch(fontPath);
         if (!response.ok) {
@@ -356,8 +428,16 @@ async function loadAndValidateFont(fontFile) {
         }
         
         const font = new FontFace(fontName, `url(${fontPath})`);
+        
+        // 等待字體載入完成
         await font.load();
         document.fonts.add(font);
+        
+        // 確認字體已正確載入
+        const isLoaded = document.fonts.check(`16px "${fontName}"`);
+        if (!isLoaded) {
+            throw new Error('字體載入後驗證失敗');
+        }
         
         FONT_LOAD_STATUS[fontName] = 'loaded';
         
@@ -384,6 +464,11 @@ async function loadAndValidateFont(fontFile) {
             category: categorizeFontByName(fontFile, displayName)
         };
     }
+}
+
+// 🔧 保留原有函數作為向後兼容
+async function loadAndValidateFont(fontFile) {
+    return await loadAndValidateFontSafely(fontFile);
 }
 
 function extractFontName(fontFile) {
@@ -429,27 +514,83 @@ function categorizeFontByName(fontFile, displayName) {
     return 'custom';
 }
 
+// 🔧 新增：字體載入驗證函數
+function isFontLoaded(fontFamily) {
+    // 檢查字體是否已載入到文檔中
+    return document.fonts.check(`16px "${fontFamily}"`) || 
+           LOADED_FONTS_CACHE.has(fontFamily) ||
+           FONT_LOAD_STATUS[fontFamily] === 'loaded';
+}
+
+function getFontFallback(fontFamily) {
+    // 系統字體優先級清單
+    const systemFonts = ['Noto Sans TC', 'Arial', 'Microsoft JhengHei', 'PingFang TC', 'Heiti TC', 'sans-serif'];
+    
+    // 如果目標字體已載入，直接返回
+    if (isFontLoaded(fontFamily)) {
+        return fontFamily;
+    }
+    
+    // 查找可用的備用字體
+    for (const font of systemFonts) {
+        if (isFontLoaded(font)) {
+            console.log(`🔄 字體備用: ${fontFamily} → ${font}`);
+            return font;
+        }
+    }
+    
+    // 最後的備用方案
+    return 'sans-serif';
+}
+
+// 🔧 新增：安全設置canvas字體
+function setCanvasFontSafely(ctx, fontStyle, fontWeight, fontSize, fontFamily) {
+    const safeFontFamily = getFontFallback(fontFamily);
+    const fontString = `${fontStyle} ${fontWeight} ${fontSize}px "${safeFontFamily}"`;
+    
+    try {
+        ctx.font = fontString;
+        
+        // 驗證字體是否正確設置
+        if (ctx.font !== fontString) {
+            console.warn(`⚠️ 字體設置不完全匹配: 期待 "${fontString}", 實際 "${ctx.font}"`);
+        }
+        
+        return safeFontFamily;
+    } catch (error) {
+        console.error(`❌ 字體設置失敗: ${fontString}, 使用備用字體`);
+        ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px sans-serif`;
+        return 'sans-serif';
+    }
+}
+
 function getAllAvailableFonts() {
     const systemFonts = FONT_FAMILIES.map(font => ({
         value: font,
         display: font,
         type: 'system',
-        available: true
+        available: true,
+        loaded: isFontLoaded(font)
     }));
     
-    const detectedFonts = DETECTED_FONTS.map(font => ({
-        value: font.fontName,
-        display: font.loaded ? `${font.displayName} ✨` : `${font.displayName} ❌ (無法載入)`,
-        type: 'detected',
-        status: FONT_LOAD_STATUS[font.fontName],
-        available: font.loaded,
-        error: font.error
-    }));
+    const detectedFonts = DETECTED_FONTS.map(font => {
+        const isLoaded = isFontLoaded(font.fontName);
+        return {
+            value: font.fontName,
+            display: isLoaded ? `${font.displayName} ✨` : `${font.displayName} ⏳ (載入中...)`,
+            type: 'detected',
+            status: FONT_LOAD_STATUS[font.fontName],
+            available: isLoaded,
+            loaded: isLoaded,
+            error: font.error
+        };
+    });
     
     return [...systemFonts, ...detectedFonts];
 }
 
 function updateAllFontSelectors() {
+    // 🔧 新增：同步更新所有字體選擇器並顯示載入狀態
     ['title', 'subtitle', 'description'].forEach(textType => {
         const selector = document.getElementById(`fontFamily-${textType}`);
         if (selector) {
@@ -459,6 +600,13 @@ function updateAllFontSelectors() {
     
     // 更新字體狀態顯示
     updateFontStatusDisplay();
+    
+    // 如果還有字體在載入，顯示載入指示器
+    if (IS_FONT_LOADING || FONT_LOADING_QUEUE.length > 0) {
+        showFontLoadingIndicator();
+    } else {
+        hideFontLoadingIndicator();
+    }
 }
 
 function updateFontSelector(selector, textType) {
@@ -466,30 +614,222 @@ function updateFontSelector(selector, textType) {
     const currentStyle = userTextStyles[`template${template}`][textType];
     const allFonts = getAllAvailableFonts();
     
+    // 保存當前選中的字體
+    const currentFont = currentStyle.fontFamily;
+    
     selector.innerHTML = allFonts.map(font => {
         const disabled = font.available === false ? 'disabled' : '';
         const selected = currentStyle.fontFamily === font.value ? 'selected' : '';
-        return `<option value="${font.value}" ${selected} ${disabled}>${font.display}</option>`;
+        const loadingClass = font.loaded === false && font.type === 'detected' ? 'font-loading' : '';
+        
+        return `<option value="${font.value}" ${selected} ${disabled} class="${loadingClass}">${font.display}</option>`;
     }).join('');
+    
+    // 如果當前字體不可用，自動切換到可用的備用字體
+    if (!isFontLoaded(currentFont)) {
+        const fallbackFont = getFontFallback(currentFont);
+        if (fallbackFont !== currentFont) {
+            console.log(`🔄 自動切換字體備用: ${textType} ${currentFont} → ${fallbackFont}`);
+            currentStyle.fontFamily = fallbackFont;
+            selector.value = fallbackFont;
+        }
+    }
 }
 
 function updateFontStatusDisplay() {
     // 這個函數將在控制面板更新時被調用，顯示字體狀態
-    console.log(`📊 字體狀態 - 系統字體: ${FONT_FAMILIES.length} 個 | 檢測字體: ${DETECTED_FONTS.length} 個`);
+    const loadedCount = DETECTED_FONTS.filter(f => isFontLoaded(f.fontName)).length;
+    const totalCount = DETECTED_FONTS.length;
+    const systemCount = FONT_FAMILIES.length;
+    
+    console.log(`📊 字體狀態 - 系統字體: ${systemCount} 個 | 檢測字體: ${loadedCount}/${totalCount} 個載入完成`);
+    
+    if (FONT_LOADING_QUEUE.length > 0) {
+        console.log(`⏳ 佇列中還有 ${FONT_LOADING_QUEUE.length} 個字體等待載入`);
+    }
 }
 
+// 🔧 新增：字體載入指示器
+function showFontLoadingIndicator() {
+    let indicator = document.getElementById('font-loading-indicator');
+    
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'font-loading-indicator';
+        indicator.innerHTML = `
+            <div style="
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #667eea;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 6px;
+                z-index: 1000;
+                font-size: 13px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            ">
+                <div style="
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid rgba(255,255,255,0.3);
+                    border-top: 2px solid white;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                "></div>
+                <span>字體載入中...</span>
+            </div>
+        `;
+        
+        // 添加旋轉動畫CSS
+        if (!document.getElementById('font-loading-styles')) {
+            const style = document.createElement('style');
+            style.id = 'font-loading-styles';
+            style.textContent = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                .font-loading {
+                    background-color: #fff3cd !important;
+                    color: #856404 !important;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(indicator);
+    }
+}
+
+function hideFontLoadingIndicator() {
+    const indicator = document.getElementById('font-loading-indicator');
+    if (indicator) {
+        indicator.remove();
+    }
+}
+
+// 🔧 新增：字體清理和錯誤處理
+function cleanupFailedFonts() {
+    console.log('🧹 清理失敗的字體載入...');
+    
+    // 移除失敗的字體
+    DETECTED_FONTS = DETECTED_FONTS.filter(font => {
+        if (!font.loaded && font.error) {
+            console.log(`🗑️ 移除失敗字體: ${font.displayName} (${font.error})`);
+            
+            // 從快取中移除
+            LOADED_FONTS_CACHE.delete(font.fontName);
+            delete FONT_LOAD_STATUS[font.fontName];
+            
+            return false;
+        }
+        return true;
+    });
+    
+    // 更新所有選擇器
+    updateAllFontSelectors();
+    
+    console.log(`✅ 字體清理完成，剩餘 ${DETECTED_FONTS.length} 個有效字體`);
+}
+
+function getFontLoadingProgress() {
+    const totalFonts = DETECTED_FONTS.length;
+    const loadedFonts = DETECTED_FONTS.filter(f => isFontLoaded(f.fontName)).length;
+    const queueLength = FONT_LOADING_QUEUE.length;
+    
+    return {
+        total: totalFonts,
+        loaded: loadedFonts,
+        pending: queueLength,
+        isLoading: IS_FONT_LOADING,
+        progress: totalFonts > 0 ? Math.round((loadedFonts / totalFonts) * 100) : 100
+    };
+}
+
+// 🔧 修改：初始化字體檢測，加入錯誤處理
 async function initializeFontDetection() {
-    console.log('🔍 初始化字體檢測系統...');
+    console.log('🔍 初始化字體檢測系統（增強版）...');
+    
     try {
+        // 顯示載入指示器
+        showFontLoadingIndicator();
+        
+        // 開始字體掃描
         await scanFontsDirectory();
-        console.log('✅ 字體檢測系統初始化完成');
+        
+        // 等待所有字體載入完成
+        while (FONT_LOADING_QUEUE.length > 0 || IS_FONT_LOADING) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        // 清理失敗的字體
+        setTimeout(() => {
+            cleanupFailedFonts();
+            hideFontLoadingIndicator();
+        }, 500);
+        
+        const progress = getFontLoadingProgress();
+        console.log(`✅ 字體檢測系統初始化完成 - 載入進度: ${progress.loaded}/${progress.total} (${progress.progress}%)`);
+        
     } catch (error) {
         console.error('❌ 字體檢測系統初始化失敗:', error);
+        hideFontLoadingIndicator();
+        
+        // 顯示錯誤提示
+        const errorMsg = document.createElement('div');
+        errorMsg.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            font-size: 14px;
+        `;
+        errorMsg.textContent = '⚠️ 字體載入系統發生錯誤';
+        document.body.appendChild(errorMsg);
+        
+        setTimeout(() => {
+            if (document.body.contains(errorMsg)) {
+                document.body.removeChild(errorMsg);
+            }
+        }, 5000);
     }
 }
 
 // 🆕 將字體掃描函數設為全域可用
 window.scanFontsDirectory = scanFontsDirectory;
+
+// 🔧 新增：字體系統測試和診斷函數
+window.testFontLoadingSystem = function() {
+    console.log('🧪 測試字體載入系統...');
+    
+    const progress = getFontLoadingProgress();
+    console.log('字體載入進度:', progress);
+    
+    console.log('載入佇列長度:', FONT_LOADING_QUEUE.length);
+    console.log('是否正在載入:', IS_FONT_LOADING);
+    console.log('快取字體數量:', LOADED_FONTS_CACHE.size);
+    console.log('檢測字體數量:', DETECTED_FONTS.length);
+    
+    // 測試字體備用機制
+    const testFonts = ['NonExistentFont', 'Noto Sans TC', 'Arial'];
+    testFonts.forEach(font => {
+        const fallback = getFontFallback(font);
+        console.log(`字體備用測試: ${font} → ${fallback}`);
+    });
+    
+    return progress;
+};
+
+window.cleanupFailedFonts = cleanupFailedFonts;
+window.getFontLoadingProgress = getFontLoadingProgress;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -790,12 +1130,27 @@ function setupBasicEvents() {
         input.addEventListener('change', function() {
             console.log(`🔄 切換到模板${this.value}`);
             
+            // 🔧 新增：模板切換時同步字體狀態
+            updateAllFontSelectors();
             updateMultiImageControls();
             updateTextStylePanel();
             
             const template = this.value;
             console.log(`模板${template}標題設定:`, userTextStyles[`template${template}`].title);
             console.log(`模板${template}圖片數量:`, uploadedImages.length);
+            
+            // 🔧 新增：檢查當前模板的字體是否都已載入
+            const textTypes = ['title', 'subtitle', 'description'];
+            textTypes.forEach(textType => {
+                const fontFamily = userTextStyles[`template${template}`][textType].fontFamily;
+                if (!isFontLoaded(fontFamily)) {
+                    const fallback = getFontFallback(fontFamily);
+                    if (fallback !== fontFamily) {
+                        console.log(`🔄 模板切換時自動字體備用: ${textType} ${fontFamily} → ${fallback}`);
+                        userTextStyles[`template${template}`][textType].fontFamily = fallback;
+                    }
+                }
+            });
             
             if (uploadedImages.length > 0 && isGenerated) {
                 generateImage();
@@ -2197,8 +2552,41 @@ function bindStyleControlEvents(textType) {
     
     const fontFamilySelect = document.getElementById(`fontFamily-${textType}`);
     if (fontFamilySelect) {
-        fontFamilySelect.addEventListener('change', function() {
-            userTextStyles[`template${template}`][textType].fontFamily = this.value;
+        fontFamilySelect.addEventListener('change', async function() {
+            const newFontFamily = this.value;
+            const oldFontFamily = userTextStyles[`template${template}`][textType].fontFamily;
+            
+            // 🔧 新增：字體變更時的安全處理
+            console.log(`🔄 字體變更: ${textType} ${oldFontFamily} → ${newFontFamily}`);
+            
+            // 檢查新字體是否已載入
+            if (!isFontLoaded(newFontFamily)) {
+                console.log(`⏳ 字體尚未載入，等待載入完成: ${newFontFamily}`);
+                showFontLoadingIndicator();
+                
+                // 等待字體載入完成
+                let attempts = 0;
+                const maxAttempts = 50; // 最多等待5秒
+                
+                while (!isFontLoaded(newFontFamily) && attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                
+                hideFontLoadingIndicator();
+                
+                if (!isFontLoaded(newFontFamily)) {
+                    console.warn(`⚠️ 字體載入逾時，使用備用字體: ${newFontFamily}`);
+                }
+            }
+            
+            // 更新字體設定
+            userTextStyles[`template${template}`][textType].fontFamily = newFontFamily;
+            
+            // 同步更新其他選擇器狀態
+            updateAllFontSelectors();
+            
+            // 重新生成圖片
             if (uploadedImages.length > 0 && isGenerated) {
                 generateImage();
             }
@@ -3056,9 +3444,15 @@ function drawDraggableTextWithSpacing(templateKey, textType, text, area) {
     // 獲取用戶自定義樣式
     const userStyle = userTextStyles[templateKey][textType];
     
-    // 設定基本文字樣式
+    // 🔧 新增：使用安全字體設置
     const fontStyle = userStyle.italic ? 'italic' : 'normal';
-    ctx.font = `${fontStyle} ${userStyle.fontWeight} ${userStyle.fontSize}px "${userStyle.fontFamily}"`;
+    const actualFontFamily = setCanvasFontSafely(ctx, fontStyle, userStyle.fontWeight, userStyle.fontSize, userStyle.fontFamily);
+    
+    // 如果字體切換了，記錄一下
+    if (actualFontFamily !== userStyle.fontFamily) {
+        console.log(`📝 ${textType}文字使用備用字體: ${userStyle.fontFamily} → ${actualFontFamily}`);
+    }
+    
     ctx.fillStyle = userStyle.color;
     ctx.textAlign = area.centerAlign ? 'center' : 'left';
     
