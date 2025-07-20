@@ -258,7 +258,16 @@ const FONT_NAME_MAPPING = {
     'TaipeiSans': '台北黑體',
     'JasonHandwriting': '瀨戶字體',
     'LXGWWenKai': '霞鶩文楷',
-    'TaipeiSans': '台北黑體'
+    'TaipeiSans': '台北黑體',
+    'ChenYuluoyan': '晨雨洛雁',
+    'Chen': '晨',
+    'Yuluoyan': '雨洛雁',
+    'Monospaced': '等寬',
+    '极影': '極影',
+    '毁片': '毀片',
+    '和圆': '和圓',
+    '圆': '圓',
+    '荧圆': '熒圓'
 };
 
 const WEIGHT_MAPPING = {
@@ -278,12 +287,9 @@ async function scanFontsDirectory() {
     
     // 常見字體檔案名稱列表（可配置）
     const commonFontFiles = [
-        'lihsianti-proportional.ttf',
-        'NotoSansTC-Bold.woff2',
-        'SourceHanSans-Regular.ttf',
-        'TaipeiSans-Regular.ttf',
-        'JasonHandwriting-Regular.ttf',
-        'LXGWWenKai-Regular.ttf'
+        'ChenYuluoyan-2.0-Thin.ttf',
+        'ChenYuluoyan-Thin-Monospaced.ttf',
+        'ChenYuluoyan-Thin.ttf'
     ];
     
     for (const fontFile of commonFontFiles) {
@@ -291,17 +297,21 @@ async function scanFontsDirectory() {
             const fontData = await loadAndValidateFont(fontFile);
             if (fontData.loaded) {
                 detectedFonts.push(fontData);
-                console.log(`✅ 檢測到字體: ${fontFile} → ${fontData.displayName}`);
+                console.log(`✅ 成功載入字體: ${fontFile} → ${fontData.displayName} (${fontData.fontName})`);
             }
         } catch (error) {
-            console.log(`⚠️ 字體不存在或載入失敗: ${fontFile}`);
+            console.log(`❌ 字體載入失敗: ${fontFile} - ${error.message}`);
         }
     }
     
     DETECTED_FONTS = detectedFonts;
     updateAllFontSelectors();
     
-    console.log(`🎉 字體掃描完成，檢測到 ${detectedFonts.length} 個字體`);
+    console.log(`🎉 字體掃描完成！總共檢測到 ${detectedFonts.length} 個有效字體`);
+    console.log(`📊 字體載入狀態摘要:`);
+    detectedFonts.forEach(font => {
+        console.log(`   📖 ${font.displayName} (${font.fileName})`);
+    });
     return detectedFonts;
 }
 
@@ -401,9 +411,6 @@ function updateAllFontSelectors() {
     
     // 更新字體狀態顯示
     updateFontStatusDisplay();
-    
-    // 🆕 更新字體管理面板顯示
-    refreshFontManagementDisplay();
 }
 
 function updateFontSelector(selector, textType) {
@@ -419,30 +426,6 @@ function updateFontSelector(selector, textType) {
 function updateFontStatusDisplay() {
     // 這個函數將在控制面板更新時被調用，顯示字體狀態
     console.log(`📊 字體狀態 - 系統字體: ${FONT_FAMILIES.length} 個 | 檢測字體: ${DETECTED_FONTS.length} 個`);
-}
-
-function refreshFontManagementDisplay() {
-    // 更新字體管理面板中的數量顯示
-    // 尋找字體管理區塊中的特定元素
-    const fontManagementSection = document.querySelector('.control-group:has(.font-status-info)');
-    if (fontManagementSection) {
-        const fontCountElement = fontManagementSection.querySelector('label');
-        const fontStatusElement = fontManagementSection.querySelector('.font-status-info');
-        
-        if (fontCountElement) {
-            fontCountElement.textContent = `可用字體 (${getAllAvailableFonts().length} 個)`;
-        }
-        
-        if (fontStatusElement) {
-            fontStatusElement.textContent = `📁 系統字體: ${FONT_FAMILIES.length} 個 | 🔍 檢測字體: ${DETECTED_FONTS.length} 個`;
-        }
-    } else {
-        // 如果找不到字體管理區塊，嘗試更新當前顯示的控制面板
-        const activeTab = document.querySelector('.style-tab.active');
-        if (activeTab) {
-            updateStyleControls(activeTab.dataset.text || 'title');
-        }
-    }
 }
 
 async function initializeFontDetection() {
@@ -2088,17 +2071,6 @@ function updateStyleControls(textType) {
         </div>
         
         <div class="section-divider"></div>
-        <div class="section-title">🔤 字體管理</div>
-        
-        <div class="control-group">
-            <label>可用字體 (${getAllAvailableFonts().length} 個)</label>
-            <div class="font-status-info">
-                📁 系統字體: ${FONT_FAMILIES.length} 個 | 🔍 檢測字體: ${DETECTED_FONTS.length} 個
-            </div>
-            <button class="preset-btn" onclick="scanFontsDirectory()">🔄 重新檢測字體</button>
-        </div>
-        
-        <div class="section-divider"></div>
         <div class="section-title">📏 間距與排版</div>
         
         <div class="control-group two-column">
@@ -3243,8 +3215,8 @@ console.log('   - 📱 新增：響應式設計，適應不同螢幕');
 console.log('   - 🔧 修正：滾輪縮放只影響當前選中圖片');
 console.log('   - 🔧 修正：移除全域圖片偏移，改為獨立管理');
 console.log('   - 🆕 新增：自動字體檢測與載入系統');
-console.log('   - 🆕 新增：智能字體命名轉換（lihsianti-proportional.ttf → 李西安蒂比例字體）');
-console.log('   - 🆕 新增：字體管理 UI 與重新檢測功能');
+console.log('   - 🆕 新增：智能字體命名轉換（ChenYuluoyan → 晨雨洛雁）');
+console.log('   - 🔧 修正：移除字體管理 UI，改為自動檢測');
 console.log('   - 🆕 新增：fonts/ 資料夾自動掃描支援');
 console.log(`\n🎯 模板二預設設定：`);
 console.log(`   標題：73px，位置偏移(-50, -190)，寬度700px`);
@@ -3275,8 +3247,8 @@ console.log(`\n🔤 自動字體檢測系統：`);
 console.log(`   🔍 自動掃描 fonts/ 資料夾`);
 console.log(`   ✨ 智能字體命名轉換`);
 console.log(`   📄 支援 TTF、OTF、WOFF、WOFF2 格式`);
-console.log(`   🎯 特殊處理：lihsianti-proportional.ttf → 李西安蒂比例字體`);
-console.log(`   🔄 手動重新檢測功能`);
+console.log(`   🎯 特殊處理：ChenYuluoyan-2.0-Thin.ttf → 晨雨洛雁 2.0 極細體`);
+console.log(`   🚫 移除手動重新檢測功能（改為自動檢測）`);
 console.log(`   📊 字體狀態實時顯示`);
 console.log(`   🎨 與現有控制面板完美整合`);
 console.log(`\n📱 手機版優化：`);
