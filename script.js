@@ -249,16 +249,26 @@ const FONT_FAMILIES = [
 let DETECTED_FONTS = [];
 let FONT_LOAD_STATUS = {};
 
-// 🆕 智能字體命名映射
+// 🆕 智能字體命名映射 - 擴充版本
 const FONT_NAME_MAPPING = {
     'lihsianti': '李西安蒂',
     'proportional': '比例',
     'NotoSansTC': 'Noto Sans TC',
+    'NotoSerifTC': 'Noto Serif TC',
     'SourceHanSans': 'Source Han Sans',
+    'SourceHanSerif': 'Source Han Serif',
     'TaipeiSans': '台北黑體',
     'JasonHandwriting': '瀨戶字體',
     'LXGWWenKai': '霞鶩文楷',
-    'TaipeiSans': '台北黑體'
+    'cwTeXFangSong': 'cwTeX 仿宋',
+    'cwTeXKai': 'cwTeX 楷書',
+    'cwTeXMing': 'cwTeX 明體',
+    'Roboto': 'Roboto',
+    'OpenSans': 'Open Sans',
+    'Lato': 'Lato',
+    'Montserrat': 'Montserrat',
+    'Poppins': 'Poppins',
+    'zhonly': ''  // 移除 zhonly 後綴
 };
 
 const WEIGHT_MAPPING = {
@@ -266,27 +276,33 @@ const WEIGHT_MAPPING = {
     'Light': '細體', 
     'Regular': '標準',
     'Thin': '極細體',
-    'Heavy': '特粗體'
+    'Heavy': '特粗體',
+    'Medium': '中等',
+    'SemiBold': '半粗體',
+    'ExtraBold': '特粗體',
+    'Black': '黑體',
+    'Normal': '標準'
 };
 
-// 🆕 字體檢測與載入系統
+// 🆕 字體檢測與載入系統 - 自動掃描版本
 async function scanFontsDirectory() {
-    console.log('🔍 開始掃描 fonts/ 資料夾...');
+    console.log('🔍 開始自動掃描 fonts/ 資料夾...');
+    updateScanningStatus('正在掃描字體檔案...', true);
     
-    const fontFormats = ['woff2', 'woff', 'ttf', 'otf'];
     const detectedFonts = [];
     
-    // 常見字體檔案名稱列表（可配置）
-    const commonFontFiles = [
-        'lihsianti-proportional.ttf',
-        'NotoSansTC-Bold.woff2',
-        'SourceHanSans-Regular.ttf',
-        'TaipeiSans-Regular.ttf',
-        'JasonHandwriting-Regular.ttf',
-        'LXGWWenKai-Regular.ttf'
-    ];
+    // 🔧 新增：自動掃描字體檔案
+    const scannedFonts = await autoDiscoverFontFiles();
+    console.log(`📁 發現 ${scannedFonts.length} 個字體檔案`);
     
-    for (const fontFile of commonFontFiles) {
+    if (scannedFonts.length > 0) {
+        updateScanningStatus(`正在載入 ${scannedFonts.length} 個字體檔案...`, true);
+    }
+    
+    for (let i = 0; i < scannedFonts.length; i++) {
+        const fontFile = scannedFonts[i];
+        updateScanningStatus(`正在載入字體 ${i + 1}/${scannedFonts.length}: ${fontFile}`, true);
+        
         try {
             const fontData = await loadAndValidateFont(fontFile);
             if (fontData.loaded) {
@@ -294,15 +310,117 @@ async function scanFontsDirectory() {
                 console.log(`✅ 檢測到字體: ${fontFile} → ${fontData.displayName}`);
             }
         } catch (error) {
-            console.log(`⚠️ 字體不存在或載入失敗: ${fontFile}`);
+            console.log(`⚠️ 字體載入失敗: ${fontFile}`);
         }
     }
     
     DETECTED_FONTS = detectedFonts;
     updateAllFontSelectors();
     
-    console.log(`🎉 字體掃描完成，檢測到 ${detectedFonts.length} 個字體`);
+    console.log(`🎉 自動字體掃描完成，檢測到 ${detectedFonts.length} 個可用字體`);
+    updateScanningStatus('', false);
     return detectedFonts;
+}
+
+// 🆕 自動發現字體檔案函數
+async function autoDiscoverFontFiles() {
+    const fontFormats = ['ttf', 'otf', 'woff', 'woff2'];
+    const discoveredFonts = [];
+    
+    // 🔧 方法1：優先檢查已知存在的字體
+    const knownFonts = ['lihsianti-proportional.ttf'];
+    
+    for (const fontFile of knownFonts) {
+        try {
+            const response = await fetch(`fonts/${fontFile}`, { method: 'HEAD' });
+            if (response.ok) {
+                discoveredFonts.push(fontFile);
+                console.log(`📄 確認已知字體: ${fontFile}`);
+            }
+        } catch (error) {
+            // 檔案不存在，繼續
+        }
+    }
+    
+    // 🔧 方法2：嘗試掃描常見的字體檔案名稱模式
+    const commonPatterns = [
+        // 常見中文字體
+        'NotoSansTC-Regular.ttf', 'NotoSansTC-Bold.ttf', 'NotoSansTC-Light.ttf',
+        'NotoSerifTC-Regular.ttf', 'NotoSerifTC-Bold.ttf',
+        'SourceHanSans-Regular.ttf', 'SourceHanSans-Bold.ttf', 'SourceHanSans-Light.ttf',
+        'SourceHanSerif-Regular.ttf', 'SourceHanSerif-Bold.ttf',
+        'TaipeiSans-Regular.ttf', 'TaipeiSans-Bold.ttf',
+        'JasonHandwriting-Regular.ttf', 'JasonHandwriting-Bold.ttf',
+        'LXGWWenKai-Regular.ttf', 'LXGWWenKai-Bold.ttf', 'LXGWWenKai-Light.ttf',
+        'cwTeXFangSong-zhonly.ttf', 'cwTeXKai-zhonly.ttf', 'cwTeXMing-zhonly.ttf',
+        
+        // WOFF/WOFF2 版本
+        'NotoSansTC-Regular.woff2', 'NotoSansTC-Bold.woff2',
+        'SourceHanSans-Regular.woff2', 'SourceHanSans-Bold.woff2',
+        'TaipeiSans-Regular.woff2', 'TaipeiSans-Bold.woff2',
+        
+        // 英文字體
+        'Roboto-Regular.ttf', 'Roboto-Bold.ttf', 'Roboto-Light.ttf',
+        'OpenSans-Regular.ttf', 'OpenSans-Bold.ttf', 'OpenSans-Light.ttf',
+        'Lato-Regular.ttf', 'Lato-Bold.ttf', 'Lato-Light.ttf',
+        'Montserrat-Regular.ttf', 'Montserrat-Bold.ttf',
+        'Poppins-Regular.ttf', 'Poppins-Bold.ttf', 'Poppins-Light.ttf'
+    ];
+    
+    // 🔧 批次檢查常見字體，限制並發數量以避免性能問題
+    const batchSize = 10;
+    for (let i = 0; i < commonPatterns.length; i += batchSize) {
+        const batch = commonPatterns.slice(i, i + batchSize);
+        const promises = batch.map(async (fontFile) => {
+            try {
+                const response = await fetch(`fonts/${fontFile}`, { method: 'HEAD' });
+                if (response.ok && !discoveredFonts.includes(fontFile)) {
+                    return fontFile;
+                }
+            } catch (error) {
+                // 檔案不存在
+            }
+            return null;
+        });
+        
+        const results = await Promise.all(promises);
+        for (const result of results) {
+            if (result) {
+                discoveredFonts.push(result);
+                console.log(`📄 發現字體檔案: ${result}`);
+            }
+        }
+    }
+    
+    // 🔧 方法3：嘗試一些通用的檔案名稱（限制範圍以提高效率）
+    const customPatterns = [];
+    const genericNames = [
+        'font', 'custom', 'main', 'primary', 'title', 'content', 'chinese', 'english'
+    ];
+    
+    for (const name of genericNames) {
+        for (const format of fontFormats) {
+            customPatterns.push(`${name}.${format}`);
+            customPatterns.push(`${name}-regular.${format}`);
+            customPatterns.push(`${name}-bold.${format}`);
+        }
+    }
+    
+    // 檢查自訂字體檔案
+    for (const fontFile of customPatterns) {
+        try {
+            const response = await fetch(`fonts/${fontFile}`, { method: 'HEAD' });
+            if (response.ok && !discoveredFonts.includes(fontFile)) {
+                discoveredFonts.push(fontFile);
+                console.log(`📄 發現自訂字體檔案: ${fontFile}`);
+            }
+        } catch (error) {
+            // 檔案不存在，繼續掃描下一個
+        }
+    }
+    
+    console.log(`✅ 自動掃描完成，共發現 ${discoveredFonts.length} 個字體檔案`);
+    return discoveredFonts;
 }
 
 async function loadAndValidateFont(fontFile) {
@@ -418,7 +536,7 @@ function updateFontSelector(selector, textType) {
 
 function updateFontStatusDisplay() {
     // 這個函數將在控制面板更新時被調用，顯示字體狀態
-    console.log(`📊 字體狀態 - 系統字體: ${FONT_FAMILIES.length} 個 | 檢測字體: ${DETECTED_FONTS.length} 個`);
+    console.log(`📊 字體狀態 - 系統字體: ${FONT_FAMILIES.length} 個 | 掃描字體: ${DETECTED_FONTS.length} 個`);
 }
 
 function refreshFontManagementDisplay() {
@@ -434,7 +552,7 @@ function refreshFontManagementDisplay() {
         }
         
         if (fontStatusElement) {
-            fontStatusElement.textContent = `📁 系統字體: ${FONT_FAMILIES.length} 個 | 🔍 檢測字體: ${DETECTED_FONTS.length} 個`;
+            fontStatusElement.textContent = `📁 系統字體: ${FONT_FAMILIES.length} 個 | 🔍 掃描字體: ${DETECTED_FONTS.length} 個`;
         }
     } else {
         // 如果找不到字體管理區塊，嘗試更新當前顯示的控制面板
@@ -446,12 +564,33 @@ function refreshFontManagementDisplay() {
 }
 
 async function initializeFontDetection() {
-    console.log('🔍 初始化字體檢測系統...');
+    console.log('🔍 初始化自動字體檢測系統...');
+    
+    // 顯示掃描狀態
+    updateScanningStatus('正在初始化字體檢測系統...', true);
+    
     try {
         await scanFontsDirectory();
-        console.log('✅ 字體檢測系統初始化完成');
+        console.log('✅ 自動字體檢測系統初始化完成');
+        updateScanningStatus('字體檢測完成', false);
     } catch (error) {
         console.error('❌ 字體檢測系統初始化失敗:', error);
+        updateScanningStatus('字體檢測失敗', false);
+    }
+}
+
+// 🆕 更新掃描狀態顯示
+function updateScanningStatus(message, isScanning) {
+    // 尋找字體管理區塊並更新狀態
+    const fontStatusElement = document.querySelector('.font-status-info');
+    if (fontStatusElement) {
+        if (isScanning) {
+            fontStatusElement.innerHTML = `🔄 ${message}`;
+            fontStatusElement.style.color = '#007bff';
+        } else {
+            fontStatusElement.innerHTML = `📁 系統字體: ${FONT_FAMILIES.length} 個 | 🔍 掃描字體: ${DETECTED_FONTS.length} 個`;
+            fontStatusElement.style.color = '';
+        }
     }
 }
 
@@ -460,7 +599,7 @@ window.scanFontsDirectory = scanFontsDirectory;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 啟動多圖片版：修正縮放邏輯+手機版優化+自動字體檢測');
+    console.log('🚀 啟動多圖片版：修正縮放邏輯+手機版優化+自動字體掃描系統');
     
     initializeCanvas();
     setupBasicEvents();
@@ -471,12 +610,12 @@ document.addEventListener('DOMContentLoaded', function() {
     addPositionLogger();
     setupMobileOptimizations(); // 🔧 新增：手機版優化
     
-    // 🆕 新增：自動字體檢測
+    // 🆕 新增：自動字體檢測與掃描系統
     initializeFontDetection();
     
     loadDefaultSettings();
     
-    console.log('✅ 初始化完成 - 多圖片控制版本（修正縮放+手機版+字體檢測）');
+    console.log('✅ 初始化完成 - 多圖片控制版本（修正縮放+手機版+自動字體掃描）');
 });
 
 // 🔧 新增：手機版優化設定
@@ -2093,9 +2232,9 @@ function updateStyleControls(textType) {
         <div class="control-group">
             <label>可用字體 (${getAllAvailableFonts().length} 個)</label>
             <div class="font-status-info">
-                📁 系統字體: ${FONT_FAMILIES.length} 個 | 🔍 檢測字體: ${DETECTED_FONTS.length} 個
+                📁 系統字體: ${FONT_FAMILIES.length} 個 | 🔍 掃描字體: ${DETECTED_FONTS.length} 個
             </div>
-            <button class="preset-btn" onclick="scanFontsDirectory()">🔄 重新檢測字體</button>
+            <button class="preset-btn" onclick="scanFontsDirectory()">🔄 重新掃描字體</button>
         </div>
         
         <div class="section-divider"></div>
@@ -3217,7 +3356,7 @@ function getCurrentDateTime() {
 }
 
 // 確保所有全局函數都已定義
-console.log('🎉 多圖片版圖片生成器載入完成 - 修正縮放邏輯+手機版優化+自動字體檢測');
+console.log('🎉 多圖片版圖片生成器載入完成 - 修正縮放邏輯+手機版優化+自動字體掃描');
 console.log('📅 版本時間: 2025-07-20 09:19:58');
 console.log('👤 用戶: tonyonier99');
 console.log('✨ 功能特色:');
@@ -3242,9 +3381,9 @@ console.log('   - 📱 新增：手機版優化，防止滾動衝突');
 console.log('   - 📱 新增：響應式設計，適應不同螢幕');
 console.log('   - 🔧 修正：滾輪縮放只影響當前選中圖片');
 console.log('   - 🔧 修正：移除全域圖片偏移，改為獨立管理');
-console.log('   - 🆕 新增：自動字體檢測與載入系統');
+console.log('   - 🆕 新增：自動字體掃描與載入系統');
 console.log('   - 🆕 新增：智能字體命名轉換（lihsianti-proportional.ttf → 李西安蒂比例字體）');
-console.log('   - 🆕 新增：字體管理 UI 與重新檢測功能');
+console.log('   - 🆕 新增：字體管理 UI 與重新掃描功能');
 console.log('   - 🆕 新增：fonts/ 資料夾自動掃描支援');
 console.log(`\n🎯 模板二預設設定：`);
 console.log(`   標題：73px，位置偏移(-50, -190)，寬度700px`);
@@ -3271,12 +3410,12 @@ console.log(`   透明度：5%~100%`);
 console.log(`   模糊效果：0~20px`);
 console.log(`   色彩調整：亮度20%~300%，對比度20%~300%，飽和度0%~400%`);
 console.log(`   層級管理：1~圖片總數`);
-console.log(`\n🔤 自動字體檢測系統：`);
+console.log(`\n🔤 自動字體掃描系統：`);
 console.log(`   🔍 自動掃描 fonts/ 資料夾`);
 console.log(`   ✨ 智能字體命名轉換`);
 console.log(`   📄 支援 TTF、OTF、WOFF、WOFF2 格式`);
 console.log(`   🎯 特殊處理：lihsianti-proportional.ttf → 李西安蒂比例字體`);
-console.log(`   🔄 手動重新檢測功能`);
+console.log(`   🔄 手動重新掃描功能`);
 console.log(`   📊 字體狀態實時顯示`);
 console.log(`   🎨 與現有控制面板完美整合`);
 console.log(`\n📱 手機版優化：`);
