@@ -88,6 +88,56 @@ section h2 {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
+/* Category-Specific Options Section */
+.category-options-section {
+    margin-bottom: 30px;
+}
+
+.category-options-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.category-option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.category-option-label {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95rem;
+}
+
+.category-option-select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background: white;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+}
+
+.category-option-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.category-options-empty {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    grid-column: 1 / -1;
+    padding: 40px;
+}
+
 /* Template Section - 固定左右兩側布局 */
 .template-grid {
     display: grid;
