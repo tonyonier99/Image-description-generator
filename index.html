@@ -15,48 +15,24 @@
         </header>
 
         <main>
+            <!-- 類別選擇區 -->
+            <section class="category-section">
+                <h2>選擇類別</h2>
+                <div class="category-selector">
+                    <select id="category-select" class="category-dropdown">
+                        <option value="Classic">經典 (Classic)</option>
+                        <option value="Menu">菜單 (Menu)</option>
+                        <option value="Room">房型 (Room)</option>
+                        <option value="BusinessCard">名片 (BusinessCard)</option>
+                    </select>
+                </div>
+            </section>
+
             <!-- 模板選擇區 -->
             <section class="template-section">
                 <h2>選擇模板</h2>
-                <div class="template-grid">
-                    <label class="template-card">
-                        <input type="radio" name="template" value="1" checked>
-                        <div class="template-preview">
-                            <img src="template1-demo.jpg" alt="經典模板預覽" class="template-image" 
-                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                            <div class="template1-demo" style="display: none;">
-                                <div class="demo-image">圖片區域</div>
-                                <div class="demo-content">
-                                    <div class="demo-line"></div>
-                                    <div class="demo-title">大標題內容在這裡</div>
-                                    <div class="demo-subtitle">小標題附註說明內容，附註說明內容</div>
-                                    <div class="demo-text">內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。</div>
-                                    <div class="demo-text">內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。</div>
-                                </div>
-                            </div>
-                        </div>
-                        <span class="template-name">經典模板</span>
-                    </label>
-                    
-                    <label class="template-card">
-                        <input type="radio" name="template" value="2">
-                        <div class="template-preview">
-                            <img src="template2-demo.jpg" alt="現代模板預覽" class="template-image"
-                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                            <div class="template2-demo" style="display: none;">
-                                <div class="demo-image">圖片區域</div>
-                                <div class="demo-title-bar">
-                                    <div class="demo-title">大標題內容在這裡</div>
-                                    <div class="demo-subtitle">小標題附註說明內容，附註說明內容</div>
-                                </div>
-                                <div class="demo-content">
-                                    <div class="demo-text">內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。</div>
-                                    <div class="demo-text">內文詳細說明，跟其他想補充之內容。內文詳細說明，跟其他想補充之內容。</div>
-                                </div>
-                            </div>
-                        </div>
-                        <span class="template-name">現代模板</span>
-                    </label>
+                <div class="template-grid" id="template-grid">
+                    <!-- Templates will be dynamically loaded based on selected category -->
                 </div>
             </section>
 
