@@ -1,0 +1,299 @@
+# 後台設定（使用手動初始化 + PAT 登入）
+publish_mode: editorial_workflow
+locale: zh_Hant
+
+media_folder: "assets/uploads"
+public_folder: "/assets/uploads"
+
+collections:
+  - label: "設定"
+    name: "settings"
+    editor:
+      preview: false
+    files:
+      - label: "類別欄位設定"
+        name: "categories_config"
+        file: "config/categories.config.json"
+        format: "json"
+        fields:
+          - label: "Classic（經典）"
+            name: "Classic"
+            widget: "object"
+            fields:
+              - { label: "顯示名稱", name: "label", widget: "string", default: "經典" }
+              - label: "欄位定義"
+                name: "fields"
+                widget: "list"
+                types:
+                  - label: "文字"
+                    name: "text"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "text" }
+                      - { label: "最大長度", name: "maxLength", widget: "number", required: false }
+                  - label: "多行文字"
+                    name: "textarea"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "textarea" }
+                  - label: "數字"
+                    name: "number"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "number" }
+                      - { label: "最小值", name: "min", widget: "number", required: false }
+                      - { label: "最大值", name: "max", widget: "number", required: false }
+                  - label: "色彩"
+                    name: "color"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "color" }
+                  - label: "下拉選單"
+                    name: "select"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "select" }
+                      - label: "選項"
+                        name: "options"
+                        widget: "list"
+                        field: { label: "選項值", name: "option", widget: "string" }
+                  - label: "多選（Checkbox 群組）"
+                    name: "checkbox-group"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "checkbox-group" }
+                      - label: "選項"
+                        name: "options"
+                        widget: "list"
+                        field: { label: "選項值", name: "option", widget: "string" }
+
+          - label: "Menu（菜單）"
+            name: "Menu"
+            widget: "object"
+            fields:
+              - { label: "顯示名稱", name: "label", widget: "string", default: "菜單" }
+              - label: "欄位定義"
+                name: "fields"
+                widget: "list"
+                types:
+                  - label: "文字"
+                    name: "text"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "text" }
+                      - { label: "最大長度", name: "maxLength", widget: "number", required: false }
+                  - label: "多行文字"
+                    name: "textarea"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "textarea" }
+                  - label: "數字"
+                    name: "number"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "number" }
+                      - { label: "最小值", name: "min", widget: "number", required: false }
+                      - { label: "最大值", name: "max", widget: "number", required: false }
+                  - label: "色彩"
+                    name: "color"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "color" }
+                  - label: "下拉選單"
+                    name: "select"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "select" }
+                      - label: "選項"
+                        name: "options"
+                        widget: "list"
+                        field: { label: "選項值", name: "option", widget: "string" }
+                  - label: "多選（Checkbox 群組）"
+                    name: "checkbox-group"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "checkbox-group" }
+                      - label: "選項"
+                        name: "options"
+                        widget: "list"
+                        field: { label: "選項值", name: "option", widget: "string" }
+
+          - label: "Room（房型）"
+            name: "Room"
+            widget: "object"
+            fields:
+              - { label: "顯示名稱", name: "label", widget: "string", default: "房型" }
+              - label: "欄位定義"
+                name: "fields"
+                widget: "list"
+                types:
+                  - label: "文字"
+                    name: "text"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "text" }
+                      - { label: "最大長度", name: "maxLength", widget: "number", required: false }
+                  - label: "多行文字"
+                    name: "textarea"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "textarea" }
+                  - label: "數字"
+                    name: "number"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "number" }
+                      - { label: "最小值", name: "min", widget: "number", required: false }
+                      - { label: "最大值", name: "max", widget: "number", required: false }
+                  - label: "色彩"
+                    name: "color"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "color" }
+                  - label: "下拉選單"
+                    name: "select"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型型", name: "type", widget: "hidden", default: "select" }
+                      - label: "選項"
+                        name: "options"
+                        widget: "list"
+                        field: { label: "選項值", name: "option", widget: "string" }
+                  - label: "多選（Checkbox 群組）"
+                    name: "checkbox-group"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型型", name: "type", widget: "hidden", default: "checkbox-group" }
+                      - label: "選項"
+                        name: "options"
+                        widget: "list"
+                        field: { label: "選項值", name: "option", widget: "string" }
+
+          - label: "BusinessCard（名片）"
+            name: "BusinessCard"
+            widget: "object"
+            fields:
+              - { label: "顯示名稱", name: "label", widget: "string", default: "名片" }
+              - label: "欄位定義"
+                name: "fields"
+                widget: "list"
+                types:
+                  - label: "文字"
+                    name: "text"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型別", name: "type", widget: "hidden", default: "text" }
+                      - { label: "最大長度", name: "maxLength", widget: "number", required: false }
+                  - label: "多行文字"
+                    name: "textarea"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型型", name: "type", widget: "hidden", default: "textarea" }
+                  - label: "數字"
+                    name: "number"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型型", name: "type", widget: "hidden", default: "number" }
+                      - { label: "最小值", name: "min", widget: "number", required: false }
+                      - { label: "最大值", name: "max", widget: "number", required: false }
+                  - label: "色彩"
+                    name: "color"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型型", name: "type", widget: "hidden", default: "color" }
+                  - label: "下拉選單"
+                    name: "select"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型型", name: "type", widget: "hidden", default: "select" }
+                      - label: "選項"
+                        name: "options"
+                        widget: "list"
+                        field: { label: "選項值", name: "option", widget: "string" }
+                  - label: "多選（Checkbox 群組）"
+                    name: "checkbox-group"
+                    widget: "object"
+                    fields:
+                      - { label: "鍵名", name: "key", widget: "string" }
+                      - { label: "標籤", name: "label", widget: "string" }
+                      - { label: "型型", name: "type", widget: "hidden", default: "checkbox-group" }
+                      - label: "選項"
+                        name: "options"
+                        widget: "list"
+                        field: { label: "選項值", name: "option", widget: "string" }
+
+      - label: "模板清單（數量）"
+        name: "templates_manifest"
+        file: "config/templates.manifest.json"
+        format: "json"
+        fields:
+          - label: "Classic（經典）"
+            name: "Classic"
+            widget: "object"
+            fields:
+              - { label: "範本數量", name: "templates", widget: "number", min: 0 }
+              - { label: "底圖數量", name: "empties", widget: "number", min: 0 }
+          - label: "Menu（菜單）"
+            name: "Menu"
+            widget: "object"
+            fields:
+              - { label: "範本數量", name: "templates", widget: "number", min: 0 }
+              - { label: "底圖數量", name: "empties", widget: "number", min: 0 }
+          - label: "Room（房型）"
+            name: "Room"
+            widget: "object"
+            fields:
+              - { label: "範本數量", name: "templates", widget: "number", min: 0 }
+              - { label: "底圖數量", name: "empties", widget: "number", min: 0 }
+          - label: "BusinessCard（名片）"
+            name: "BusinessCard"
+            widget: "object"
+            fields:
+              - { label: "範本數量", name: "templates", widget: "number", min: 0 }
+              - { label: "底圖數量", name: "empties", widget: "number", min: 0 }
