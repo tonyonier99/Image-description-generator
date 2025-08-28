@@ -12,8 +12,8 @@ const CATEGORY_TEMPLATES = {
             id: 'classic_1',
             name: '經典模板',
             description: '傳統風格，適合一般圖片說明',
-            demoImage: 'template1-demo.jpg',
-            backgroundImage: 'bg-template1.png',
+            demoImage: 'templates/Classic/classic_1_demo.jpg',
+            backgroundImage: 'backgrounds/Classic/classic_1.png',
             // 繼承現有 template1 設定
             templateKey: 'template1'
         },
@@ -21,8 +21,8 @@ const CATEGORY_TEMPLATES = {
             id: 'classic_2', 
             name: '現代模板',
             description: '現代風格，圖片延伸效果',
-            demoImage: 'template2-demo.jpg',
-            backgroundImage: 'bg-template2.png',
+            demoImage: 'templates/Classic/classic_2_demo.jpg',
+            backgroundImage: 'backgrounds/Classic/classic_2.png',
             // 繼承現有 template2 設定
             templateKey: 'template2'
         }
@@ -32,8 +32,8 @@ const CATEGORY_TEMPLATES = {
             id: 'menu_1',
             name: '餐廳菜單A',
             description: '適合餐廳菜品展示',
-            demoImage: 'template1-demo.jpg', // 暫時使用現有圖片
-            backgroundImage: 'bg-template1.png', // 暫時使用現有背景
+            demoImage: 'templates/Menu/menu_1_demo.jpg',
+            backgroundImage: 'backgrounds/Menu/menu_1.png',
             templateKey: 'template1'
         }
     ],
@@ -42,8 +42,8 @@ const CATEGORY_TEMPLATES = {
             id: 'room_1',
             name: '房型介紹A',
             description: '適合房間類型展示',
-            demoImage: 'template2-demo.jpg', // 暫時使用現有圖片
-            backgroundImage: 'bg-template2.png', // 暫時使用現有背景
+            demoImage: 'templates/Room/room_1_demo.jpg',
+            backgroundImage: 'backgrounds/Room/room_1.png',
             templateKey: 'template2'
         }
     ],
@@ -52,8 +52,8 @@ const CATEGORY_TEMPLATES = {
             id: 'business_1',
             name: '商務名片A',
             description: '專業商務風格',
-            demoImage: 'template1-demo.jpg', // 暫時使用現有圖片
-            backgroundImage: 'bg-template1.png', // 暫時使用現有背景
+            demoImage: 'templates/BusinessCard/business_1_demo.jpg',
+            backgroundImage: 'backgrounds/BusinessCard/business_1.png',
             templateKey: 'template1'
         }
     ]
@@ -3025,16 +3025,34 @@ function generateImage() {
     // 載入背景圖
     const backgroundImg = new Image();
     const templateInfo = getSelectedTemplateInfo();
-    const bgImagePath = templateInfo ? templateInfo.backgroundImage : 'bg-template1.png';
+    let bgImagePath = templateInfo ? templateInfo.backgroundImage : 'bg-template1.png';
     
+    // 🔧 向後相容：如果新路徑不存在，嘗試使用舊路徑
     backgroundImg.onload = function() {
-        console.log('✅ 背景圖載入成功');
+        console.log('✅ 背景圖載入成功:', bgImagePath);
         drawCompleteImage(backgroundImg, template, title, subtitle, description);
     };
     
     backgroundImg.onerror = function() {
-        console.log('⚠️ 背景圖載入失敗，使用預設背景');
-        drawCompleteImage(null, template, title, subtitle, description);
+        console.log('⚠️ 背景圖載入失敗:', bgImagePath);
+        // 嘗試向後相容的路徑
+        const fallbackPath = template === '1' ? 'bg-template1.png' : 'bg-template2.png';
+        if (bgImagePath !== fallbackPath) {
+            console.log('🔄 嘗試向後相容路徑:', fallbackPath);
+            const fallbackImg = new Image();
+            fallbackImg.onload = function() {
+                console.log('✅ 向後相容背景圖載入成功');
+                drawCompleteImage(fallbackImg, template, title, subtitle, description);
+            };
+            fallbackImg.onerror = function() {
+                console.log('⚠️ 向後相容背景圖也載入失敗，使用預設背景');
+                drawCompleteImage(null, template, title, subtitle, description);
+            };
+            fallbackImg.src = fallbackPath;
+        } else {
+            console.log('⚠️ 使用預設背景');
+            drawCompleteImage(null, template, title, subtitle, description);
+        }
     };
     
     backgroundImg.src = bgImagePath;
