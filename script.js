@@ -3,6 +3,192 @@ let canvas, ctx;
 let uploadedImages = []; // 🔧 修改：改為陣列存放多張圖片
 let currentImageIndex = 0; // 🔧 新增：當前選中的圖片索引
 let isGenerated = false;
+let currentCategory = 'Classic'; // 新增：當前選中的類別
+
+// 🆕 新增：類別專屬可調整選項配置
+const CATEGORY_SPECIFIC_OPTIONS = {
+    Classic: [
+        {
+            id: 'classic_border_style',
+            label: '邊框樣式',
+            type: 'select',
+            options: [
+                { value: 'none', label: '無邊框' },
+                { value: 'simple', label: '簡單邊框' },
+                { value: 'elegant', label: '優雅邊框' }
+            ],
+            default: 'none'
+        },
+        {
+            id: 'classic_text_align',
+            label: '文字對齊',
+            type: 'select',
+            options: [
+                { value: 'left', label: '靠左' },
+                { value: 'center', label: '置中' },
+                { value: 'right', label: '靠右' }
+            ],
+            default: 'left'
+        }
+    ],
+    Menu: [
+        {
+            id: 'menu_price_display',
+            label: '價格顯示',
+            type: 'select',
+            options: [
+                { value: 'show', label: '顯示價格' },
+                { value: 'hide', label: '隱藏價格' }
+            ],
+            default: 'show'
+        },
+        {
+            id: 'menu_currency',
+            label: '貨幣符號',
+            type: 'select',
+            options: [
+                { value: 'twd', label: 'NT$' },
+                { value: 'usd', label: '$' },
+                { value: 'eur', label: '€' }
+            ],
+            default: 'twd'
+        },
+        {
+            id: 'menu_category_tags',
+            label: '分類標籤',
+            type: 'select',
+            options: [
+                { value: 'show', label: '顯示分類' },
+                { value: 'hide', label: '隱藏分類' }
+            ],
+            default: 'show'
+        }
+    ],
+    Room: [
+        {
+            id: 'room_size_display',
+            label: '房間坪數',
+            type: 'select',
+            options: [
+                { value: 'show', label: '顯示坪數' },
+                { value: 'hide', label: '隱藏坪數' }
+            ],
+            default: 'show'
+        },
+        {
+            id: 'room_amenities',
+            label: '設施圖示',
+            type: 'select',
+            options: [
+                { value: 'full', label: '完整設施' },
+                { value: 'basic', label: '基本設施' },
+                { value: 'none', label: '無圖示' }
+            ],
+            default: 'basic'
+        },
+        {
+            id: 'room_price_position',
+            label: '價格位置',
+            type: 'select',
+            options: [
+                { value: 'corner', label: '右上角' },
+                { value: 'bottom', label: '底部' },
+                { value: 'overlay', label: '圖片覆蓋' }
+            ],
+            default: 'corner'
+        }
+    ],
+    BusinessCard: [
+        {
+            id: 'business_qr_code',
+            label: 'QR Code',
+            type: 'select',
+            options: [
+                { value: 'show', label: '顯示QR碼' },
+                { value: 'hide', label: '隱藏QR碼' }
+            ],
+            default: 'hide'
+        },
+        {
+            id: 'business_logo_position',
+            label: 'Logo位置',
+            type: 'select',
+            options: [
+                { value: 'top_left', label: '左上角' },
+                { value: 'top_right', label: '右上角' },
+                { value: 'center', label: '置中' }
+            ],
+            default: 'top_left'
+        },
+        {
+            id: 'business_contact_layout',
+            label: '聯絡資訊布局',
+            type: 'select',
+            options: [
+                { value: 'vertical', label: '垂直排列' },
+                { value: 'horizontal', label: '水平排列' }
+            ],
+            default: 'vertical'
+        }
+    ]
+};
+
+// 🆕 新增：儲存當前類別選項設定
+let categorySpecificSettings = {};
+
+// 🆕 新增：類別與範本配置
+const CATEGORY_TEMPLATES = {
+    Classic: [
+        {
+            id: 'classic_1',
+            name: '經典模板',
+            description: '傳統風格，適合一般圖片說明',
+            demoImage: 'templates/Classic/classic_1_demo.jpg',
+            backgroundImage: 'backgrounds/Classic/classic_1.png',
+            // 繼承現有 template1 設定
+            templateKey: 'template1'
+        },
+        {
+            id: 'classic_2', 
+            name: '現代模板',
+            description: '現代風格，圖片延伸效果',
+            demoImage: 'templates/Classic/classic_2_demo.jpg',
+            backgroundImage: 'backgrounds/Classic/classic_2.png',
+            // 繼承現有 template2 設定
+            templateKey: 'template2'
+        }
+    ],
+    Menu: [
+        {
+            id: 'menu_1',
+            name: '餐廳菜單A',
+            description: '適合餐廳菜品展示',
+            demoImage: 'templates/Menu/menu_1_demo.jpg',
+            backgroundImage: 'backgrounds/Menu/menu_1.png',
+            templateKey: 'template1'
+        }
+    ],
+    Room: [
+        {
+            id: 'room_1',
+            name: '房型介紹A',
+            description: '適合房間類型展示',
+            demoImage: 'templates/Room/room_1_demo.jpg',
+            backgroundImage: 'backgrounds/Room/room_1.png',
+            templateKey: 'template2'
+        }
+    ],
+    BusinessCard: [
+        {
+            id: 'business_1',
+            name: '商務名片A',
+            description: '專業商務風格',
+            demoImage: 'templates/BusinessCard/business_1_demo.jpg',
+            backgroundImage: 'backgrounds/BusinessCard/business_1.png',
+            templateKey: 'template1'
+        }
+    ]
+};
 
 // 拖曳相關變數
 let isDragging = false;
@@ -491,9 +677,154 @@ async function initializeFontDetection() {
 // 🆕 將字體掃描函數設為全域可用
 window.scanFontsDirectory = scanFontsDirectory;
 
+// 🆕 類別與範本管理功能
+function getSelectedCategory() {
+    const categorySelect = document.getElementById('category-select');
+    return categorySelect ? categorySelect.value : 'Classic';
+}
+
+function loadTemplatesForCategory(category) {
+    const templateGrid = document.getElementById('template-grid');
+    if (!templateGrid) return;
+    
+    const templates = CATEGORY_TEMPLATES[category] || CATEGORY_TEMPLATES.Classic;
+    
+    templateGrid.innerHTML = templates.map((template, index) => {
+        const isFirst = index === 0;
+        return `
+            <label class="template-card">
+                <input type="radio" name="template" value="${template.id}" ${isFirst ? 'checked' : ''}>
+                <div class="template-preview">
+                    <img src="${template.demoImage}" alt="${template.name}預覽" class="template-image" 
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="template-fallback" style="display: none;">
+                        <div class="demo-image">圖片區域</div>
+                        <div class="demo-content">
+                            <div class="demo-title">${template.name}</div>
+                            <div class="demo-text">${template.description}</div>
+                        </div>
+                    </div>
+                </div>
+                <span class="template-name">${template.name}</span>
+                <small class="template-description">${template.description}</small>
+            </label>
+        `;
+    }).join('');
+    
+    // 設置模板選擇事件監聽
+    setupTemplateEventListeners();
+}
+
+function setupTemplateEventListeners() {
+    const templateInputs = document.querySelectorAll('input[name="template"]');
+    templateInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            console.log('🎯 選擇範本:', this.value);
+            // 當範本改變時，可以在這裡添加額外的邏輯
+            if (uploadedImages.length > 0 && isGenerated) {
+                generateImage();
+            }
+        });
+    });
+}
+
+function setupCategoryEventListeners() {
+    const categorySelect = document.getElementById('category-select');
+    if (!categorySelect) return;
+    
+    categorySelect.addEventListener('change', function() {
+        currentCategory = this.value;
+        console.log('📂 切換類別:', currentCategory);
+        loadTemplatesForCategory(currentCategory);
+        loadCategorySpecificOptions(currentCategory);
+        
+        // 如果已經生成過圖片，重新生成
+        if (uploadedImages.length > 0 && isGenerated) {
+            generateImage();
+        }
+    });
+}
+
+// 🆕 載入類別專屬選項
+function loadCategorySpecificOptions(category) {
+    const container = document.getElementById('category-specific-options');
+    if (!container) return;
+    
+    const options = CATEGORY_SPECIFIC_OPTIONS[category] || [];
+    
+    if (options.length === 0) {
+        container.innerHTML = '<div class="category-options-empty">此類別暫無專屬選項</div>';
+        return;
+    }
+    
+    // 初始化類別設定
+    if (!categorySpecificSettings[category]) {
+        categorySpecificSettings[category] = {};
+        options.forEach(option => {
+            categorySpecificSettings[category][option.id] = option.default;
+        });
+    }
+    
+    container.innerHTML = options.map(option => {
+        const currentValue = categorySpecificSettings[category][option.id] || option.default;
+        return `
+            <div class="category-option-group">
+                <label class="category-option-label" for="${option.id}">${option.label}</label>
+                <select class="category-option-select" id="${option.id}" onchange="updateCategoryOption('${category}', '${option.id}', this.value)">
+                    ${option.options.map(opt => 
+                        `<option value="${opt.value}" ${opt.value === currentValue ? 'selected' : ''}>${opt.label}</option>`
+                    ).join('')}
+                </select>
+            </div>
+        `;
+    }).join('');
+    
+    console.log(`🎛️ 載入 ${category} 類別專屬選項:`, options.length, '個');
+}
+
+// 🆕 更新類別專屬選項
+function updateCategoryOption(category, optionId, value) {
+    if (!categorySpecificSettings[category]) {
+        categorySpecificSettings[category] = {};
+    }
+    
+    categorySpecificSettings[category][optionId] = value;
+    console.log(`⚙️ 更新 ${category} 選項 ${optionId}:`, value);
+    
+    // 如果已經生成過圖片，重新生成
+    if (uploadedImages.length > 0 && isGenerated) {
+        generateImage();
+    }
+}
+
+// 🆕 獲取當前類別的專屬設定
+function getCurrentCategorySettings() {
+    return categorySpecificSettings[currentCategory] || {};
+}
+
+// 🆕 將類別選項更新函數設為全域可用
+window.updateCategoryOption = updateCategoryOption;
+
+// 🔧 修改：getSelectedTemplate 函數以支援新的範本系統
+function getSelectedTemplateInfo() {
+    const selectedTemplate = document.querySelector('input[name="template"]:checked');
+    if (!selectedTemplate) return null;
+    
+    const category = getSelectedCategory();
+    const templates = CATEGORY_TEMPLATES[category] || CATEGORY_TEMPLATES.Classic;
+    const templateInfo = templates.find(t => t.id === selectedTemplate.value);
+    
+    return templateInfo;
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 啟動多圖片版：修正縮放邏輯+手機版優化+自動字體檢測');
+    console.log('🚀 啟動多圖片版：修正縮放邏輯+手機版優化+自動字體檢測+類別系統');
+    
+    // 🆕 初始化類別系統
+    setupCategoryEventListeners();
+    loadTemplatesForCategory(currentCategory);
+    loadCategorySpecificOptions(currentCategory); // 新增：載入類別專屬選項
     
     initializeCanvas();
     setupBasicEvents();
@@ -508,7 +839,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     loadDefaultSettings();
     
-    console.log('✅ 初始化完成 - 多圖片控制版本（修正縮放+手機版+字體檢測）');
+    console.log('✅ 初始化完成 - 多圖片控制版本（修正縮放+手機版+字體檢測+類別系統+專屬選項）');
 });
 
 // 🔧 新增：手機版優化設定
@@ -2863,8 +3194,11 @@ function resetTextPositions() {
 
 // 取得選中的模板
 function getSelectedTemplate() {
-    const selectedTemplate = document.querySelector('input[name="template"]:checked');
-    return selectedTemplate ? selectedTemplate.value : '1';
+    const templateInfo = getSelectedTemplateInfo();
+    if (!templateInfo) return '1'; // fallback to template1
+    
+    // 返回對應的 templateKey (template1 或 template2)，去掉 'template' 前綴
+    return templateInfo.templateKey.replace('template', '');
 }
 
 // 🔧 修改：生成圖片（支援多圖片）
@@ -2883,16 +3217,35 @@ function generateImage() {
     
     // 載入背景圖
     const backgroundImg = new Image();
-    const bgImagePath = template === '1' ? 'bg-template1.png' : 'bg-template2.png';
+    const templateInfo = getSelectedTemplateInfo();
+    let bgImagePath = templateInfo ? templateInfo.backgroundImage : 'bg-template1.png';
     
+    // 🔧 向後相容：如果新路徑不存在，嘗試使用舊路徑
     backgroundImg.onload = function() {
-        console.log('✅ 背景圖載入成功');
+        console.log('✅ 背景圖載入成功:', bgImagePath);
         drawCompleteImage(backgroundImg, template, title, subtitle, description);
     };
     
     backgroundImg.onerror = function() {
-        console.log('⚠️ 背景圖載入失敗，使用預設背景');
-        drawCompleteImage(null, template, title, subtitle, description);
+        console.log('⚠️ 背景圖載入失敗:', bgImagePath);
+        // 嘗試向後相容的路徑
+        const fallbackPath = template === '1' ? 'bg-template1.png' : 'bg-template2.png';
+        if (bgImagePath !== fallbackPath) {
+            console.log('🔄 嘗試向後相容路徑:', fallbackPath);
+            const fallbackImg = new Image();
+            fallbackImg.onload = function() {
+                console.log('✅ 向後相容背景圖載入成功');
+                drawCompleteImage(fallbackImg, template, title, subtitle, description);
+            };
+            fallbackImg.onerror = function() {
+                console.log('⚠️ 向後相容背景圖也載入失敗，使用預設背景');
+                drawCompleteImage(null, template, title, subtitle, description);
+            };
+            fallbackImg.src = fallbackPath;
+        } else {
+            console.log('⚠️ 使用預設背景');
+            drawCompleteImage(null, template, title, subtitle, description);
+        }
     };
     
     backgroundImg.src = bgImagePath;

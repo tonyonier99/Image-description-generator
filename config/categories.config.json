@@ -1,0 +1,35 @@
+{
+  "Classic": {
+    "label": "經典",
+    "fields": [
+    { "key": "title", "label": "主標題", "type": "text", "maxLength": 60 },
+    { "key": "subtitle", "label": "副標題", "type": "text", "maxLength": 120 },
+    { "key": "accentColor", "label": "強調色", "type": "color" }
+    ]
+  },
+  "Menu": {
+    "label": "菜單",
+    "fields": [
+    { "key": "section", "label": "區段標題", "type": "text" },
+    { "key": "items", "label": "品項（多行）", "type": "textarea" },
+    { "key": "currency", "label": "幣別", "type": "select", "options": ["$", "NT$", "¥"] }
+    ]
+  },
+  "Room": {
+    "label": "房型",
+    "fields": [
+    { "key": "roomType", "label": "房型名稱", "type": "text" },
+    { "key": "capacity", "label": "入住人數", "type": "number", "min": 1, "max": 10 },
+    { "key": "amenities", "label": "設施（多選）", "type": "checkbox-group", "options": ["Wi-Fi", "TV", "Mini Bar", "Ocean View"] }
+    ]
+  },
+  "BusinessCard": {
+    "label": "名片",
+    "fields": [
+    { "key": "name", "label": "姓名", "type": "text" },
+    { "key": "role", "label": "職稱", "type": "text" },
+    { "key": "phone", "label": "電話", "type": "text" },
+    { "key": "email", "label": "Email", "type": "text" }
+    ]
+  }
+}
