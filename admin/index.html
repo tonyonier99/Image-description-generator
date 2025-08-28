@@ -18,6 +18,7 @@
       .footer { margin-top: 16px; display: flex; gap: 8px; justify-content: space-between; align-items: center; }
       .link { color: #2563eb; text-decoration: none; }
       .link:hover { text-decoration: underline; }
+      .err { color: #b91c1c; font-size: 14px; margin-top: 10px; display:none; }
     </style>
   </head>
   <body>
@@ -31,6 +32,7 @@
         <label for="token" class="hint">GitHub PAT</label>
         <input id="token" type="password" autocomplete="off" placeholder="ghp_xxx 或 github_pat_xxx" />
         <div class="hint danger">請勿將 Token 寫入程式碼或提交到版本庫</div>
+        <div id="err" class="err"></div>
       </div>
       <button id="submit">使用 Token 登入</button>
       <div class="footer">
@@ -50,12 +52,32 @@
         const repo = "tonyonier99/Image-description-generator";
         const branch = "main";
 
+        function el(id){ return document.getElementById(id); }
+        function showError(msg){ const e = el("err"); if (!e) return; e.textContent = msg; e.style.display = "block"; }
+        function clearError(){ const e = el("err"); if (!e) return; e.textContent = ""; e.style.display = "none"; }
+
+        async function verifyToken(token){
+          // 驗證 Token 是否有效，並盡量確認是否能讀寫該 repo
+          const headers = {
+            Authorization: `token ${token}`,
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+          };
+          const u = await fetch("https://api.github.com/user", { headers });
+          if (!u.ok) throw new Error("Token 驗證失敗，請確認是否有效或權限足夠。");
+          const user = await u.json();
+          // 檢查是否能讀取 repo（至少需 Read）
+          const r = await fetch(`https://api.github.com/repos/${repo}`, { headers });
+          if (!r.ok) console.warn("Repo access check failed:", r.status);
+          return user;
+        }
+
         function startCMS(token) {
           // 隱藏登入框
-          const box = document.getElementById("token-login");
+          const box = el("token-login");
           if (box) box.style.display = "none";
 
-          // 啟動 CMS：載入 config.yml，並以 token 覆寫 backend 設定
+          // 啟動 CMS：以 token 覆寫 backend 設定，強制使用 token 模式
           window.CMS.init({
             config: {
               load_config_file: true,
@@ -63,7 +85,10 @@
                 name: "github",
                 repo,
                 branch,
-                token
+                auth_type: "token",     // 關鍵：改用 token 模式，避免跳 OAuth
+                token,
+                api_root: "https://api.github.com",
+                use_graphql_api: true
               },
               publish_mode: "editorial_workflow",
               locale: "zh_Hant"
@@ -80,10 +105,16 @@
           });
         }
 
-        function loginWith(token) {
+        async function loginWith(token) {
           if (!token) return;
-          sessionStorage.setItem(KEY, token);
-          startCMS(token);
+          clearError();
+          try {
+            await verifyToken(token);
+            sessionStorage.setItem(KEY, token);
+            startCMS(token);
+          } catch (err) {
+            showError((err && err.message) || "登入失敗，請檢查 Token 是否正確並具備 Contents / Pull requests 權限。");
+          }
         }
 
         // 若 sessionStorage 已有 token，直接進入 CMS
@@ -94,7 +125,7 @@
         const btn = document.getElementById("submit");
         btn?.addEventListener("click", () => {
           const t = (document.getElementById("token")?.value || "").trim();
-          if (!t) return;
+          if (!t) { showError("請先輸入 Token"); return; }
           loginWith(t);
         });
 
