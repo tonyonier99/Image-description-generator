@@ -1,11 +1,4 @@
 # 後台設定（使用手動初始化 + PAT 登入）
-backend:
-  name: github
-  repo: tonyonier99/Image-description-generator
-  branch: main
-  auth_type: token
-  use_graphql_api: false
-
 publish_mode: editorial_workflow
 locale: zh_Hant
 
