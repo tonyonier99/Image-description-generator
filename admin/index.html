@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
     <style>
-      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; }
-      .wrap { max-width: 560px; margin: 8vh auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; background:#f6f7f9; }
+      .wrap { max-width: 560px; margin: 8vh auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); background:#fff; }
       h1 { margin: 0 0 8px; font-size: 20px; }
       p { color: #4b5563; line-height: 1.6; }
       .field { margin-top: 16px; }
@@ -20,12 +20,17 @@
       .link:hover { text-decoration: underline; }
       .err { color: #b91c1c; font-size: 14px; margin-top: 10px; display:none; }
     </style>
+
+    <!-- Important: prevent Decap from auto-initializing OAuth -->
+    <script>
+      window.CMS_MANUAL_INIT = true;
+    </script>
   </head>
   <body>
     <div id="token-login" class="wrap" role="dialog" aria-labelledby="title" aria-describedby="desc">
       <h1 id="title">登入後台（以 GitHub PAT）</h1>
       <p id="desc">
-        請貼上你的 GitHub Personal Access Token（建議使用 Fine-grained PAT，僅授權此倉庫，權限：Contents 與 Pull requests）。
+        貼上你的 GitHub Personal Access Token（建議 Fine‑grained PAT，僅授權此倉庫，權限：Contents 與 Pull requests）。
         Token 只會暫存於本分頁的 sessionStorage，關閉分頁即清除。
       </p>
       <div class="field">
@@ -36,21 +41,17 @@
       </div>
       <button id="submit">使用 Token 登入</button>
       <div class="footer">
-        <a class="link" href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">建立 Fine-grained PAT</a>
+        <a class="link" href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">建立 Fine‑grained PAT</a>
         <a class="link" href="https://github.com/settings/tokens" target="_blank" rel="noopener">或建立 classic PAT（repo scope）</a>
       </div>
     </div>
 
-    <script>
-      // 手動初始化 Decap CMS
-      window.CMS_MANUAL_INIT = true;
-    </script>
     <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
     <script>
       (function () {
         const KEY = "decap:github_token";
-        const repo = "tonyonier99/Image-description-generator";
-        const branch = "main";
+        const repo = "tonyonier99/Image-description-generator"; // this repo
+        const branch = "main"; // adjust if needed
         const CONFIG_PATH = "admin/config.yml";
 
         function el(id){ return document.getElementById(id); }
@@ -58,17 +59,14 @@
         function clearError(){ const e = el("err"); if (!e) return; e.textContent = ""; e.style.display = "none"; }
 
         async function verifyToken(token){
-          // 驗證 Token 是否有效，並確認能讀取此 repo 與 config.yml
           const headers = {
             Authorization: `token ${token}`,
             Accept: "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28"
           };
-
           const u = await fetch("https://api.github.com/user", { headers });
           if (!u.ok) throw new Error("Token 驗證失敗，請確認是否有效。");
 
-          // 直接檢查是否能讀取 config 檔（確保對此 repo 的讀取權限）
           const cfg = await fetch(`https://api.github.com/repos/${repo}/contents/${CONFIG_PATH}?ref=${branch}`, { headers });
           if (!cfg.ok) {
             if (cfg.status === 404 || cfg.status === 403) {
@@ -80,11 +78,9 @@
         }
 
         function startCMS(token) {
-          // 隱藏登入框
           const box = el("token-login");
           if (box) box.style.display = "none";
 
-          // 以 token 覆寫 backend 設定；關閉 GraphQL 以相容 Fine-grained PAT
           window.CMS.init({
             config: {
               load_config_file: true,
@@ -95,14 +91,13 @@
                 auth_type: "token",
                 token,
                 api_root: "https://api.github.com",
-                use_graphql_api: false // 關鍵修正：禁用 GraphQL，改用 REST
+                use_graphql_api: false // critical: avoid FG-PAT GraphQL issues
               },
               publish_mode: "editorial_workflow",
               locale: "zh_Hant"
             }
           });
 
-          // 「登出」：清掉 token 後重新載入頁面
           window.CMS.registerEventListener({
             name: "logout",
             handler: () => {
@@ -124,7 +119,7 @@
           }
         }
 
-        // 若 sessionStorage 已有 token，先驗證再啟動（避免過期造成空白）
+        // If a token exists from this tab, verify first to avoid white screen
         (async () => {
           const saved = sessionStorage.getItem(KEY);
           if (saved) {
@@ -133,14 +128,12 @@
               startCMS(saved);
               return;
             } catch (e) {
-              // 驗證不過就清掉並顯示登入框
               sessionStorage.removeItem(KEY);
               showError("先前的 Token 已無效，請重新登入。");
             }
           }
         })();
 
-        // 綁定提交
         const btn = document.getElementById("submit");
         btn?.addEventListener("click", () => {
           const t = (document.getElementById("token")?.value || "").trim();
@@ -148,7 +141,6 @@
           loginWith(t);
         });
 
-        // Enter 送出
         const input = document.getElementById("token");
         input?.addEventListener("keydown", (e) => {
           if (e.key === "Enter") btn?.click();
