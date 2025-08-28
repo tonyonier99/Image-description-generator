@@ -51,25 +51,32 @@
         const KEY = "decap:github_token";
         const repo = "tonyonier99/Image-description-generator";
         const branch = "main";
+        const CONFIG_PATH = "admin/config.yml";
 
         function el(id){ return document.getElementById(id); }
         function showError(msg){ const e = el("err"); if (!e) return; e.textContent = msg; e.style.display = "block"; }
         function clearError(){ const e = el("err"); if (!e) return; e.textContent = ""; e.style.display = "none"; }
 
         async function verifyToken(token){
-          // 驗證 Token 是否有效，並盡量確認是否能讀寫該 repo
+          // 驗證 Token 是否有效，並確認能讀取此 repo 與 config.yml
           const headers = {
             Authorization: `token ${token}`,
             Accept: "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28"
           };
+
           const u = await fetch("https://api.github.com/user", { headers });
-          if (!u.ok) throw new Error("Token 驗證失敗，請確認是否有效或權限足夠。");
-          const user = await u.json();
-          // 檢查是否能讀取 repo（至少需 Read）
-          const r = await fetch(`https://api.github.com/repos/${repo}`, { headers });
-          if (!r.ok) console.warn("Repo access check failed:", r.status);
-          return user;
+          if (!u.ok) throw new Error("Token 驗證失敗，請確認是否有效。");
+
+          // 直接檢查是否能讀取 config 檔（確保對此 repo 的讀取權限）
+          const cfg = await fetch(`https://api.github.com/repos/${repo}/contents/${CONFIG_PATH}?ref=${branch}`, { headers });
+          if (!cfg.ok) {
+            if (cfg.status === 404 || cfg.status === 403) {
+              throw new Error("Token 沒有讀取此倉庫的權限，或 PAT 未授權到此 repo。");
+            }
+            throw new Error(`讀取設定檔失敗（${cfg.status}）`);
+          }
+          return true;
         }
 
         function startCMS(token) {
@@ -77,7 +84,7 @@
           const box = el("token-login");
           if (box) box.style.display = "none";
 
-          // 啟動 CMS：以 token 覆寫 backend 設定，強制使用 token 模式
+          // 以 token 覆寫 backend 設定；關閉 GraphQL 以相容 Fine-grained PAT
           window.CMS.init({
             config: {
               load_config_file: true,
@@ -85,17 +92,17 @@
                 name: "github",
                 repo,
                 branch,
-                auth_type: "token",     // 關鍵：改用 token 模式，避免跳 OAuth
+                auth_type: "token",
                 token,
                 api_root: "https://api.github.com",
-                use_graphql_api: true
+                use_graphql_api: false // 關鍵修正：禁用 GraphQL，改用 REST
               },
               publish_mode: "editorial_workflow",
               locale: "zh_Hant"
             }
           });
 
-          // 供日後在 CMS 中做「登出」：清掉 token 後重新載入頁面
+          // 「登出」：清掉 token 後重新載入頁面
           window.CMS.registerEventListener({
             name: "logout",
             handler: () => {
@@ -117,9 +124,21 @@
           }
         }
 
-        // 若 sessionStorage 已有 token，直接進入 CMS
-        const saved = sessionStorage.getItem(KEY);
-        if (saved) startCMS(saved);
+        // 若 sessionStorage 已有 token，先驗證再啟動（避免過期造成空白）
+        (async () => {
+          const saved = sessionStorage.getItem(KEY);
+          if (saved) {
+            try {
+              await verifyToken(saved);
+              startCMS(saved);
+              return;
+            } catch (e) {
+              // 驗證不過就清掉並顯示登入框
+              sessionStorage.removeItem(KEY);
+              showError("先前的 Token 已無效，請重新登入。");
+            }
+          }
+        })();
 
         // 綁定提交
         const btn = document.getElementById("submit");
