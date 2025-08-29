@@ -16,6 +16,26 @@ let loadedFonts = [];
 let selectedTextField = null;
 let textStyles = {};
 
+// Guide and safe area state
+let guidesEnabled = false;
+let safeAreaEnabled = false;
+let snapEnabled = false;
+let safeAreaPadding = 0.08;
+
+// Export settings state
+let exportSettings = {
+  preset: 'current',
+  format: 'png',
+  quality: 0.9,
+  customWidth: 1200,
+  customHeight: 1680
+};
+
+// Undo/redo system state
+let historyStack = [];
+let historyIndex = -1;
+const MAX_HISTORY = 50;
+
 // Canvas dimensions - will be adjusted based on aspect ratio
 let CANVAS_WIDTH = 1200;
 let CANVAS_HEIGHT = 1680; // 5:7 aspect ratio
@@ -30,6 +50,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderCategoryDropdown();
   updateUIForCategory();
   updateCanvas();
+  setupUndoRedoSystem();
 });
 
 // Load category configurations
@@ -197,6 +218,15 @@ function setupEventListeners() {
   
   // Text tuning controls
   setupTextTuningControls();
+  
+  // Guides and safe area controls
+  setupGuidesControls();
+  
+  // Export controls
+  setupExportControls();
+  
+  // Settings controls
+  setupSettingsControls();
 }
 
 // Render category dropdown
@@ -373,8 +403,14 @@ function renderOptionField(option, value) {
 
 // Handle option value change
 window.handleOptionChange = function(key, value) {
+  const oldValue = currentOptions[key];
   currentOptions[key] = value;
   updateCanvas();
+  
+  // Save history state for text content changes
+  if (oldValue !== value) {
+    saveHistoryState(`Text content "${key}" changed`);
+  }
 };
 
 // Get current category configuration
@@ -544,15 +580,18 @@ function drawTextContent() {
         const adminDefaults = getAdminTextDefaults(currentCategory, field.key);
         const fieldStyles = textStyles[field.key] || {};
         
-        const fontSize = fieldStyles.fontSize || adminDefaults.fontSize || (field.key.includes('title') ? 36 : 24);
+        const baseFontSize = fieldStyles.fontSize || adminDefaults.fontSize || (field.key.includes('title') ? 36 : 24);
         const fontFamily = fieldStyles.fontFamily || adminDefaults.fontFamily || 'Inter, sans-serif';
         const color = fieldStyles.color || adminDefaults.color || '#333333';
         const align = fieldStyles.align || adminDefaults.align || 'center';
         
-        // Apply styles
-        ctx.font = `${fontSize}px ${fontFamily}`;
-        ctx.fillStyle = color;
-        ctx.textAlign = align;
+        // Auto-fit settings
+        const autoFitEnabled = fieldStyles.autoFit || false;
+        const autoFitStrategy = fieldStyles.autoFitStrategy || 'shrink';
+        const minFontSize = fieldStyles.minFontSize || 12;
+        const maxFontSize = fieldStyles.maxFontSize || 120;
+        const maxWidthRatio = fieldStyles.maxWidth || 0.8;
+        const maxWidth = CANVAS_WIDTH * maxWidthRatio;
         
         // Calculate position with admin defaults
         const x = fieldStyles.x ? fieldStyles.x * CANVAS_WIDTH : 
@@ -560,21 +599,68 @@ function drawTextContent() {
         const fieldY = fieldStyles.y ? fieldStyles.y * CANVAS_HEIGHT : 
                       adminDefaults.y ? adminDefaults.y * CANVAS_HEIGHT : y;
         
-        // Draw text
-        if (field.type === 'textarea') {
-          const lines = wrapText(value, CANVAS_WIDTH - 100, ctx);
-          lines.forEach((line, lineIndex) => {
-            ctx.fillText(line, x, fieldY + (lineIndex * (fontSize + 8)));
-          });
-          y = fieldY + (lines.length * (fontSize + 8)) + 20;
+        let fontSize = baseFontSize;
+        let lines = [];
+        
+        // Apply auto-fit if enabled
+        if (autoFitEnabled) {
+          const maxHeight = CANVAS_HEIGHT * 0.2; // Limit text height to 20% of canvas
+          ctx.font = `${baseFontSize}px ${fontFamily}`;
+          
+          if (field.type === 'textarea') {
+            const result = autoFitText(value, maxWidth, maxHeight, baseFontSize, minFontSize, maxFontSize, autoFitStrategy, ctx);
+            fontSize = result.fontSize;
+            lines = result.lines;
+          } else {
+            // Single line text - just check if it fits and shrink if needed
+            ctx.font = `${baseFontSize}px ${fontFamily}`;
+            if (ctx.measureText(value).width > maxWidth && autoFitStrategy !== 'reflow') {
+              for (fontSize = baseFontSize; fontSize >= minFontSize; fontSize -= 1) {
+                ctx.font = `${fontSize}px ${fontFamily}`;
+                if (ctx.measureText(value).width <= maxWidth) {
+                  break;
+                }
+              }
+            }
+            lines = [value];
+          }
         } else {
-          ctx.fillText(value, x, fieldY);
-          y = fieldY + fontSize + 20;
+          // Use normal wrapping
+          ctx.font = `${fontSize}px ${fontFamily}`;
+          if (field.type === 'textarea') {
+            lines = wrapText(value, maxWidth, ctx);
+          } else {
+            lines = [value];
+          }
         }
+        
+        // Prepare text effects styles
+        const textEffectStyles = {
+          strokeEnabled: fieldStyles.strokeEnabled || false,
+          strokeWidth: fieldStyles.strokeWidth || 2,
+          strokeColor: fieldStyles.strokeColor || '#ffffff',
+          bgEnabled: fieldStyles.bgEnabled || false,
+          bgColor: fieldStyles.bgColor || '#000000',
+          bgOpacity: fieldStyles.bgOpacity || 0.7,
+          bgPadding: fieldStyles.bgPadding || 8,
+          bgRadius: fieldStyles.bgRadius || 4,
+          fontSize,
+          fontFamily,
+          color,
+          align
+        };
+        
+        // Draw text with effects
+        lines.forEach((line, lineIndex) => {
+          const lineY = fieldY + (lineIndex * (fontSize * 1.4));
+          drawTextWithEffects(ctx, line, x, lineY, textEffectStyles);
+        });
+        
+        y = fieldY + (lines.length * (fontSize * 1.4)) + 20;
         
         // Create text box for dragging if text layer exists
         if (textLayer) {
-          createTextBox(textLayer, field, value, fieldStyles);
+          createTextBox(textLayer, field, value, { ...fieldStyles, fontSize, maxWidth: maxWidthRatio });
         }
       }
     }
@@ -596,6 +682,8 @@ function createTextBox(textLayer, field, value, styles) {
   const color = styles.color || adminDefaults.color || '#333333';
   const x = styles.x !== undefined ? styles.x : (adminDefaults.x !== undefined ? adminDefaults.x : 0.5);
   const y = styles.y !== undefined ? styles.y : (adminDefaults.y !== undefined ? adminDefaults.y : 0.5);
+  const maxWidth = styles.maxWidth || 0.8;
+  const locked = styles.locked || false;
   
   textBox.style.fontSize = `${fontSize}px`;
   textBox.style.fontFamily = fontFamily;
@@ -603,54 +691,122 @@ function createTextBox(textLayer, field, value, styles) {
   textBox.style.left = `${x * 100}%`;
   textBox.style.top = `${y * 100}%`;
   textBox.style.transform = 'translate(-50%, -50%)';
+  textBox.style.maxWidth = `${maxWidth * 100}%`;
+  textBox.style.whiteSpace = 'pre-wrap';
+  textBox.style.textAlign = styles.align || 'center';
   
-  // Add click handler
+  // Add lock indicator
+  if (locked) {
+    textBox.classList.add('locked');
+    textBox.style.cursor = 'not-allowed';
+    textBox.title = '此文字框已鎖定';
+  }
+  
+  // Create width handle
+  const widthHandle = document.createElement('div');
+  widthHandle.className = 'width-handle';
+  widthHandle.style.position = 'absolute';
+  widthHandle.style.right = '-8px';
+  widthHandle.style.top = '50%';
+  widthHandle.style.transform = 'translateY(-50%)';
+  widthHandle.style.width = '16px';
+  widthHandle.style.height = '100%';
+  widthHandle.style.background = 'rgba(33, 150, 243, 0.5)';
+  widthHandle.style.cursor = 'ew-resize';
+  widthHandle.style.borderRadius = '0 4px 4px 0';
+  widthHandle.title = `寬度: ${Math.round(maxWidth * 100)}%`;
+  
+  if (!locked) {
+    textBox.appendChild(widthHandle);
+  }
+  
+  // Add click handler for field selection
   textBox.addEventListener('click', (e) => {
     e.stopPropagation();
-    selectTextField(field.key);
-  });
-  
-  // Add drag functionality
-  let isDragging = false;
-  let startX, startY, startLeft, startTop;
-  
-  textBox.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    const rect = textLayer.getBoundingClientRect();
-    startLeft = (parseFloat(textBox.style.left) / 100) * rect.width;
-    startTop = (parseFloat(textBox.style.top) / 100) * rect.height;
-    e.preventDefault();
-  });
-  
-  document.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    
-    const rect = textLayer.getBoundingClientRect();
-    const deltaX = e.clientX - startX;
-    const deltaY = e.clientY - startY;
-    
-    const newLeft = Math.max(0, Math.min(1, (startLeft + deltaX) / rect.width));
-    const newTop = Math.max(0, Math.min(1, (startTop + deltaY) / rect.height));
-    
-    textBox.style.left = `${newLeft * 100}%`;
-    textBox.style.top = `${newTop * 100}%`;
-    
-    // Update styles
-    if (!textStyles[field.key]) textStyles[field.key] = {};
-    textStyles[field.key].x = newLeft;
-    textStyles[field.key].y = newTop;
-  });
-  
-  document.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
-      // Save to storage
-      categoryStorage.setTextStyles(currentCategory, textStyles);
-      updateCanvas();
+    if (!locked) {
+      selectTextField(field.key);
     }
   });
+  
+  if (!locked) {
+    // Add drag functionality for position
+    let isDragging = false;
+    let isResizing = false;
+    let startX, startY, startLeft, startTop, startWidth;
+    
+    textBox.addEventListener('mousedown', (e) => {
+      if (e.target === widthHandle) return; // Let width handle handle this
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = textLayer.getBoundingClientRect();
+      startLeft = (parseFloat(textBox.style.left) / 100) * rect.width;
+      startTop = (parseFloat(textBox.style.top) / 100) * rect.height;
+      e.preventDefault();
+    });
+    
+    // Width handle drag functionality
+    widthHandle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = maxWidth;
+      e.stopPropagation();
+      e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const rect = textLayer.getBoundingClientRect();
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        
+        let newX = startLeft + deltaX;
+        let newY = startTop + deltaY;
+        
+        // Apply snapping if enabled
+        const snapped = snapToGuides(newX, newY);
+        newX = snapped.x;
+        newY = snapped.y;
+        
+        const newLeft = Math.max(0, Math.min(1, newX / rect.width));
+        const newTop = Math.max(0, Math.min(1, newY / rect.height));
+        
+        textBox.style.left = `${newLeft * 100}%`;
+        textBox.style.top = `${newTop * 100}%`;
+        
+        // Update styles
+        if (!textStyles[field.key]) textStyles[field.key] = {};
+        textStyles[field.key].x = newLeft;
+        textStyles[field.key].y = newTop;
+      } else if (isResizing) {
+        const rect = textLayer.getBoundingClientRect();
+        const deltaX = e.clientX - startX;
+        const widthChange = deltaX / rect.width;
+        const newWidth = Math.max(0.2, Math.min(1, startWidth + widthChange));
+        
+        textBox.style.maxWidth = `${newWidth * 100}%`;
+        widthHandle.title = `寬度: ${Math.round(newWidth * 100)}%`;
+        
+        // Update styles
+        if (!textStyles[field.key]) textStyles[field.key] = {};
+        textStyles[field.key].maxWidth = newWidth;
+      }
+    });
+    
+    document.addEventListener('mouseup', () => {
+      if (isDragging || isResizing) {
+        isDragging = false;
+        isResizing = false;
+        // Save to storage
+        categoryStorage.setTextStyles(currentCategory, textStyles);
+        updateCanvas();
+        
+        // Save history state
+        const action = isDragging ? 'moved' : 'resized';
+        saveHistoryState(`Text field "${field.key}" ${action}`);
+      }
+    });
+  }
   
   textLayer.appendChild(textBox);
 }
@@ -722,7 +878,14 @@ function updateTextControlValues() {
     'text-x': styles.x || 0.5,
     'text-y': styles.y || 0.5, 
     'text-font-size': styles.fontSize || 24,
-    'text-line-height': styles.lineHeight || 1.4
+    'text-line-height': styles.lineHeight || 1.4,
+    'text-min-font-size': styles.minFontSize || 12,
+    'text-max-font-size': styles.maxFontSize || 120,
+    'text-max-width': styles.maxWidth || 0.8,
+    'text-stroke-width': styles.strokeWidth || 2,
+    'text-bg-padding': styles.bgPadding || 8,
+    'text-bg-radius': styles.bgRadius || 4,
+    'text-bg-opacity': styles.bgOpacity || 0.7
   };
   
   Object.entries(elements).forEach(([id, value]) => {
@@ -731,19 +894,54 @@ function updateTextControlValues() {
     if (input) {
       input.value = value;
       if (valueSpan) {
-        valueSpan.textContent = id === 'text-font-size' ? value + 'px' : value;
+        let displayValue = value;
+        if (id.includes('font-size') || id.includes('stroke-width') || id.includes('bg-padding') || id.includes('bg-radius')) {
+          displayValue += 'px';
+        } else if (id === 'text-max-width') {
+          displayValue = Math.round(value * 100) + '%';
+        }
+        valueSpan.textContent = displayValue;
       }
     }
   });
   
-  // Update selects and color
+  // Update checkboxes
+  const checkboxes = {
+    'text-autofit': styles.autoFit || false,
+    'text-locked': styles.locked || false,
+    'text-stroke-enabled': styles.strokeEnabled || false,
+    'text-bg-enabled': styles.bgEnabled || false
+  };
+  
+  Object.entries(checkboxes).forEach(([id, value]) => {
+    const checkbox = document.getElementById(id);
+    if (checkbox) {
+      checkbox.checked = value;
+      
+      // Handle auto-fit controls visibility
+      if (id === 'text-autofit') {
+        const autofitControls = document.getElementById('autofit-size-controls');
+        if (autofitControls) {
+          autofitControls.style.display = value ? 'flex' : 'none';
+        }
+      }
+    }
+  });
+  
+  // Update selects and colors
   const fontFamily = document.getElementById('text-font-family');
   const textAlign = document.getElementById('text-align');
   const textColor = document.getElementById('text-color');
+  const autoFitStrategy = document.getElementById('text-autofit-strategy');
+  const strokeColor = document.getElementById('text-stroke-color');
+  const bgColor = document.getElementById('text-bg-color');
   
   if (fontFamily) fontFamily.value = styles.fontFamily || 'Inter';
   if (textAlign) textAlign.value = styles.align || 'center';
   if (textColor) textColor.value = styles.color || '#333333';
+  if (autoFitStrategy) autoFitStrategy.value = styles.autoFitStrategy || 'shrink';
+  if (strokeColor) strokeColor.value = styles.strokeColor || '#ffffff';
+  if (bgColor) bgColor.value = styles.bgColor || '#000000';
 }
 
 // Utility: calculate scaled dimensions
@@ -779,6 +977,301 @@ function wrapText(text, maxWidth, context) {
   return lines;
 }
 
+// Utility: auto-fit text based on strategy
+function autoFitText(text, maxWidth, maxHeight, baseFont, minFont, maxFont, strategy, context) {
+  if (!text || !context) return { fontSize: baseFont, lines: [] };
+  
+  // Test if text fits at base size
+  context.font = `${baseFont}px ${context.font.split(' ').slice(1).join(' ')}`;
+  let lines = wrapText(text, maxWidth, context);
+  let fontSize = baseFont;
+  
+  // Calculate line height (approximate)
+  const lineHeight = fontSize * 1.4;
+  const totalHeight = lines.length * lineHeight;
+  
+  if (totalHeight <= maxHeight && lines.every(line => context.measureText(line).width <= maxWidth)) {
+    return { fontSize, lines };
+  }
+  
+  switch (strategy) {
+    case 'shrink':
+      // Shrink font size until it fits
+      for (fontSize = baseFont; fontSize >= minFont; fontSize -= 1) {
+        context.font = `${fontSize}px ${context.font.split(' ').slice(1).join(' ')}`;
+        lines = wrapText(text, maxWidth, context);
+        const currentHeight = lines.length * fontSize * 1.4;
+        
+        if (currentHeight <= maxHeight && lines.every(line => context.measureText(line).width <= maxWidth)) {
+          break;
+        }
+      }
+      break;
+      
+    case 'reflow':
+      // Keep font size, adjust line wrapping by reducing effective width
+      fontSize = baseFont;
+      context.font = `${fontSize}px ${context.font.split(' ').slice(1).join(' ')}`;
+      let testWidth = maxWidth;
+      
+      while (testWidth > maxWidth * 0.3) {
+        lines = wrapText(text, testWidth, context);
+        const currentHeight = lines.length * fontSize * 1.4;
+        
+        if (currentHeight <= maxHeight) {
+          break;
+        }
+        testWidth -= 10;
+      }
+      break;
+      
+    case 'hybrid':
+      // Try reflow first, then shrink if needed
+      fontSize = baseFont;
+      context.font = `${fontSize}px ${context.font.split(' ').slice(1).join(' ')}`;
+      let effectiveWidth = maxWidth;
+      
+      // First try reducing width
+      while (effectiveWidth > maxWidth * 0.5) {
+        lines = wrapText(text, effectiveWidth, context);
+        const currentHeight = lines.length * fontSize * 1.4;
+        
+        if (currentHeight <= maxHeight) {
+          maxWidth = effectiveWidth; // Update for final calculation
+          break;
+        }
+        effectiveWidth -= 10;
+      }
+      
+      // Then shrink font if still doesn't fit
+      for (fontSize = baseFont; fontSize >= minFont; fontSize -= 1) {
+        context.font = `${fontSize}px ${context.font.split(' ').slice(1).join(' ')}`;
+        lines = wrapText(text, maxWidth, context);
+        const currentHeight = lines.length * fontSize * 1.4;
+        
+        if (currentHeight <= maxHeight) {
+          break;
+        }
+      }
+      break;
+  }
+  
+  return { fontSize: Math.max(fontSize, minFont), lines };
+}
+
+// Utility: draw text with effects (stroke and background)
+function drawTextWithEffects(ctx, text, x, y, styles) {
+  const {
+    strokeEnabled = false,
+    strokeWidth = 2,
+    strokeColor = '#ffffff',
+    bgEnabled = false,
+    bgColor = '#000000',
+    bgOpacity = 0.7,
+    bgPadding = 8,
+    bgRadius = 4,
+    fontSize = 24,
+    fontFamily = 'Inter',
+    color = '#333333',
+    align = 'center'
+  } = styles;
+  
+  // Set up text properties
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.textAlign = align;
+  
+  // Measure text for background
+  const metrics = ctx.measureText(text);
+  const textWidth = metrics.width;
+  const textHeight = fontSize; // Approximate
+  
+  // Calculate background position based on alignment
+  let bgX = x;
+  if (align === 'center') {
+    bgX = x - textWidth / 2;
+  } else if (align === 'right') {
+    bgX = x - textWidth;
+  }
+  
+  // Draw background box if enabled
+  if (bgEnabled) {
+    ctx.save();
+    ctx.fillStyle = bgColor;
+    ctx.globalAlpha = bgOpacity;
+    
+    const boxX = bgX - bgPadding;
+    const boxY = y - textHeight - bgPadding / 2;
+    const boxWidth = textWidth + bgPadding * 2;
+    const boxHeight = textHeight + bgPadding;
+    
+    if (bgRadius > 0) {
+      drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, bgRadius);
+      ctx.fill();
+    } else {
+      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+    }
+    
+    ctx.restore();
+  }
+  
+  // Draw text stroke if enabled
+  if (strokeEnabled) {
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = strokeWidth;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(text, x, y);
+  }
+  
+  // Draw text fill
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+}
+
+// Utility: draw rounded rectangle
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+// Safe area and guides functionality
+function updateSafeAreaOverlay() {
+  const overlay = document.getElementById('safe-area-overlay');
+  const border = overlay.querySelector('.safe-area-border');
+  
+  if (!safeAreaEnabled) {
+    overlay.style.display = 'none';
+    return;
+  }
+  
+  overlay.style.display = 'block';
+  
+  const container = document.querySelector('.canvas-container');
+  const rect = container.getBoundingClientRect();
+  const padding = safeAreaPadding;
+  
+  const left = rect.width * padding;
+  const top = rect.height * padding;
+  const width = rect.width * (1 - padding * 2);
+  const height = rect.height * (1 - padding * 2);
+  
+  border.style.left = `${left}px`;
+  border.style.top = `${top}px`;
+  border.style.width = `${width}px`;
+  border.style.height = `${height}px`;
+}
+
+function updateGuidesOverlay() {
+  const overlay = document.getElementById('guides-overlay');
+  
+  if (!guidesEnabled) {
+    overlay.style.display = 'none';
+    return;
+  }
+  
+  overlay.style.display = 'block';
+}
+
+function snapToGuides(x, y, threshold = 10) {
+  if (!snapEnabled) return { x, y };
+  
+  const container = document.querySelector('.canvas-container');
+  const rect = container.getBoundingClientRect();
+  
+  // Center lines
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  
+  // Third lines
+  const thirdX1 = rect.width / 3;
+  const thirdX2 = (rect.width * 2) / 3;
+  const thirdY1 = rect.height / 3;
+  const thirdY2 = (rect.height * 2) / 3;
+  
+  // Safe area boundaries
+  const safeLeft = rect.width * safeAreaPadding;
+  const safeRight = rect.width * (1 - safeAreaPadding);
+  const safeTop = rect.height * safeAreaPadding;
+  const safeBottom = rect.height * (1 - safeAreaPadding);
+  
+  let snappedX = x;
+  let snappedY = y;
+  
+  // Snap to vertical guides
+  const verticalGuides = [0, safeLeft, thirdX1, centerX, thirdX2, safeRight, rect.width];
+  for (const guide of verticalGuides) {
+    if (Math.abs(x - guide) < threshold) {
+      snappedX = guide;
+      break;
+    }
+  }
+  
+  // Snap to horizontal guides
+  const horizontalGuides = [0, safeTop, thirdY1, centerY, thirdY2, safeBottom, rect.height];
+  for (const guide of horizontalGuides) {
+    if (Math.abs(y - guide) < threshold) {
+      snappedY = guide;
+      break;
+    }
+  }
+  
+  return { x: snappedX, y: snappedY };
+}
+
+// Export presets functionality
+function getExportDimensions() {
+  const preset = exportSettings.preset;
+  
+  switch (preset) {
+    case 'ig-post':
+      return { width: 1080, height: 1350 };
+    case 'ig-story':
+    case 'ig-reel':
+      return { width: 1080, height: 1920 };
+    case 'facebook':
+      return { width: 1200, height: 630 };
+    case 'twitter':
+      return { width: 1200, height: 675 };
+    case 'linkedin':
+      return { width: 1200, height: 627 };
+    case 'custom':
+      return { width: exportSettings.customWidth, height: exportSettings.customHeight };
+    case 'current':
+    default:
+      return { width: CANVAS_WIDTH, height: CANVAS_HEIGHT };
+  }
+}
+
+function updateExportControls() {
+  const preset = document.getElementById('export-preset').value;
+  const customControls = document.getElementById('custom-size-controls');
+  const format = document.getElementById('export-format').value;
+  const qualityControl = document.getElementById('quality-control');
+  
+  // Show/hide custom size controls
+  customControls.style.display = preset === 'custom' ? 'flex' : 'none';
+  
+  // Show/hide quality control for lossy formats
+  qualityControl.style.display = (format === 'jpeg' || format === 'webp') ? 'flex' : 'none';
+  
+  // Update export settings
+  exportSettings.preset = preset;
+  exportSettings.format = format;
+  
+  if (preset === 'custom') {
+    exportSettings.customWidth = parseInt(document.getElementById('export-width').value) || 1200;
+    exportSettings.customHeight = parseInt(document.getElementById('export-height').value) || 1680;
+  }
+}
+
 // Download current canvas as PNG with proper export sizing
 function downloadImage() {
   if (!canvas) {
@@ -787,13 +1280,10 @@ function downloadImage() {
   }
   
   try {
-    // Create export canvas with proper portrait dimensions
-    const aspectRatio = categoryStorage.getAspectRatio(currentCategory, '5:7');
-    const [w, h] = aspectRatio.split(':').map(Number);
-    
-    // Export at high resolution (1500px width, height computed by ratio)
-    const exportWidth = 1500;
-    const exportHeight = Math.round(exportWidth * h / w);
+    // Get export dimensions from settings
+    const dimensions = getExportDimensions();
+    const exportWidth = dimensions.width;
+    const exportHeight = dimensions.height;
     
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = exportWidth;
@@ -830,10 +1320,36 @@ function downloadImage() {
     // Draw text content at export scale
     drawTextContentForExport(exportCtx, exportWidth, exportHeight);
     
+    // Convert to appropriate format
+    let mimeType, quality, extension;
+    
+    switch (exportSettings.format) {
+      case 'jpeg':
+        mimeType = 'image/jpeg';
+        quality = exportSettings.quality;
+        extension = 'jpg';
+        break;
+      case 'webp':
+        mimeType = 'image/webp';
+        quality = exportSettings.quality;
+        extension = 'webp';
+        break;
+      case 'png':
+      default:
+        mimeType = 'image/png';
+        quality = undefined;
+        extension = 'png';
+        break;
+    }
+    
     // Download
     const link = document.createElement('a');
-    link.download = `${currentCategory}-template-${currentTemplate + 1}.png`;
-    link.href = exportCanvas.toDataURL('image/png');
+    const preset = exportSettings.preset === 'current' ? 'custom' : exportSettings.preset;
+    link.download = `${currentCategory}-${preset}-${exportWidth}x${exportHeight}.${extension}`;
+    link.href = exportCanvas.toDataURL(mimeType, quality);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -972,6 +1488,7 @@ function setupTransformControls() {
       document.getElementById('scale-value').textContent = currentTransform.scale.toFixed(1);
       categoryStorage.setPreviewTransform(currentCategory, currentTransform);
       updateCanvas();
+      saveHistoryState('Transform scale changed');
     });
   }
 
@@ -983,6 +1500,7 @@ function setupTransformControls() {
       document.getElementById('offsetX-value').textContent = currentTransform.offsetX;
       categoryStorage.setPreviewTransform(currentCategory, currentTransform);
       updateCanvas();
+      saveHistoryState('Transform offset X changed');
     });
   }
 
@@ -994,6 +1512,7 @@ function setupTransformControls() {
       document.getElementById('offsetY-value').textContent = currentTransform.offsetY;
       categoryStorage.setPreviewTransform(currentCategory, currentTransform);
       updateCanvas();
+      saveHistoryState('Transform offset Y changed');
     });
   }
 
@@ -1005,6 +1524,7 @@ function setupTransformControls() {
       document.getElementById('rotate-value').textContent = currentTransform.rotate + '°';
       categoryStorage.setPreviewTransform(currentCategory, currentTransform);
       updateCanvas();
+      saveHistoryState('Transform rotate changed');
     });
   }
 }
@@ -1049,7 +1569,9 @@ function setupTextTuningControls() {
   
   // Text controls
   const textControls = [
-    'text-x', 'text-y', 'text-font-size', 'text-line-height'
+    'text-x', 'text-y', 'text-font-size', 'text-line-height',
+    'text-min-font-size', 'text-max-font-size', 'text-max-width',
+    'text-stroke-width', 'text-bg-padding', 'text-bg-radius', 'text-bg-opacity'
   ];
   
   textControls.forEach(id => {
@@ -1058,19 +1580,56 @@ function setupTextTuningControls() {
       input.addEventListener('input', (e) => {
         const valueSpan = document.getElementById(id + '-value');
         if (valueSpan) {
-          valueSpan.textContent = id === 'text-font-size' ? e.target.value + 'px' : e.target.value;
+          let displayValue = e.target.value;
+          if (id === 'text-font-size' || id === 'text-min-font-size' || id === 'text-max-font-size') {
+            displayValue += 'px';
+          } else if (id === 'text-max-width') {
+            displayValue = Math.round(parseFloat(e.target.value) * 100) + '%';
+          } else if (id === 'text-stroke-width' || id === 'text-bg-padding' || id === 'text-bg-radius') {
+            displayValue += 'px';
+          }
+          valueSpan.textContent = displayValue;
         }
         updateTextFieldStyle();
       });
     }
   });
   
-  // Text align and color
-  const textAlign = document.getElementById('text-align');
-  const textColor = document.getElementById('text-color');
+  // Checkbox controls
+  const checkboxControls = ['text-autofit', 'text-locked', 'text-stroke-enabled', 'text-bg-enabled'];
+  checkboxControls.forEach(id => {
+    const checkbox = document.getElementById(id);
+    if (checkbox) {
+      checkbox.addEventListener('change', (e) => {
+        if (id === 'text-autofit') {
+          // Show/hide autofit controls
+          const autofitControls = document.getElementById('autofit-size-controls');
+          if (autofitControls) {
+            autofitControls.style.display = e.target.checked ? 'flex' : 'none';
+          }
+        }
+        updateTextFieldStyle();
+      });
+    }
+  });
   
-  if (textAlign) textAlign.addEventListener('change', updateTextFieldStyle);
-  if (textColor) textColor.addEventListener('change', updateTextFieldStyle);
+  // Select controls
+  const selectControls = ['text-align', 'text-autofit-strategy'];
+  selectControls.forEach(id => {
+    const select = document.getElementById(id);
+    if (select) {
+      select.addEventListener('change', updateTextFieldStyle);
+    }
+  });
+  
+  // Color controls
+  const colorControls = ['text-color', 'text-stroke-color', 'text-bg-color'];
+  colorControls.forEach(id => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.addEventListener('change', updateTextFieldStyle);
+    }
+  });
   
   // Reset and apply buttons
   const resetBtn = document.getElementById('reset-text-field');
@@ -1112,7 +1671,25 @@ function updateTextFieldStyle() {
   const align = document.getElementById('text-align')?.value;
   const color = document.getElementById('text-color')?.value;
   
-  // Update styles
+  // Auto-fit controls
+  const autoFit = document.getElementById('text-autofit')?.checked;
+  const autoFitStrategy = document.getElementById('text-autofit-strategy')?.value;
+  const minFontSize = document.getElementById('text-min-font-size')?.value;
+  const maxFontSize = document.getElementById('text-max-font-size')?.value;
+  const maxWidth = document.getElementById('text-max-width')?.value;
+  const locked = document.getElementById('text-locked')?.checked;
+  
+  // Text effects controls
+  const strokeEnabled = document.getElementById('text-stroke-enabled')?.checked;
+  const strokeWidth = document.getElementById('text-stroke-width')?.value;
+  const strokeColor = document.getElementById('text-stroke-color')?.value;
+  const bgEnabled = document.getElementById('text-bg-enabled')?.checked;
+  const bgColor = document.getElementById('text-bg-color')?.value;
+  const bgOpacity = document.getElementById('text-bg-opacity')?.value;
+  const bgPadding = document.getElementById('text-bg-padding')?.value;
+  const bgRadius = document.getElementById('text-bg-radius')?.value;
+  
+  // Update styles object
   if (x !== undefined) styles.x = parseFloat(x);
   if (y !== undefined) styles.y = parseFloat(y);
   if (fontSize !== undefined) styles.fontSize = parseInt(fontSize);
@@ -1121,9 +1698,34 @@ function updateTextFieldStyle() {
   if (align !== undefined) styles.align = align;
   if (color !== undefined) styles.color = color;
   
+  // Auto-fit properties
+  if (autoFit !== undefined) styles.autoFit = autoFit;
+  if (autoFitStrategy !== undefined) styles.autoFitStrategy = autoFitStrategy;
+  if (minFontSize !== undefined) styles.minFontSize = parseInt(minFontSize);
+  if (maxFontSize !== undefined) styles.maxFontSize = parseInt(maxFontSize);
+  if (maxWidth !== undefined) styles.maxWidth = parseFloat(maxWidth);
+  if (locked !== undefined) styles.locked = locked;
+  
+  // Text effects properties
+  if (strokeEnabled !== undefined) styles.strokeEnabled = strokeEnabled;
+  if (strokeWidth !== undefined) styles.strokeWidth = parseInt(strokeWidth);
+  if (strokeColor !== undefined) styles.strokeColor = strokeColor;
+  if (bgEnabled !== undefined) styles.bgEnabled = bgEnabled;
+  if (bgColor !== undefined) styles.bgColor = bgColor;
+  if (bgOpacity !== undefined) styles.bgOpacity = parseFloat(bgOpacity);
+  if (bgPadding !== undefined) styles.bgPadding = parseInt(bgPadding);
+  if (bgRadius !== undefined) styles.bgRadius = parseInt(bgRadius);
+  
   // Save and update
   categoryStorage.setTextStyles(currentCategory, textStyles);
   updateCanvas();
+  
+  // Save history state for significant changes
+  if (fontSize !== undefined || x !== undefined || y !== undefined || 
+      fontFamily !== undefined || align !== undefined || color !== undefined ||
+      autoFit !== undefined || strokeEnabled !== undefined || bgEnabled !== undefined) {
+    saveHistoryState(`Text field "${selectedTextField}" updated`);
+  }
 }
 
 // Toggle text tuning panel
@@ -1198,6 +1800,9 @@ function nudgeTextField(direction, shiftKey) {
   categoryStorage.setTextStyles(currentCategory, textStyles);
   updateTextControlValues();
   updateCanvas();
+  
+  // Save history state
+  saveHistoryState(`Text field "${selectedTextField}" nudged ${direction}`);
 }
 
 function toggleTuningPanel() {
@@ -1246,6 +1851,338 @@ function loadTemplateImages() {
       updateCanvas();
     }
   );
+}
+
+// Setup guides and safe area controls
+function setupGuidesControls() {
+  const safeAreaToggle = document.getElementById('safe-area-toggle');
+  const guidesToggle = document.getElementById('guides-toggle');
+  const snapToggle = document.getElementById('snap-toggle');
+  const safeAreaPreset = document.getElementById('safe-area-preset');
+  
+  if (safeAreaToggle) {
+    safeAreaToggle.addEventListener('change', (e) => {
+      safeAreaEnabled = e.target.checked;
+      updateSafeAreaOverlay();
+    });
+  }
+  
+  if (guidesToggle) {
+    guidesToggle.addEventListener('change', (e) => {
+      guidesEnabled = e.target.checked;
+      updateGuidesOverlay();
+    });
+  }
+  
+  if (snapToggle) {
+    snapToggle.addEventListener('change', (e) => {
+      snapEnabled = e.target.checked;
+    });
+  }
+  
+  if (safeAreaPreset) {
+    safeAreaPreset.addEventListener('change', (e) => {
+      const value = e.target.value;
+      if (value !== 'custom') {
+        safeAreaPadding = parseFloat(value);
+        updateSafeAreaOverlay();
+      }
+    });
+  }
+  
+  // Window resize handler to update overlays
+  window.addEventListener('resize', () => {
+    setTimeout(() => {
+      updateSafeAreaOverlay();
+      updateGuidesOverlay();
+    }, 100);
+  });
+}
+
+// Setup export controls
+function setupExportControls() {
+  const exportPreset = document.getElementById('export-preset');
+  const exportFormat = document.getElementById('export-format');
+  const exportQuality = document.getElementById('export-quality');
+  const exportWidth = document.getElementById('export-width');
+  const exportHeight = document.getElementById('export-height');
+  
+  if (exportPreset) {
+    exportPreset.addEventListener('change', updateExportControls);
+  }
+  
+  if (exportFormat) {
+    exportFormat.addEventListener('change', updateExportControls);
+  }
+  
+  if (exportQuality) {
+    exportQuality.addEventListener('input', (e) => {
+      exportSettings.quality = parseFloat(e.target.value);
+      const valueSpan = document.getElementById('export-quality-value');
+      if (valueSpan) {
+        valueSpan.textContent = Math.round(exportSettings.quality * 100) + '%';
+      }
+    });
+  }
+  
+  if (exportWidth) {
+    exportWidth.addEventListener('input', (e) => {
+      exportSettings.customWidth = parseInt(e.target.value) || 1200;
+    });
+  }
+  
+  if (exportHeight) {
+    exportHeight.addEventListener('input', (e) => {
+      exportSettings.customHeight = parseInt(e.target.value) || 1680;
+    });
+  }
+  
+  // Update controls on initialization
+  updateExportControls();
+}
+
+// Undo/Redo system
+function saveHistoryState(description = 'Action') {
+  // Create a snapshot of the current state
+  const state = {
+    timestamp: Date.now(),
+    description,
+    textStyles: JSON.parse(JSON.stringify(textStyles)),
+    currentOptions: JSON.parse(JSON.stringify(currentOptions)),
+    currentTransform: JSON.parse(JSON.stringify(currentTransform))
+  };
+  
+  // Remove any states after the current index (when we're not at the end)
+  if (historyIndex < historyStack.length - 1) {
+    historyStack = historyStack.slice(0, historyIndex + 1);
+  }
+  
+  // Add new state
+  historyStack.push(state);
+  
+  // Limit history size
+  if (historyStack.length > MAX_HISTORY) {
+    historyStack.shift();
+  } else {
+    historyIndex++;
+  }
+  
+  console.log(`History saved: ${description} (${historyIndex + 1}/${historyStack.length})`);
+}
+
+function undo() {
+  if (historyIndex <= 0) {
+    console.log('Nothing to undo');
+    return false;
+  }
+  
+  historyIndex--;
+  const state = historyStack[historyIndex];
+  
+  // Restore state
+  textStyles = JSON.parse(JSON.stringify(state.textStyles));
+  currentOptions = JSON.parse(JSON.stringify(state.currentOptions));
+  currentTransform = JSON.parse(JSON.stringify(state.currentTransform));
+  
+  // Update UI
+  updateTextControlValues();
+  updateTransformControls();
+  updateUIForCategory();
+  updateCanvas();
+  
+  // Save to storage
+  categoryStorage.setTextStyles(currentCategory, textStyles);
+  categoryStorage.setPreviewTransform(currentCategory, currentTransform);
+  
+  console.log(`Undo: ${state.description} (${historyIndex + 1}/${historyStack.length})`);
+  return true;
+}
+
+function redo() {
+  if (historyIndex >= historyStack.length - 1) {
+    console.log('Nothing to redo');
+    return false;
+  }
+  
+  historyIndex++;
+  const state = historyStack[historyIndex];
+  
+  // Restore state
+  textStyles = JSON.parse(JSON.stringify(state.textStyles));
+  currentOptions = JSON.parse(JSON.stringify(state.currentOptions));
+  currentTransform = JSON.parse(JSON.stringify(state.currentTransform));
+  
+  // Update UI
+  updateTextControlValues();
+  updateTransformControls();
+  updateUIForCategory();
+  updateCanvas();
+  
+  // Save to storage
+  categoryStorage.setTextStyles(currentCategory, textStyles);
+  categoryStorage.setPreviewTransform(currentCategory, currentTransform);
+  
+  console.log(`Redo: ${state.description} (${historyIndex + 1}/${historyStack.length})`);
+  return true;
+}
+
+function setupUndoRedoSystem() {
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      if (e.shiftKey && e.key.toLowerCase() === 'z') {
+        // Ctrl/Cmd + Shift + Z = Redo
+        e.preventDefault();
+        redo();
+      } else if (e.key.toLowerCase() === 'z') {
+        // Ctrl/Cmd + Z = Undo
+        e.preventDefault();
+        undo();
+      }
+    }
+  });
+  
+  // Save initial state
+  setTimeout(() => {
+    saveHistoryState('Initial state');
+  }, 1000);
+}
+
+// Settings import/export functionality
+function exportUserSettings() {
+  try {
+    // Collect all settings to export (excluding blobs/images)
+    const settings = {
+      version: '1.0',
+      timestamp: new Date().toISOString(),
+      category: currentCategory,
+      textStyles: categoryStorage.getTextStyles(currentCategory),
+      exportPreferences: exportSettings,
+      safeAreaSettings: {
+        enabled: safeAreaEnabled,
+        padding: safeAreaPadding,
+        guidesEnabled: guidesEnabled,
+        snapEnabled: snapEnabled
+      },
+      // Include config overrides if any
+      configOverrides: categoryStorage.getConfigsOverride(),
+      // Include current options (text content)
+      currentOptions: currentOptions
+    };
+    
+    // Create download
+    const dataStr = JSON.stringify(settings, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `idg-settings-${currentCategory}-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    console.log('Settings exported successfully');
+    alert('設定已匯出！');
+  } catch (error) {
+    console.error('Failed to export settings:', error);
+    alert('匯出設定失敗！');
+  }
+}
+
+function importSettings(file) {
+  try {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const settings = JSON.parse(e.target.result);
+        
+        // Validate settings format
+        if (!settings.version || !settings.textStyles) {
+          throw new Error('Invalid settings file format');
+        }
+        
+        // Import text styles
+        if (settings.textStyles) {
+          textStyles = settings.textStyles;
+          categoryStorage.setTextStyles(currentCategory, textStyles);
+        }
+        
+        // Import export settings
+        if (settings.exportPreferences) {
+          Object.assign(exportSettings, settings.exportPreferences);
+        }
+        
+        // Import safe area settings
+        if (settings.safeAreaSettings) {
+          safeAreaEnabled = settings.safeAreaSettings.enabled || false;
+          safeAreaPadding = settings.safeAreaSettings.padding || 0.08;
+          guidesEnabled = settings.safeAreaSettings.guidesEnabled || false;
+          snapEnabled = settings.safeAreaSettings.snapEnabled || false;
+          
+          // Update UI controls
+          const safeAreaToggle = document.getElementById('safe-area-toggle');
+          const guidesToggle = document.getElementById('guides-toggle');
+          const snapToggle = document.getElementById('snap-toggle');
+          
+          if (safeAreaToggle) safeAreaToggle.checked = safeAreaEnabled;
+          if (guidesToggle) guidesToggle.checked = guidesEnabled;
+          if (snapToggle) snapToggle.checked = snapEnabled;
+          
+          updateSafeAreaOverlay();
+          updateGuidesOverlay();
+        }
+        
+        // Import current options (text content)
+        if (settings.currentOptions) {
+          currentOptions = settings.currentOptions;
+        }
+        
+        // Update UI
+        updateTextControlValues();
+        updateExportControls();
+        updateUIForCategory();
+        updateCanvas();
+        
+        console.log('Settings imported successfully');
+        alert('設定已匯入！');
+        
+        // Save history state
+        saveHistoryState('Settings imported');
+        
+      } catch (parseError) {
+        console.error('Failed to parse settings file:', parseError);
+        alert('設定檔案格式錯誤！');
+      }
+    };
+    
+    reader.readAsText(file);
+  } catch (error) {
+    console.error('Failed to import settings:', error);
+    alert('匯入設定失敗！');
+  }
+}
+
+function setupSettingsControls() {
+  const exportBtn = document.getElementById('export-settings-btn');
+  const importBtn = document.getElementById('import-settings-btn');
+  const importInput = document.getElementById('import-settings-input');
+  
+  if (exportBtn) {
+    exportBtn.addEventListener('click', exportUserSettings);
+  }
+  
+  if (importBtn && importInput) {
+    importBtn.addEventListener('click', () => {
+      importInput.click();
+    });
+    
+    importInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        importSettings(file);
+      }
+    });
+  }
 }
 
 // Helper function to load images with multiple extension fallbacks

@@ -39,12 +39,48 @@
                         <option value="background">Background</option>
                         <option value="composite">Composite</option>
                     </select>
+                    
+                    <!-- Safe area and guides controls -->
+                    <div class="guides-controls">
+                        <label>
+                            <input type="checkbox" id="safe-area-toggle" title="顯示安全區域">
+                            安全區域
+                        </label>
+                        <label>
+                            <input type="checkbox" id="guides-toggle" title="顯示參考線">
+                            參考線
+                        </label>
+                        <label>
+                            <input type="checkbox" id="snap-toggle" title="啟用磁吸">
+                            磁吸
+                        </label>
+                        <select id="safe-area-preset" title="安全區域預設">
+                            <option value="0.05">5%</option>
+                            <option value="0.08" selected>8%</option>
+                            <option value="0.10">10%</option>
+                            <option value="0.15">15%</option>
+                            <option value="custom">自訂</option>
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="canvas-container">
                     <canvas id="canvas" width="1200" height="1680"></canvas>
                     <div class="text-layer" id="text-layer">
                         <!-- Text boxes will be rendered here -->
+                    </div>
+                    <!-- Safe area overlay -->
+                    <div class="safe-area-overlay" id="safe-area-overlay" style="display: none;">
+                        <div class="safe-area-border"></div>
+                    </div>
+                    <!-- Guides overlay -->
+                    <div class="guides-overlay" id="guides-overlay" style="display: none;">
+                        <div class="guide-line guide-center-x"></div>
+                        <div class="guide-line guide-center-y"></div>
+                        <div class="guide-line guide-third-x-1"></div>
+                        <div class="guide-line guide-third-x-2"></div>
+                        <div class="guide-line guide-third-y-1"></div>
+                        <div class="guide-line guide-third-y-2"></div>
                     </div>
                 </div>
                 
@@ -98,6 +134,45 @@
                             </select>
                         </div>
                         <div id="text-tuning-controls" style="display: none;">
+                            <!-- Auto-fit controls -->
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="text-autofit">自動適應</label>
+                                    <input type="checkbox" id="text-autofit">
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-autofit-strategy">適應策略</label>
+                                    <select id="text-autofit-strategy">
+                                        <option value="shrink">縮小字體</option>
+                                        <option value="reflow">重新換行</option>
+                                        <option value="hybrid">混合模式</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="tuning-row" id="autofit-size-controls" style="display: none;">
+                                <div class="tuning-control">
+                                    <label for="text-min-font-size">最小字體</label>
+                                    <input type="range" id="text-min-font-size" min="8" max="36" step="1" value="12">
+                                    <span class="range-value" id="text-min-font-size-value">12px</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-max-font-size">最大字體</label>
+                                    <input type="range" id="text-max-font-size" min="20" max="200" step="2" value="120">
+                                    <span class="range-value" id="text-max-font-size-value">120px</span>
+                                </div>
+                            </div>
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="text-max-width">文字框寬度</label>
+                                    <input type="range" id="text-max-width" min="0.2" max="1" step="0.01" value="0.8">
+                                    <span class="range-value" id="text-max-width-value">80%</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-locked">鎖定位置</label>
+                                    <input type="checkbox" id="text-locked">
+                                </div>
+                            </div>
+                            
                             <div class="tuning-grid">
                                 <div class="tuning-control">
                                     <label for="text-x">X 位置</label>
@@ -138,6 +213,50 @@
                                 <div class="tuning-control">
                                     <label for="text-color">顏色</label>
                                     <input type="color" id="text-color" value="#333333">
+                                </div>
+                            </div>
+                            
+                            <!-- Text effects controls -->
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="text-stroke-enabled">文字邊框</label>
+                                    <input type="checkbox" id="text-stroke-enabled">
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-stroke-width">邊框寬度</label>
+                                    <input type="range" id="text-stroke-width" min="1" max="10" step="1" value="2">
+                                    <span class="range-value" id="text-stroke-width-value">2px</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-stroke-color">邊框顏色</label>
+                                    <input type="color" id="text-stroke-color" value="#ffffff">
+                                </div>
+                            </div>
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="text-bg-enabled">背景框</label>
+                                    <input type="checkbox" id="text-bg-enabled">
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-bg-padding">背景邊距</label>
+                                    <input type="range" id="text-bg-padding" min="4" max="20" step="2" value="8">
+                                    <span class="range-value" id="text-bg-padding-value">8px</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-bg-radius">背景圓角</label>
+                                    <input type="range" id="text-bg-radius" min="0" max="20" step="1" value="4">
+                                    <span class="range-value" id="text-bg-radius-value">4px</span>
+                                </div>
+                            </div>
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="text-bg-color">背景顏色</label>
+                                    <input type="color" id="text-bg-color" value="#000000">
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-bg-opacity">背景透明度</label>
+                                    <input type="range" id="text-bg-opacity" min="0" max="1" step="0.1" value="0.7">
+                                    <span class="range-value" id="text-bg-opacity-value">0.7</span>
                                 </div>
                             </div>
                             <div class="tuning-buttons">
@@ -182,7 +301,53 @@
                 
                 <!-- 下載 -->
                 <div class="controls-section">
-                    <button id="download-btn" class="download-button">下載 PNG</button>
+                    <h3>匯出設定</h3>
+                    <div class="export-controls">
+                        <div class="input-group">
+                            <label for="export-preset">尺寸預設</label>
+                            <select id="export-preset">
+                                <option value="current">目前尺寸</option>
+                                <option value="ig-post">IG 貼文 (1080x1350)</option>
+                                <option value="ig-story">IG 限動 (1080x1920)</option>
+                                <option value="ig-reel">IG Reel (1080x1920)</option>
+                                <option value="facebook">Facebook (1200x630)</option>
+                                <option value="twitter">Twitter (1200x675)</option>
+                                <option value="linkedin">LinkedIn (1200x627)</option>
+                                <option value="custom">自訂尺寸</option>
+                            </select>
+                        </div>
+                        <div class="input-group custom-size" id="custom-size-controls" style="display: none;">
+                            <label>
+                                寬度 <input type="number" id="export-width" min="100" max="4000" value="1200" style="width: 80px;">
+                            </label>
+                            <label>
+                                高度 <input type="number" id="export-height" min="100" max="4000" value="1680" style="width: 80px;">
+                            </label>
+                        </div>
+                        <div class="input-group">
+                            <label for="export-format">格式</label>
+                            <select id="export-format">
+                                <option value="png">PNG</option>
+                                <option value="jpeg">JPEG</option>
+                                <option value="webp">WebP</option>
+                            </select>
+                        </div>
+                        <div class="input-group quality-control" id="quality-control" style="display: none;">
+                            <label for="export-quality">品質</label>
+                            <input type="range" id="export-quality" min="0.1" max="1" step="0.05" value="0.9">
+                            <span id="export-quality-value">90%</span>
+                        </div>
+                    </div>
+                    <button id="download-btn" class="download-button">下載圖片</button>
+                    <button id="batch-export-btn" class="download-button secondary" style="display: none;">批次匯出</button>
+                    
+                    <!-- Settings import/export -->
+                    <div class="settings-controls">
+                        <button id="export-settings-btn" class="download-button secondary">匯出設定</button>
+                        <input type="file" id="import-settings-input" accept=".json" style="display: none;">
+                        <button id="import-settings-btn" class="download-button secondary">匯入設定</button>
+                    </div>
+                    
                     <div class="hint">客戶端處理 — 圖片不會上傳到伺服器</div>
                 </div>
             </div>
