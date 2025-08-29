@@ -42,7 +42,10 @@
                 </div>
                 
                 <div class="canvas-container">
-                    <canvas id="canvas" width="1200" height="675"></canvas>
+                    <canvas id="canvas" width="1200" height="1680"></canvas>
+                    <div class="text-layer" id="text-layer">
+                        <!-- Text boxes will be rendered here -->
+                    </div>
                 </div>
                 
                 <!-- Detailed Tuning Panel -->
@@ -74,6 +77,72 @@
                                 <label for="rotate-range">旋轉</label>
                                 <input type="range" id="rotate-range" min="-180" max="180" step="1" value="0">
                                 <span class="range-value" id="rotate-value">0°</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Text Tuning Panel -->
+                <div class="tuning-panel">
+                    <div class="tuning-header">
+                        <h4>文字調整</h4>
+                        <button id="text-tuning-toggle" class="tuning-toggle" aria-expanded="false">
+                            <span class="toggle-icon">▼</span>
+                        </button>
+                    </div>
+                    <div id="text-tuning-content" class="tuning-content" style="display: none;">
+                        <div id="text-field-selector" class="field-selector">
+                            <label for="text-field-select">選擇文字欄位：</label>
+                            <select id="text-field-select">
+                                <option value="">請選擇欄位</option>
+                            </select>
+                        </div>
+                        <div id="text-tuning-controls" style="display: none;">
+                            <div class="tuning-grid">
+                                <div class="tuning-control">
+                                    <label for="text-x">X 位置</label>
+                                    <input type="range" id="text-x" min="0" max="1" step="0.01" value="0.5">
+                                    <span class="range-value" id="text-x-value">0.5</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-y">Y 位置</label>
+                                    <input type="range" id="text-y" min="0" max="1" step="0.01" value="0.5">
+                                    <span class="range-value" id="text-y-value">0.5</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-font-size">字體大小</label>
+                                    <input type="range" id="text-font-size" min="12" max="120" step="2" value="24">
+                                    <span class="range-value" id="text-font-size-value">24px</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-line-height">行高</label>
+                                    <input type="range" id="text-line-height" min="1" max="3" step="0.1" value="1.4">
+                                    <span class="range-value" id="text-line-height-value">1.4</span>
+                                </div>
+                            </div>
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="text-font-family">字體</label>
+                                    <select id="text-font-family">
+                                        <option value="Inter">Inter</option>
+                                    </select>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-align">對齊</label>
+                                    <select id="text-align">
+                                        <option value="left">左對齊</option>
+                                        <option value="center">置中</option>
+                                        <option value="right">右對齊</option>
+                                    </select>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-color">顏色</label>
+                                    <input type="color" id="text-color" value="#333333">
+                                </div>
+                            </div>
+                            <div class="tuning-buttons">
+                                <button id="reset-text-field" class="secondary">重設</button>
+                                <button id="apply-as-default">設為預設</button>
                             </div>
                         </div>
                     </div>

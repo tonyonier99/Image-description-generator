@@ -1,0 +1,46 @@
+{
+  "fonts": [
+    {
+      "family": "ChenYuluoyan Thin",
+      "src": "fonts/ChenYuluoyan-Thin.ttf",
+      "weight": "300",
+      "style": "normal",
+      "display": "陳玉洛嫣-細體"
+    },
+    {
+      "family": "ChenYuluoyan 2.0 Thin", 
+      "src": "fonts/ChenYuluoyan-2.0-Thin.ttf",
+      "weight": "300",
+      "style": "normal",
+      "display": "陳玉洛嫣 2.0-細體"
+    },
+    {
+      "family": "ChenYuluoyan Thin Monospaced",
+      "src": "fonts/ChenYuluoyan-Thin-Monospaced.ttf", 
+      "weight": "300",
+      "style": "normal",
+      "display": "陳玉洛嫣-細體等寬"
+    },
+    {
+      "family": "極影段片和圓",
+      "src": "fonts/極影段片和圓.ttf",
+      "weight": "400",
+      "style": "normal",
+      "display": "極影段片和圓"
+    },
+    {
+      "family": "極影段片圓",
+      "src": "fonts/極影段片圓.ttf",
+      "weight": "400", 
+      "style": "normal",
+      "display": "極影段片圓"
+    },
+    {
+      "family": "極影段片英圓",
+      "src": "fonts/極影段片英圓.ttf",
+      "weight": "400",
+      "style": "normal", 
+      "display": "極影段片英圓"
+    }
+  ]
+}

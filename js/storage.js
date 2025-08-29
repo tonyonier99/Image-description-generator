@@ -6,7 +6,9 @@ export const STORAGE_KEYS = {
   SELECTED_TEMPLATE_BY_CATEGORY: 'idg:selected-template-by-category', 
   CATEGORY_CONFIGS_OVERRIDE: 'idg:category-configs-override',
   PREVIEW_MODE_BY_CATEGORY: 'idg:preview-mode-by-category',
-  PREVIEW_TRANSFORM_BY_CATEGORY: 'idg:preview-transform-by-category'
+  PREVIEW_TRANSFORM_BY_CATEGORY: 'idg:preview-transform-by-category',
+  ASPECT_BY_CATEGORY: 'idg:aspect-by-category',
+  TEXT_STYLES_BY_CATEGORY: 'idg:text-styles-by-category'
 };
 
 // Safe localStorage operations
@@ -120,5 +122,43 @@ export const categoryStorage = {
     const transforms = storage.get(STORAGE_KEYS.PREVIEW_TRANSFORM_BY_CATEGORY, {});
     transforms[category] = transform;
     return storage.set(STORAGE_KEYS.PREVIEW_TRANSFORM_BY_CATEGORY, transforms);
+  },
+
+  // Get aspect ratio for a category
+  getAspectRatio(category, defaultValue = '5:7') {
+    const aspects = storage.get(STORAGE_KEYS.ASPECT_BY_CATEGORY, {});
+    return aspects[category] || defaultValue;
+  },
+
+  // Set aspect ratio for a category
+  setAspectRatio(category, ratio) {
+    const aspects = storage.get(STORAGE_KEYS.ASPECT_BY_CATEGORY, {});
+    aspects[category] = ratio;
+    return storage.set(STORAGE_KEYS.ASPECT_BY_CATEGORY, aspects);
+  },
+
+  // Get text styles for a category
+  getTextStyles(category, defaultValue = {}) {
+    const styles = storage.get(STORAGE_KEYS.TEXT_STYLES_BY_CATEGORY, {});
+    return styles[category] || defaultValue;
+  },
+
+  // Set text styles for a category
+  setTextStyles(category, styles) {
+    const allStyles = storage.get(STORAGE_KEYS.TEXT_STYLES_BY_CATEGORY, {});
+    allStyles[category] = styles;
+    return storage.set(STORAGE_KEYS.TEXT_STYLES_BY_CATEGORY, allStyles);
+  },
+
+  // Helper functions for per-category storage
+  getPerCategory(key, category, defaultValue = null) {
+    const data = storage.get(key, {});
+    return data[category] || defaultValue;
+  },
+
+  setPerCategory(key, category, value) {
+    const data = storage.get(key, {});
+    data[category] = value;
+    return storage.set(key, data);
   }
 };
