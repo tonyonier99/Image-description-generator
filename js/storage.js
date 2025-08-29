@@ -4,7 +4,9 @@
 export const STORAGE_KEYS = {
   SELECTED_CATEGORY: 'idg:selected-category',
   SELECTED_TEMPLATE_BY_CATEGORY: 'idg:selected-template-by-category', 
-  CATEGORY_CONFIGS_OVERRIDE: 'idg:category-configs-override'
+  CATEGORY_CONFIGS_OVERRIDE: 'idg:category-configs-override',
+  PREVIEW_MODE_BY_CATEGORY: 'idg:preview-mode-by-category',
+  PREVIEW_TRANSFORM_BY_CATEGORY: 'idg:preview-transform-by-category'
 };
 
 // Safe localStorage operations
@@ -92,5 +94,31 @@ export const categoryStorage = {
   // Clear category configs override
   clearConfigsOverride() {
     return storage.remove(STORAGE_KEYS.CATEGORY_CONFIGS_OVERRIDE);
+  },
+
+  // Get preview mode for a category
+  getPreviewMode(category, defaultValue = 'template') {
+    const modes = storage.get(STORAGE_KEYS.PREVIEW_MODE_BY_CATEGORY, {});
+    return modes[category] || defaultValue;
+  },
+
+  // Set preview mode for a category
+  setPreviewMode(category, mode) {
+    const modes = storage.get(STORAGE_KEYS.PREVIEW_MODE_BY_CATEGORY, {});
+    modes[category] = mode;
+    return storage.set(STORAGE_KEYS.PREVIEW_MODE_BY_CATEGORY, modes);
+  },
+
+  // Get preview transform settings for a category
+  getPreviewTransform(category, defaultValue = { scale: 1, offsetX: 0, offsetY: 0, rotate: 0 }) {
+    const transforms = storage.get(STORAGE_KEYS.PREVIEW_TRANSFORM_BY_CATEGORY, {});
+    return transforms[category] || defaultValue;
+  },
+
+  // Set preview transform settings for a category
+  setPreviewTransform(category, transform) {
+    const transforms = storage.get(STORAGE_KEYS.PREVIEW_TRANSFORM_BY_CATEGORY, {});
+    transforms[category] = transform;
+    return storage.set(STORAGE_KEYS.PREVIEW_TRANSFORM_BY_CATEGORY, transforms);
   }
 };

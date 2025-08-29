@@ -8,6 +8,10 @@ let categoryConfigs = null;
 let canvas, ctx;
 let uploadedImage = null;
 let currentOptions = {};
+let currentPreviewMode = 'template';
+let currentTransform = { scale: 1, offsetX: 0, offsetY: 0, rotate: 0 };
+let backgroundImage = null;
+let foregroundImage = null;
 
 // Canvas dimensions
 const CANVAS_WIDTH = 1200;
@@ -74,6 +78,8 @@ function initializeCanvas() {
 function loadSavedState() {
   currentCategory = categoryStorage.getSelectedCategory('classic');
   currentTemplate = categoryStorage.getSelectedTemplate(currentCategory, 0);
+  currentPreviewMode = categoryStorage.getPreviewMode(currentCategory, 'template');
+  currentTransform = categoryStorage.getPreviewTransform(currentCategory, { scale: 1, offsetX: 0, offsetY: 0, rotate: 0 });
 }
 
 // Setup event listeners
@@ -95,6 +101,22 @@ function setupEventListeners() {
   if (categorySelect) {
     categorySelect.addEventListener('change', handleCategoryChange);
   }
+
+  // Preview mode selector
+  const previewModeSelect = document.getElementById('preview-mode-select');
+  if (previewModeSelect) {
+    previewModeSelect.addEventListener('change', handlePreviewModeChange);
+  }
+
+  // Tuning toggle
+  const tuningToggle = document.getElementById('tuning-toggle');
+  const tuningHeader = document.querySelector('.tuning-header');
+  if (tuningHeader) {
+    tuningHeader.addEventListener('click', toggleTuningPanel);
+  }
+
+  // Transform controls
+  setupTransformControls();
 }
 
 // Render category dropdown
@@ -113,6 +135,8 @@ function renderCategoryDropdown() {
 function handleCategoryChange(event) {
   currentCategory = event.target.value;
   currentTemplate = categoryStorage.getSelectedTemplate(currentCategory, 0);
+  currentPreviewMode = categoryStorage.getPreviewMode(currentCategory, 'template');
+  currentTransform = categoryStorage.getPreviewTransform(currentCategory, { scale: 1, offsetX: 0, offsetY: 0, rotate: 0 });
   categoryStorage.setSelectedCategory(currentCategory);
   updateUIForCategory();
   updateCanvas();
@@ -122,6 +146,8 @@ function handleCategoryChange(event) {
 function updateUIForCategory() {
   renderTemplatesGrid();
   renderCategoryOptions();
+  updatePreviewControls();
+  loadTemplateImages();
 }
 
 // Render templates grid for current category
@@ -164,7 +190,26 @@ function renderTemplatesGrid() {
 window.handleTemplateChange = function(templateIndex) {
   currentTemplate = templateIndex;
   categoryStorage.setSelectedTemplate(currentCategory, templateIndex);
-  updateCanvas();
+  
+  // Reload foreground image for new template
+  const category = getCurrentCategoryConfig();
+  if (category) {
+    loadImageWithFallback(
+      `assets/templates/${category.folder}/${category.folder}_${currentTemplate + 1}`,
+      ['jpg', 'svg', 'png'],
+      (img) => {
+        foregroundImage = img;
+        updateCanvas();
+      },
+      () => {
+        console.warn('Foreground image not found for template', currentTemplate + 1);
+        foregroundImage = null;
+        updateCanvas();
+      }
+    );
+  } else {
+    updateCanvas();
+  }
 };
 
 // Render category-specific options
@@ -281,8 +326,20 @@ function updateCanvas() {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-  // Draw background template if available
-  drawBackgroundTemplate();
+  // Draw based on preview mode
+  switch (currentPreviewMode) {
+    case 'template':
+      drawTemplate();
+      break;
+    case 'background':
+      drawBackground();
+      break;
+    case 'composite':
+      drawComposite();
+      break;
+    default:
+      drawTemplate();
+  }
 
   // Draw uploaded image
   if (uploadedImage) {
@@ -291,6 +348,55 @@ function updateCanvas() {
 
   // Draw text content
   drawTextContent();
+}
+
+// Draw template only
+function drawTemplate() {
+  if (foregroundImage) {
+    ctx.drawImage(foregroundImage, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  } else {
+    // Fallback to simple background
+    drawBackgroundTemplate();
+  }
+}
+
+// Draw background only
+function drawBackground() {
+  if (backgroundImage) {
+    ctx.drawImage(backgroundImage, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  } else {
+    // Fallback to simple background
+    drawBackgroundTemplate();
+  }
+}
+
+// Draw composite (background + transformed foreground)
+function drawComposite() {
+  // Draw background first
+  if (backgroundImage) {
+    ctx.drawImage(backgroundImage, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  } else {
+    drawBackgroundTemplate();
+  }
+
+  // Draw transformed foreground
+  if (foregroundImage) {
+    ctx.save();
+    
+    // Calculate center point
+    const centerX = CANVAS_WIDTH / 2;
+    const centerY = CANVAS_HEIGHT / 2;
+    
+    // Apply transformations
+    ctx.translate(centerX + currentTransform.offsetX, centerY + currentTransform.offsetY);
+    ctx.rotate((currentTransform.rotate * Math.PI) / 180);
+    ctx.scale(currentTransform.scale, currentTransform.scale);
+    
+    // Draw foreground centered
+    ctx.drawImage(foregroundImage, -CANVAS_WIDTH / 2, -CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    ctx.restore();
+  }
 }
 
 // Draw background template
@@ -398,4 +504,170 @@ function downloadImage() {
     console.error(e);
     alert('Download failed');
   }
+}
+
+// Preview mode and tuning functions
+function handlePreviewModeChange(event) {
+  currentPreviewMode = event.target.value;
+  categoryStorage.setPreviewMode(currentCategory, currentPreviewMode);
+  updateCanvas();
+}
+
+function updatePreviewControls() {
+  // Update preview mode selector
+  const previewModeSelect = document.getElementById('preview-mode-select');
+  if (previewModeSelect) {
+    previewModeSelect.value = currentPreviewMode;
+  }
+
+  // Update transform controls
+  updateTransformControls();
+  
+  // Show/hide tuning panel based on mode
+  const tuningPanel = document.querySelector('.tuning-panel');
+  if (tuningPanel) {
+    tuningPanel.style.display = currentPreviewMode === 'composite' ? 'block' : 'none';
+  }
+}
+
+function updateTransformControls() {
+  const scaleRange = document.getElementById('scale-range');
+  const offsetXRange = document.getElementById('offsetX-range');
+  const offsetYRange = document.getElementById('offsetY-range');
+  const rotateRange = document.getElementById('rotate-range');
+  
+  const scaleValue = document.getElementById('scale-value');
+  const offsetXValue = document.getElementById('offsetX-value');
+  const offsetYValue = document.getElementById('offsetY-value');
+  const rotateValue = document.getElementById('rotate-value');
+
+  if (scaleRange) {
+    scaleRange.value = currentTransform.scale;
+    if (scaleValue) scaleValue.textContent = currentTransform.scale.toFixed(1);
+  }
+  if (offsetXRange) {
+    offsetXRange.value = currentTransform.offsetX;
+    if (offsetXValue) offsetXValue.textContent = currentTransform.offsetX;
+  }
+  if (offsetYRange) {
+    offsetYRange.value = currentTransform.offsetY;
+    if (offsetYValue) offsetYValue.textContent = currentTransform.offsetY;
+  }
+  if (rotateRange) {
+    rotateRange.value = currentTransform.rotate;
+    if (rotateValue) rotateValue.textContent = currentTransform.rotate + '°';
+  }
+}
+
+function setupTransformControls() {
+  // Scale control
+  const scaleRange = document.getElementById('scale-range');
+  if (scaleRange) {
+    scaleRange.addEventListener('input', (e) => {
+      currentTransform.scale = parseFloat(e.target.value);
+      document.getElementById('scale-value').textContent = currentTransform.scale.toFixed(1);
+      categoryStorage.setPreviewTransform(currentCategory, currentTransform);
+      updateCanvas();
+    });
+  }
+
+  // Offset X control
+  const offsetXRange = document.getElementById('offsetX-range');
+  if (offsetXRange) {
+    offsetXRange.addEventListener('input', (e) => {
+      currentTransform.offsetX = parseInt(e.target.value);
+      document.getElementById('offsetX-value').textContent = currentTransform.offsetX;
+      categoryStorage.setPreviewTransform(currentCategory, currentTransform);
+      updateCanvas();
+    });
+  }
+
+  // Offset Y control
+  const offsetYRange = document.getElementById('offsetY-range');
+  if (offsetYRange) {
+    offsetYRange.addEventListener('input', (e) => {
+      currentTransform.offsetY = parseInt(e.target.value);
+      document.getElementById('offsetY-value').textContent = currentTransform.offsetY;
+      categoryStorage.setPreviewTransform(currentCategory, currentTransform);
+      updateCanvas();
+    });
+  }
+
+  // Rotate control
+  const rotateRange = document.getElementById('rotate-range');
+  if (rotateRange) {
+    rotateRange.addEventListener('input', (e) => {
+      currentTransform.rotate = parseInt(e.target.value);
+      document.getElementById('rotate-value').textContent = currentTransform.rotate + '°';
+      categoryStorage.setPreviewTransform(currentCategory, currentTransform);
+      updateCanvas();
+    });
+  }
+}
+
+function toggleTuningPanel() {
+  const tuningToggle = document.getElementById('tuning-toggle');
+  const tuningContent = document.getElementById('tuning-content');
+  
+  if (!tuningToggle || !tuningContent) return;
+  
+  const isExpanded = tuningToggle.getAttribute('aria-expanded') === 'true';
+  const newExpanded = !isExpanded;
+  
+  tuningToggle.setAttribute('aria-expanded', newExpanded);
+  tuningContent.style.display = newExpanded ? 'block' : 'none';
+}
+
+function loadTemplateImages() {
+  const category = getCurrentCategoryConfig();
+  if (!category) return;
+
+  // Load background image (Empty template) - try png first for Empty templates
+  loadImageWithFallback(
+    `assets/templates/${category.folder}/${category.folder}_Empty_1`,
+    ['png', 'jpg', 'svg'],
+    (img) => {
+      backgroundImage = img;
+      updateCanvas();
+    },
+    () => {
+      console.warn('Background image not found');
+      backgroundImage = null;
+      updateCanvas();
+    }
+  );
+
+  // Load foreground image (current template)
+  loadImageWithFallback(
+    `assets/templates/${category.folder}/${category.folder}_${currentTemplate + 1}`,
+    ['jpg', 'svg', 'png'],
+    (img) => {
+      foregroundImage = img;
+      updateCanvas();
+    },
+    () => {
+      console.warn('Foreground image not found');
+      foregroundImage = null;
+      updateCanvas();
+    }
+  );
+}
+
+// Helper function to load images with multiple extension fallbacks
+function loadImageWithFallback(basePath, extensions, onSuccess, onFailure) {
+  function tryExtension(index) {
+    if (index >= extensions.length) {
+      onFailure();
+      return;
+    }
+    
+    const img = new Image();
+    const fullPath = `${basePath}.${extensions[index]}`;
+    
+    img.onload = () => onSuccess(img);
+    img.onerror = () => tryExtension(index + 1);
+    img.src = fullPath;
+  }
+  
+  tryExtension(0);
 }
