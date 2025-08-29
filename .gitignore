@@ -1,0 +1,15 @@
+# Backup files
+style_old.css
+script.js
+
+# Temporary files
+*.tmp
+*.bak
+
+# Editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
