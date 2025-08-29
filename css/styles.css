@@ -203,6 +203,41 @@ header p {
   background: rgba(59, 130, 246, 0.1);
 }
 
+.text-box.locked {
+  cursor: not-allowed;
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.text-box.locked::after {
+  content: "🔒";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  font-size: 12px;
+  background: var(--warning);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.width-handle {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.text-box:hover .width-handle,
+.text-box.selected .width-handle {
+  opacity: 1;
+}
+
+.width-handle:hover {
+  background: rgba(33, 150, 243, 0.8) !important;
+}
+
 .text-box[data-align="left"] {
   text-align: left;
 }

@@ -98,6 +98,45 @@
                             </select>
                         </div>
                         <div id="text-tuning-controls" style="display: none;">
+                            <!-- Auto-fit controls -->
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="text-autofit">自動適應</label>
+                                    <input type="checkbox" id="text-autofit">
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-autofit-strategy">適應策略</label>
+                                    <select id="text-autofit-strategy">
+                                        <option value="shrink">縮小字體</option>
+                                        <option value="reflow">重新換行</option>
+                                        <option value="hybrid">混合模式</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="tuning-row" id="autofit-size-controls" style="display: none;">
+                                <div class="tuning-control">
+                                    <label for="text-min-font-size">最小字體</label>
+                                    <input type="range" id="text-min-font-size" min="8" max="36" step="1" value="12">
+                                    <span class="range-value" id="text-min-font-size-value">12px</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-max-font-size">最大字體</label>
+                                    <input type="range" id="text-max-font-size" min="20" max="200" step="2" value="120">
+                                    <span class="range-value" id="text-max-font-size-value">120px</span>
+                                </div>
+                            </div>
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="text-max-width">文字框寬度</label>
+                                    <input type="range" id="text-max-width" min="0.2" max="1" step="0.01" value="0.8">
+                                    <span class="range-value" id="text-max-width-value">80%</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-locked">鎖定位置</label>
+                                    <input type="checkbox" id="text-locked">
+                                </div>
+                            </div>
+                            
                             <div class="tuning-grid">
                                 <div class="tuning-control">
                                     <label for="text-x">X 位置</label>
@@ -138,6 +177,50 @@
                                 <div class="tuning-control">
                                     <label for="text-color">顏色</label>
                                     <input type="color" id="text-color" value="#333333">
+                                </div>
+                            </div>
+                            
+                            <!-- Text effects controls -->
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="text-stroke-enabled">文字邊框</label>
+                                    <input type="checkbox" id="text-stroke-enabled">
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-stroke-width">邊框寬度</label>
+                                    <input type="range" id="text-stroke-width" min="1" max="10" step="1" value="2">
+                                    <span class="range-value" id="text-stroke-width-value">2px</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-stroke-color">邊框顏色</label>
+                                    <input type="color" id="text-stroke-color" value="#ffffff">
+                                </div>
+                            </div>
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="text-bg-enabled">背景框</label>
+                                    <input type="checkbox" id="text-bg-enabled">
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-bg-padding">背景邊距</label>
+                                    <input type="range" id="text-bg-padding" min="4" max="20" step="2" value="8">
+                                    <span class="range-value" id="text-bg-padding-value">8px</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-bg-radius">背景圓角</label>
+                                    <input type="range" id="text-bg-radius" min="0" max="20" step="1" value="4">
+                                    <span class="range-value" id="text-bg-radius-value">4px</span>
+                                </div>
+                            </div>
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="text-bg-color">背景顏色</label>
+                                    <input type="color" id="text-bg-color" value="#000000">
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="text-bg-opacity">背景透明度</label>
+                                    <input type="range" id="text-bg-opacity" min="0" max="1" step="0.1" value="0.7">
+                                    <span class="range-value" id="text-bg-opacity-value">0.7</span>
                                 </div>
                             </div>
                             <div class="tuning-buttons">

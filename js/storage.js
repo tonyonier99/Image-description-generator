@@ -8,7 +8,12 @@ export const STORAGE_KEYS = {
   PREVIEW_MODE_BY_CATEGORY: 'idg:preview-mode-by-category',
   PREVIEW_TRANSFORM_BY_CATEGORY: 'idg:preview-transform-by-category',
   ASPECT_BY_CATEGORY: 'idg:aspect-by-category',
-  TEXT_STYLES_BY_CATEGORY: 'idg:text-styles-by-category'
+  TEXT_STYLES_BY_CATEGORY: 'idg:text-styles-by-category',
+  SAFE_AREA_BY_CATEGORY: 'idg:safe-area-by-category',
+  EXPORT_PRESET: 'idg:export-preset',
+  HISTORY: 'idg:history',
+  GALLERY_TAGS: 'idg:gallery-tags',
+  GALLERY_FAVORITES: 'idg:gallery-favorites'
 };
 
 // Safe localStorage operations

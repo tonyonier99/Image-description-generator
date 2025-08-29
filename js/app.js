@@ -544,15 +544,18 @@ function drawTextContent() {
         const adminDefaults = getAdminTextDefaults(currentCategory, field.key);
         const fieldStyles = textStyles[field.key] || {};
         
-        const fontSize = fieldStyles.fontSize || adminDefaults.fontSize || (field.key.includes('title') ? 36 : 24);
+        const baseFontSize = fieldStyles.fontSize || adminDefaults.fontSize || (field.key.includes('title') ? 36 : 24);
         const fontFamily = fieldStyles.fontFamily || adminDefaults.fontFamily || 'Inter, sans-serif';
         const color = fieldStyles.color || adminDefaults.color || '#333333';
         const align = fieldStyles.align || adminDefaults.align || 'center';
         
-        // Apply styles
-        ctx.font = `${fontSize}px ${fontFamily}`;
-        ctx.fillStyle = color;
-        ctx.textAlign = align;
+        // Auto-fit settings
+        const autoFitEnabled = fieldStyles.autoFit || false;
+        const autoFitStrategy = fieldStyles.autoFitStrategy || 'shrink';
+        const minFontSize = fieldStyles.minFontSize || 12;
+        const maxFontSize = fieldStyles.maxFontSize || 120;
+        const maxWidthRatio = fieldStyles.maxWidth || 0.8;
+        const maxWidth = CANVAS_WIDTH * maxWidthRatio;
         
         // Calculate position with admin defaults
         const x = fieldStyles.x ? fieldStyles.x * CANVAS_WIDTH : 
@@ -560,21 +563,68 @@ function drawTextContent() {
         const fieldY = fieldStyles.y ? fieldStyles.y * CANVAS_HEIGHT : 
                       adminDefaults.y ? adminDefaults.y * CANVAS_HEIGHT : y;
         
-        // Draw text
-        if (field.type === 'textarea') {
-          const lines = wrapText(value, CANVAS_WIDTH - 100, ctx);
-          lines.forEach((line, lineIndex) => {
-            ctx.fillText(line, x, fieldY + (lineIndex * (fontSize + 8)));
-          });
-          y = fieldY + (lines.length * (fontSize + 8)) + 20;
+        let fontSize = baseFontSize;
+        let lines = [];
+        
+        // Apply auto-fit if enabled
+        if (autoFitEnabled) {
+          const maxHeight = CANVAS_HEIGHT * 0.2; // Limit text height to 20% of canvas
+          ctx.font = `${baseFontSize}px ${fontFamily}`;
+          
+          if (field.type === 'textarea') {
+            const result = autoFitText(value, maxWidth, maxHeight, baseFontSize, minFontSize, maxFontSize, autoFitStrategy, ctx);
+            fontSize = result.fontSize;
+            lines = result.lines;
+          } else {
+            // Single line text - just check if it fits and shrink if needed
+            ctx.font = `${baseFontSize}px ${fontFamily}`;
+            if (ctx.measureText(value).width > maxWidth && autoFitStrategy !== 'reflow') {
+              for (fontSize = baseFontSize; fontSize >= minFontSize; fontSize -= 1) {
+                ctx.font = `${fontSize}px ${fontFamily}`;
+                if (ctx.measureText(value).width <= maxWidth) {
+                  break;
+                }
+              }
+            }
+            lines = [value];
+          }
         } else {
-          ctx.fillText(value, x, fieldY);
-          y = fieldY + fontSize + 20;
+          // Use normal wrapping
+          ctx.font = `${fontSize}px ${fontFamily}`;
+          if (field.type === 'textarea') {
+            lines = wrapText(value, maxWidth, ctx);
+          } else {
+            lines = [value];
+          }
         }
+        
+        // Prepare text effects styles
+        const textEffectStyles = {
+          strokeEnabled: fieldStyles.strokeEnabled || false,
+          strokeWidth: fieldStyles.strokeWidth || 2,
+          strokeColor: fieldStyles.strokeColor || '#ffffff',
+          bgEnabled: fieldStyles.bgEnabled || false,
+          bgColor: fieldStyles.bgColor || '#000000',
+          bgOpacity: fieldStyles.bgOpacity || 0.7,
+          bgPadding: fieldStyles.bgPadding || 8,
+          bgRadius: fieldStyles.bgRadius || 4,
+          fontSize,
+          fontFamily,
+          color,
+          align
+        };
+        
+        // Draw text with effects
+        lines.forEach((line, lineIndex) => {
+          const lineY = fieldY + (lineIndex * (fontSize * 1.4));
+          drawTextWithEffects(ctx, line, x, lineY, textEffectStyles);
+        });
+        
+        y = fieldY + (lines.length * (fontSize * 1.4)) + 20;
         
         // Create text box for dragging if text layer exists
         if (textLayer) {
-          createTextBox(textLayer, field, value, fieldStyles);
+          createTextBox(textLayer, field, value, { ...fieldStyles, fontSize, maxWidth: maxWidthRatio });
         }
       }
     }
@@ -596,6 +646,8 @@ function createTextBox(textLayer, field, value, styles) {
   const color = styles.color || adminDefaults.color || '#333333';
   const x = styles.x !== undefined ? styles.x : (adminDefaults.x !== undefined ? adminDefaults.x : 0.5);
   const y = styles.y !== undefined ? styles.y : (adminDefaults.y !== undefined ? adminDefaults.y : 0.5);
+  const maxWidth = styles.maxWidth || 0.8;
+  const locked = styles.locked || false;
   
   textBox.style.fontSize = `${fontSize}px`;
   textBox.style.fontFamily = fontFamily;
@@ -603,54 +655,110 @@ function createTextBox(textLayer, field, value, styles) {
   textBox.style.left = `${x * 100}%`;
   textBox.style.top = `${y * 100}%`;
   textBox.style.transform = 'translate(-50%, -50%)';
+  textBox.style.maxWidth = `${maxWidth * 100}%`;
+  textBox.style.whiteSpace = 'pre-wrap';
+  textBox.style.textAlign = styles.align || 'center';
   
-  // Add click handler
+  // Add lock indicator
+  if (locked) {
+    textBox.classList.add('locked');
+    textBox.style.cursor = 'not-allowed';
+    textBox.title = '此文字框已鎖定';
+  }
+  
+  // Create width handle
+  const widthHandle = document.createElement('div');
+  widthHandle.className = 'width-handle';
+  widthHandle.style.position = 'absolute';
+  widthHandle.style.right = '-8px';
+  widthHandle.style.top = '50%';
+  widthHandle.style.transform = 'translateY(-50%)';
+  widthHandle.style.width = '16px';
+  widthHandle.style.height = '100%';
+  widthHandle.style.background = 'rgba(33, 150, 243, 0.5)';
+  widthHandle.style.cursor = 'ew-resize';
+  widthHandle.style.borderRadius = '0 4px 4px 0';
+  widthHandle.title = `寬度: ${Math.round(maxWidth * 100)}%`;
+  
+  if (!locked) {
+    textBox.appendChild(widthHandle);
+  }
+  
+  // Add click handler for field selection
   textBox.addEventListener('click', (e) => {
     e.stopPropagation();
-    selectTextField(field.key);
-  });
-  
-  // Add drag functionality
-  let isDragging = false;
-  let startX, startY, startLeft, startTop;
-  
-  textBox.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    const rect = textLayer.getBoundingClientRect();
-    startLeft = (parseFloat(textBox.style.left) / 100) * rect.width;
-    startTop = (parseFloat(textBox.style.top) / 100) * rect.height;
-    e.preventDefault();
-  });
-  
-  document.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    
-    const rect = textLayer.getBoundingClientRect();
-    const deltaX = e.clientX - startX;
-    const deltaY = e.clientY - startY;
-    
-    const newLeft = Math.max(0, Math.min(1, (startLeft + deltaX) / rect.width));
-    const newTop = Math.max(0, Math.min(1, (startTop + deltaY) / rect.height));
-    
-    textBox.style.left = `${newLeft * 100}%`;
-    textBox.style.top = `${newTop * 100}%`;
-    
-    // Update styles
-    if (!textStyles[field.key]) textStyles[field.key] = {};
-    textStyles[field.key].x = newLeft;
-    textStyles[field.key].y = newTop;
-  });
-  
-  document.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
-      // Save to storage
-      categoryStorage.setTextStyles(currentCategory, textStyles);
-      updateCanvas();
+    if (!locked) {
+      selectTextField(field.key);
     }
   });
+  
+  if (!locked) {
+    // Add drag functionality for position
+    let isDragging = false;
+    let isResizing = false;
+    let startX, startY, startLeft, startTop, startWidth;
+    
+    textBox.addEventListener('mousedown', (e) => {
+      if (e.target === widthHandle) return; // Let width handle handle this
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = textLayer.getBoundingClientRect();
+      startLeft = (parseFloat(textBox.style.left) / 100) * rect.width;
+      startTop = (parseFloat(textBox.style.top) / 100) * rect.height;
+      e.preventDefault();
+    });
+    
+    // Width handle drag functionality
+    widthHandle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = maxWidth;
+      e.stopPropagation();
+      e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const rect = textLayer.getBoundingClientRect();
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        
+        const newLeft = Math.max(0, Math.min(1, (startLeft + deltaX) / rect.width));
+        const newTop = Math.max(0, Math.min(1, (startTop + deltaY) / rect.height));
+        
+        textBox.style.left = `${newLeft * 100}%`;
+        textBox.style.top = `${newTop * 100}%`;
+        
+        // Update styles
+        if (!textStyles[field.key]) textStyles[field.key] = {};
+        textStyles[field.key].x = newLeft;
+        textStyles[field.key].y = newTop;
+      } else if (isResizing) {
+        const rect = textLayer.getBoundingClientRect();
+        const deltaX = e.clientX - startX;
+        const widthChange = deltaX / rect.width;
+        const newWidth = Math.max(0.2, Math.min(1, startWidth + widthChange));
+        
+        textBox.style.maxWidth = `${newWidth * 100}%`;
+        widthHandle.title = `寬度: ${Math.round(newWidth * 100)}%`;
+        
+        // Update styles
+        if (!textStyles[field.key]) textStyles[field.key] = {};
+        textStyles[field.key].maxWidth = newWidth;
+      }
+    });
+    
+    document.addEventListener('mouseup', () => {
+      if (isDragging || isResizing) {
+        isDragging = false;
+        isResizing = false;
+        // Save to storage
+        categoryStorage.setTextStyles(currentCategory, textStyles);
+        updateCanvas();
+      }
+    });
+  }
   
   textLayer.appendChild(textBox);
 }
@@ -722,7 +830,14 @@ function updateTextControlValues() {
     'text-x': styles.x || 0.5,
     'text-y': styles.y || 0.5, 
     'text-font-size': styles.fontSize || 24,
-    'text-line-height': styles.lineHeight || 1.4
+    'text-line-height': styles.lineHeight || 1.4,
+    'text-min-font-size': styles.minFontSize || 12,
+    'text-max-font-size': styles.maxFontSize || 120,
+    'text-max-width': styles.maxWidth || 0.8,
+    'text-stroke-width': styles.strokeWidth || 2,
+    'text-bg-padding': styles.bgPadding || 8,
+    'text-bg-radius': styles.bgRadius || 4,
+    'text-bg-opacity': styles.bgOpacity || 0.7
   };
   
   Object.entries(elements).forEach(([id, value]) => {
@@ -731,19 +846,54 @@ function updateTextControlValues() {
     if (input) {
       input.value = value;
       if (valueSpan) {
-        valueSpan.textContent = id === 'text-font-size' ? value + 'px' : value;
+        let displayValue = value;
+        if (id.includes('font-size') || id.includes('stroke-width') || id.includes('bg-padding') || id.includes('bg-radius')) {
+          displayValue += 'px';
+        } else if (id === 'text-max-width') {
+          displayValue = Math.round(value * 100) + '%';
+        }
+        valueSpan.textContent = displayValue;
       }
     }
   });
   
-  // Update selects and color
+  // Update checkboxes
+  const checkboxes = {
+    'text-autofit': styles.autoFit || false,
+    'text-locked': styles.locked || false,
+    'text-stroke-enabled': styles.strokeEnabled || false,
+    'text-bg-enabled': styles.bgEnabled || false
+  };
+  
+  Object.entries(checkboxes).forEach(([id, value]) => {
+    const checkbox = document.getElementById(id);
+    if (checkbox) {
+      checkbox.checked = value;
+      
+      // Handle auto-fit controls visibility
+      if (id === 'text-autofit') {
+        const autofitControls = document.getElementById('autofit-size-controls');
+        if (autofitControls) {
+          autofitControls.style.display = value ? 'flex' : 'none';
+        }
+      }
+    }
+  });
+  
+  // Update selects and colors
   const fontFamily = document.getElementById('text-font-family');
   const textAlign = document.getElementById('text-align');
   const textColor = document.getElementById('text-color');
+  const autoFitStrategy = document.getElementById('text-autofit-strategy');
+  const strokeColor = document.getElementById('text-stroke-color');
+  const bgColor = document.getElementById('text-bg-color');
   
   if (fontFamily) fontFamily.value = styles.fontFamily || 'Inter';
   if (textAlign) textAlign.value = styles.align || 'center';
   if (textColor) textColor.value = styles.color || '#333333';
+  if (autoFitStrategy) autoFitStrategy.value = styles.autoFitStrategy || 'shrink';
+  if (strokeColor) strokeColor.value = styles.strokeColor || '#ffffff';
+  if (bgColor) bgColor.value = styles.bgColor || '#000000';
 }
 
 // Utility: calculate scaled dimensions
@@ -777,6 +927,171 @@ function wrapText(text, maxWidth, context) {
   }
   lines.push(current);
   return lines;
+}
+
+// Utility: auto-fit text based on strategy
+function autoFitText(text, maxWidth, maxHeight, baseFont, minFont, maxFont, strategy, context) {
+  if (!text || !context) return { fontSize: baseFont, lines: [] };
+  
+  // Test if text fits at base size
+  context.font = `${baseFont}px ${context.font.split(' ').slice(1).join(' ')}`;
+  let lines = wrapText(text, maxWidth, context);
+  let fontSize = baseFont;
+  
+  // Calculate line height (approximate)
+  const lineHeight = fontSize * 1.4;
+  const totalHeight = lines.length * lineHeight;
+  
+  if (totalHeight <= maxHeight && lines.every(line => context.measureText(line).width <= maxWidth)) {
+    return { fontSize, lines };
+  }
+  
+  switch (strategy) {
+    case 'shrink':
+      // Shrink font size until it fits
+      for (fontSize = baseFont; fontSize >= minFont; fontSize -= 1) {
+        context.font = `${fontSize}px ${context.font.split(' ').slice(1).join(' ')}`;
+        lines = wrapText(text, maxWidth, context);
+        const currentHeight = lines.length * fontSize * 1.4;
+        
+        if (currentHeight <= maxHeight && lines.every(line => context.measureText(line).width <= maxWidth)) {
+          break;
+        }
+      }
+      break;
+      
+    case 'reflow':
+      // Keep font size, adjust line wrapping by reducing effective width
+      fontSize = baseFont;
+      context.font = `${fontSize}px ${context.font.split(' ').slice(1).join(' ')}`;
+      let testWidth = maxWidth;
+      
+      while (testWidth > maxWidth * 0.3) {
+        lines = wrapText(text, testWidth, context);
+        const currentHeight = lines.length * fontSize * 1.4;
+        
+        if (currentHeight <= maxHeight) {
+          break;
+        }
+        testWidth -= 10;
+      }
+      break;
+      
+    case 'hybrid':
+      // Try reflow first, then shrink if needed
+      fontSize = baseFont;
+      context.font = `${fontSize}px ${context.font.split(' ').slice(1).join(' ')}`;
+      let effectiveWidth = maxWidth;
+      
+      // First try reducing width
+      while (effectiveWidth > maxWidth * 0.5) {
+        lines = wrapText(text, effectiveWidth, context);
+        const currentHeight = lines.length * fontSize * 1.4;
+        
+        if (currentHeight <= maxHeight) {
+          maxWidth = effectiveWidth; // Update for final calculation
+          break;
+        }
+        effectiveWidth -= 10;
+      }
+      
+      // Then shrink font if still doesn't fit
+      for (fontSize = baseFont; fontSize >= minFont; fontSize -= 1) {
+        context.font = `${fontSize}px ${context.font.split(' ').slice(1).join(' ')}`;
+        lines = wrapText(text, maxWidth, context);
+        const currentHeight = lines.length * fontSize * 1.4;
+        
+        if (currentHeight <= maxHeight) {
+          break;
+        }
+      }
+      break;
+  }
+  
+  return { fontSize: Math.max(fontSize, minFont), lines };
+}
+
+// Utility: draw text with effects (stroke and background)
+function drawTextWithEffects(ctx, text, x, y, styles) {
+  const {
+    strokeEnabled = false,
+    strokeWidth = 2,
+    strokeColor = '#ffffff',
+    bgEnabled = false,
+    bgColor = '#000000',
+    bgOpacity = 0.7,
+    bgPadding = 8,
+    bgRadius = 4,
+    fontSize = 24,
+    fontFamily = 'Inter',
+    color = '#333333',
+    align = 'center'
+  } = styles;
+  
+  // Set up text properties
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.textAlign = align;
+  
+  // Measure text for background
+  const metrics = ctx.measureText(text);
+  const textWidth = metrics.width;
+  const textHeight = fontSize; // Approximate
+  
+  // Calculate background position based on alignment
+  let bgX = x;
+  if (align === 'center') {
+    bgX = x - textWidth / 2;
+  } else if (align === 'right') {
+    bgX = x - textWidth;
+  }
+  
+  // Draw background box if enabled
+  if (bgEnabled) {
+    ctx.save();
+    ctx.fillStyle = bgColor;
+    ctx.globalAlpha = bgOpacity;
+    
+    const boxX = bgX - bgPadding;
+    const boxY = y - textHeight - bgPadding / 2;
+    const boxWidth = textWidth + bgPadding * 2;
+    const boxHeight = textHeight + bgPadding;
+    
+    if (bgRadius > 0) {
+      drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, bgRadius);
+      ctx.fill();
+    } else {
+      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+    }
+    
+    ctx.restore();
+  }
+  
+  // Draw text stroke if enabled
+  if (strokeEnabled) {
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = strokeWidth;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(text, x, y);
+  }
+  
+  // Draw text fill
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+}
+
+// Utility: draw rounded rectangle
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
 }
 
 // Download current canvas as PNG with proper export sizing
@@ -1049,7 +1364,9 @@ function setupTextTuningControls() {
   
   // Text controls
   const textControls = [
-    'text-x', 'text-y', 'text-font-size', 'text-line-height'
+    'text-x', 'text-y', 'text-font-size', 'text-line-height',
+    'text-min-font-size', 'text-max-font-size', 'text-max-width',
+    'text-stroke-width', 'text-bg-padding', 'text-bg-radius', 'text-bg-opacity'
   ];
   
   textControls.forEach(id => {
@@ -1058,19 +1375,56 @@ function setupTextTuningControls() {
       input.addEventListener('input', (e) => {
         const valueSpan = document.getElementById(id + '-value');
         if (valueSpan) {
-          valueSpan.textContent = id === 'text-font-size' ? e.target.value + 'px' : e.target.value;
+          let displayValue = e.target.value;
+          if (id === 'text-font-size' || id === 'text-min-font-size' || id === 'text-max-font-size') {
+            displayValue += 'px';
+          } else if (id === 'text-max-width') {
+            displayValue = Math.round(parseFloat(e.target.value) * 100) + '%';
+          } else if (id === 'text-stroke-width' || id === 'text-bg-padding' || id === 'text-bg-radius') {
+            displayValue += 'px';
+          }
+          valueSpan.textContent = displayValue;
         }
         updateTextFieldStyle();
       });
     }
   });
   
-  // Text align and color
-  const textAlign = document.getElementById('text-align');
-  const textColor = document.getElementById('text-color');
+  // Checkbox controls
+  const checkboxControls = ['text-autofit', 'text-locked', 'text-stroke-enabled', 'text-bg-enabled'];
+  checkboxControls.forEach(id => {
+    const checkbox = document.getElementById(id);
+    if (checkbox) {
+      checkbox.addEventListener('change', (e) => {
+        if (id === 'text-autofit') {
+          // Show/hide autofit controls
+          const autofitControls = document.getElementById('autofit-size-controls');
+          if (autofitControls) {
+            autofitControls.style.display = e.target.checked ? 'flex' : 'none';
+          }
+        }
+        updateTextFieldStyle();
+      });
+    }
+  });
   
-  if (textAlign) textAlign.addEventListener('change', updateTextFieldStyle);
-  if (textColor) textColor.addEventListener('change', updateTextFieldStyle);
+  // Select controls
+  const selectControls = ['text-align', 'text-autofit-strategy'];
+  selectControls.forEach(id => {
+    const select = document.getElementById(id);
+    if (select) {
+      select.addEventListener('change', updateTextFieldStyle);
+    }
+  });
+  
+  // Color controls
+  const colorControls = ['text-color', 'text-stroke-color', 'text-bg-color'];
+  colorControls.forEach(id => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.addEventListener('change', updateTextFieldStyle);
+    }
+  });
   
   // Reset and apply buttons
   const resetBtn = document.getElementById('reset-text-field');
@@ -1112,7 +1466,25 @@ function updateTextFieldStyle() {
   const align = document.getElementById('text-align')?.value;
   const color = document.getElementById('text-color')?.value;
   
-  // Update styles
+  // Auto-fit controls
+  const autoFit = document.getElementById('text-autofit')?.checked;
+  const autoFitStrategy = document.getElementById('text-autofit-strategy')?.value;
+  const minFontSize = document.getElementById('text-min-font-size')?.value;
+  const maxFontSize = document.getElementById('text-max-font-size')?.value;
+  const maxWidth = document.getElementById('text-max-width')?.value;
+  const locked = document.getElementById('text-locked')?.checked;
+  
+  // Text effects controls
+  const strokeEnabled = document.getElementById('text-stroke-enabled')?.checked;
+  const strokeWidth = document.getElementById('text-stroke-width')?.value;
+  const strokeColor = document.getElementById('text-stroke-color')?.value;
+  const bgEnabled = document.getElementById('text-bg-enabled')?.checked;
+  const bgColor = document.getElementById('text-bg-color')?.value;
+  const bgOpacity = document.getElementById('text-bg-opacity')?.value;
+  const bgPadding = document.getElementById('text-bg-padding')?.value;
+  const bgRadius = document.getElementById('text-bg-radius')?.value;
+  
+  // Update styles object
   if (x !== undefined) styles.x = parseFloat(x);
   if (y !== undefined) styles.y = parseFloat(y);
   if (fontSize !== undefined) styles.fontSize = parseInt(fontSize);
@@ -1120,6 +1492,24 @@ function updateTextFieldStyle() {
   if (fontFamily !== undefined) styles.fontFamily = fontFamily;
   if (align !== undefined) styles.align = align;
   if (color !== undefined) styles.color = color;
+  
+  // Auto-fit properties
+  if (autoFit !== undefined) styles.autoFit = autoFit;
+  if (autoFitStrategy !== undefined) styles.autoFitStrategy = autoFitStrategy;
+  if (minFontSize !== undefined) styles.minFontSize = parseInt(minFontSize);
+  if (maxFontSize !== undefined) styles.maxFontSize = parseInt(maxFontSize);
+  if (maxWidth !== undefined) styles.maxWidth = parseFloat(maxWidth);
+  if (locked !== undefined) styles.locked = locked;
+  
+  // Text effects properties
+  if (strokeEnabled !== undefined) styles.strokeEnabled = strokeEnabled;
+  if (strokeWidth !== undefined) styles.strokeWidth = parseInt(strokeWidth);
+  if (strokeColor !== undefined) styles.strokeColor = strokeColor;
+  if (bgEnabled !== undefined) styles.bgEnabled = bgEnabled;
+  if (bgColor !== undefined) styles.bgColor = bgColor;
+  if (bgOpacity !== undefined) styles.bgOpacity = parseFloat(bgOpacity);
+  if (bgPadding !== undefined) styles.bgPadding = parseInt(bgPadding);
+  if (bgRadius !== undefined) styles.bgRadius = parseInt(bgRadius);
   
   // Save and update
   categoryStorage.setTextStyles(currentCategory, textStyles);
