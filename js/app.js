@@ -510,6 +510,7 @@ function downloadImage() {
 function handlePreviewModeChange(event) {
   currentPreviewMode = event.target.value;
   categoryStorage.setPreviewMode(currentCategory, currentPreviewMode);
+  updatePreviewControls();
   updateCanvas();
 }
 
