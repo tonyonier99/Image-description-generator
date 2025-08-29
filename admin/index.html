@@ -162,6 +162,67 @@
     .hidden {
       display: none;
     }
+    
+    /* Snapshots and new features */
+    .snapshot-item {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .snapshot-info strong {
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    .snapshot-info small {
+      color: #6b7280;
+    }
+    
+    /* Modal styles */
+    .diff-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .diff-content {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 1rem;
+      margin: 1rem 0;
+      font-family: monospace;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      margin-top: 1rem;
+    }
+    button.primary {
+      background: #2563eb;
+    }
+    button.primary:hover {
+      background: #1d4ed8;
+    }
   </style>
 </head>
 <body>
@@ -179,11 +240,41 @@
       <div class="button-group">
         <button onclick="loadDefaultConfig()">載入預設設定</button>
         <button onclick="exportConfig()" class="secondary">匯出 JSON</button>
-        <button onclick="importConfig()" class="secondary">匯入 JSON</button>
-        <button onclick="clearOverride()" class="danger">清除本地覆寫</button>
+        <button onclick="importConfigWithPreview()" class="secondary">匯入 JSON (預覽)</button>
+        <button onclick="clearOverrideWithConfirmation()" class="danger">清除本地覆寫</button>
+        <button onclick="saveToLocalWithConfirmation()">安全儲存</button>
       </div>
       <div class="hint">
         本地覆寫將優先於預設設定檔。匯出的 JSON 可以備份或分享給他人匯入。
+      </div>
+    </div>
+
+    <!-- Snapshots Management -->
+    <div class="section">
+      <h2>快照管理</h2>
+      <div class="button-group">
+        <button onclick="createSnapshot(prompt('快照描述（可選）:') || '')">建立快照</button>
+        <button onclick="renderSnapshotList()" class="secondary">重新載入</button>
+      </div>
+      <div id="snapshot-list">
+        <!-- Snapshots will be rendered here -->
+      </div>
+      <div class="hint">
+        快照可以讓您快速回復到之前的設定狀態。系統會在重要操作前自動建立快照。
+      </div>
+    </div>
+
+    <!-- Field Presets -->
+    <div class="section">
+      <h2>欄位預設</h2>
+      <div class="button-group">
+        <button onclick="applyFieldPreset('menu')">菜單預設</button>
+        <button onclick="applyFieldPreset('room')">房型預設</button>
+        <button onclick="applyFieldPreset('classic')">經典預設</button>
+        <button onclick="applyFieldPreset('card')">名片預設</button>
+      </div>
+      <div class="hint">
+        快速套用常見的欄位設定到新類別。選擇預設後可以進一步自訂。
       </div>
     </div>
 

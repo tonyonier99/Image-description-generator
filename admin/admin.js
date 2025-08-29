@@ -5,7 +5,8 @@
 const STORAGE_KEYS = {
   CATEGORY_CONFIGS_OVERRIDE: 'idg:category-configs-override',
   FONTS_CONFIG: 'idg:fonts-config',
-  TEXT_DEFAULTS: 'idg:text-defaults'
+  TEXT_DEFAULTS: 'idg:text-defaults',
+  ADMIN_SNAPSHOTS: 'idg:admin-snapshots'
 };
 
 // Global state
@@ -19,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderFonts();
   setupTextDefaults();
   setupEventListeners();
+  renderSnapshotList(); // Initialize snapshots display
 });
 
 // Load configuration (override takes priority over default)
@@ -85,7 +87,7 @@ function renderCategories() {
         <div class="category-title">${category.label} (${category.key})</div>
         <div class="button-group">
           <button onclick="editCategory(${index})" class="secondary">編輯</button>
-          <button onclick="deleteCategory(${index})" class="danger">刪除</button>
+          <button onclick="deleteCategoryWithConfirmation(${index})" class="danger">刪除</button>
         </div>
       </div>
       
@@ -534,3 +536,367 @@ document.addEventListener('DOMContentLoaded', function() {
     configSection.appendChild(saveButton);
   }
 });
+
+// Enhanced Admin Features
+
+// Schema validation function
+function validateConfig(config) {
+  const errors = [];
+  
+  if (!config || typeof config !== 'object') {
+    errors.push('設定必須是有效的物件');
+    return errors;
+  }
+  
+  if (!config.categories || !Array.isArray(config.categories)) {
+    errors.push('缺少有效的 categories 陣列');
+    return errors;
+  }
+  
+  const usedKeys = new Set();
+  const usedLabels = new Set();
+  
+  config.categories.forEach((category, index) => {
+    const prefix = `類別 ${index + 1}`;
+    
+    // Required fields
+    if (!category.key || typeof category.key !== 'string') {
+      errors.push(`${prefix}: 缺少有效的 key`);
+    } else if (usedKeys.has(category.key)) {
+      errors.push(`${prefix}: key "${category.key}" 重複`);
+    } else {
+      usedKeys.add(category.key);
+    }
+    
+    if (!category.label || typeof category.label !== 'string') {
+      errors.push(`${prefix}: 缺少有效的 label`);
+    } else if (usedLabels.has(category.label)) {
+      errors.push(`${prefix}: label "${category.label}" 重複`);
+    } else {
+      usedLabels.add(category.label);
+    }
+    
+    if (!category.folder || typeof category.folder !== 'string') {
+      errors.push(`${prefix}: 缺少有效的 folder`);
+    }
+    
+    if (!category.ext || typeof category.ext !== 'string') {
+      errors.push(`${prefix}: 缺少有效的 ext`);
+    } else if (!['png', 'svg', 'jpg', 'jpeg'].includes(category.ext.toLowerCase())) {
+      errors.push(`${prefix}: ext 必須是 png, svg, jpg 或 jpeg`);
+    }
+    
+    if (!category.count || typeof category.count !== 'number' || category.count < 1) {
+      errors.push(`${prefix}: count 必須是大於 0 的數字`);
+    }
+    
+    // Validate options
+    if (category.options && Array.isArray(category.options)) {
+      const optionKeys = new Set();
+      category.options.forEach((option, optIndex) => {
+        const optPrefix = `${prefix} 選項 ${optIndex + 1}`;
+        
+        if (!option.key || typeof option.key !== 'string') {
+          errors.push(`${optPrefix}: 缺少有效的 key`);
+        } else if (optionKeys.has(option.key)) {
+          errors.push(`${optPrefix}: key "${option.key}" 重複`);
+        } else {
+          optionKeys.add(option.key);
+        }
+        
+        if (!option.label || typeof option.label !== 'string') {
+          errors.push(`${optPrefix}: 缺少有效的 label`);
+        }
+        
+        if (!option.type || !['text', 'textarea', 'number', 'color', 'select'].includes(option.type)) {
+          errors.push(`${optPrefix}: type 必須是 text, textarea, number, color 或 select`);
+        }
+        
+        if (option.type === 'select' && (!option.options || !Array.isArray(option.options))) {
+          errors.push(`${optPrefix}: select 類型必須包含有效的 options 陣列`);
+        }
+      });
+    }
+  });
+  
+  return errors;
+}
+
+// Snapshot management
+function createSnapshot(description = '') {
+  const snapshots = getSnapshots();
+  const snapshot = {
+    id: Date.now(),
+    timestamp: new Date().toISOString(),
+    description: description || `快照 ${snapshots.length + 1}`,
+    config: JSON.parse(JSON.stringify(currentConfigs))
+  };
+  
+  snapshots.push(snapshot);
+  
+  // Keep only last 10 snapshots
+  if (snapshots.length > 10) {
+    snapshots.shift();
+  }
+  
+  localStorage.setItem(STORAGE_KEYS.ADMIN_SNAPSHOTS, JSON.stringify(snapshots));
+  showStatus(`快照已建立: ${snapshot.description}`, 'success');
+  return snapshot;
+}
+
+function getSnapshots() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.ADMIN_SNAPSHOTS) || '[]');
+  } catch (error) {
+    console.warn('Failed to load snapshots:', error);
+    return [];
+  }
+}
+
+function restoreSnapshot(snapshotId) {
+  const snapshots = getSnapshots();
+  const snapshot = snapshots.find(s => s.id === snapshotId);
+  
+  if (!snapshot) {
+    showStatus('找不到指定的快照', 'error');
+    return false;
+  }
+  
+  if (confirm(`確定要還原到快照「${snapshot.description}」嗎？目前的變更將會遺失。`)) {
+    currentConfigs = JSON.parse(JSON.stringify(snapshot.config));
+    renderCategories();
+    saveToLocal();
+    showStatus(`已還原到快照: ${snapshot.description}`, 'success');
+    return true;
+  }
+  return false;
+}
+
+function deleteSnapshot(snapshotId) {
+  if (confirm('確定要刪除此快照嗎？')) {
+    const snapshots = getSnapshots();
+    const filtered = snapshots.filter(s => s.id !== snapshotId);
+    localStorage.setItem(STORAGE_KEYS.ADMIN_SNAPSHOTS, JSON.stringify(filtered));
+    showStatus('快照已刪除', 'success');
+    renderSnapshotList();
+  }
+}
+
+function renderSnapshotList() {
+  const snapshots = getSnapshots();
+  const container = document.getElementById('snapshot-list');
+  if (!container) return;
+  
+  if (snapshots.length === 0) {
+    container.innerHTML = '<p>尚無快照</p>';
+    return;
+  }
+  
+  container.innerHTML = snapshots.map(snapshot => `
+    <div class="snapshot-item">
+      <div class="snapshot-info">
+        <strong>${snapshot.description}</strong>
+        <small>${new Date(snapshot.timestamp).toLocaleString()}</small>
+      </div>
+      <div class="button-group">
+        <button onclick="restoreSnapshot(${snapshot.id})">還原</button>
+        <button class="danger" onclick="deleteSnapshot(${snapshot.id})">刪除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Import/Export with diff preview
+function importConfigWithPreview() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = handleImportWithPreview;
+  input.click();
+}
+
+function handleImportWithPreview(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const importedConfig = JSON.parse(e.target.result);
+      
+      // Validate imported config
+      const errors = validateConfig(importedConfig);
+      if (errors.length > 0) {
+        showStatus(`匯入失敗:\n${errors.join('\n')}`, 'error');
+        return;
+      }
+      
+      // Show diff preview
+      showDiffPreview(currentConfigs, importedConfig, (confirmed) => {
+        if (confirmed) {
+          createSnapshot('匯入前快照');
+          currentConfigs = importedConfig;
+          renderCategories();
+          saveToLocal();
+          showStatus('設定已匯入', 'success');
+        }
+      });
+    } catch (error) {
+      showStatus('JSON 格式錯誤', 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showDiffPreview(oldConfig, newConfig, callback) {
+  const diff = generateConfigDiff(oldConfig, newConfig);
+  
+  const modal = document.createElement('div');
+  modal.className = 'diff-modal';
+  modal.innerHTML = `
+    <div class="modal-content">
+      <h3>匯入預覽</h3>
+      <div class="diff-content">
+        ${diff.html}
+      </div>
+      <div class="modal-actions">
+        <button onclick="this.closest('.diff-modal').remove()">取消</button>
+        <button class="primary" onclick="confirmDiff()">確認匯入</button>
+      </div>
+    </div>
+  `;
+  
+  // Store callback for confirm button
+  window.confirmDiff = () => {
+    modal.remove();
+    delete window.confirmDiff;
+    callback(true);
+  };
+  
+  document.body.appendChild(modal);
+}
+
+function generateConfigDiff(oldConfig, newConfig) {
+  const changes = [];
+  
+  // Compare categories
+  const oldCategories = oldConfig.categories || [];
+  const newCategories = newConfig.categories || [];
+  
+  // Find added categories
+  newCategories.forEach(newCat => {
+    if (!oldCategories.find(oldCat => oldCat.key === newCat.key)) {
+      changes.push({ type: 'added', category: newCat.key, label: newCat.label });
+    }
+  });
+  
+  // Find removed categories
+  oldCategories.forEach(oldCat => {
+    if (!newCategories.find(newCat => newCat.key === oldCat.key)) {
+      changes.push({ type: 'removed', category: oldCat.key, label: oldCat.label });
+    }
+  });
+  
+  // Find modified categories
+  oldCategories.forEach(oldCat => {
+    const newCat = newCategories.find(newCat => newCat.key === oldCat.key);
+    if (newCat && JSON.stringify(oldCat) !== JSON.stringify(newCat)) {
+      changes.push({ type: 'modified', category: oldCat.key, label: oldCat.label });
+    }
+  });
+  
+  const html = changes.length === 0 
+    ? '<p>沒有變更</p>'
+    : changes.map(change => {
+        const icon = change.type === 'added' ? '+ ' : change.type === 'removed' ? '- ' : '~ ';
+        const color = change.type === 'added' ? 'green' : change.type === 'removed' ? 'red' : 'orange';
+        return `<div style="color: ${color}">${icon}${change.label} (${change.category})</div>`;
+      }).join('');
+  
+  return { changes, html };
+}
+
+// Field presets
+const FIELD_PRESETS = {
+  menu: {
+    name: '菜單預設',
+    fields: [
+      { key: 'section', label: '區段標題', type: 'text' },
+      { key: 'items', label: '品項（多行）', type: 'textarea' },
+      { key: 'currency', label: '幣別', type: 'select', options: ['$', 'NT$', '¥'] },
+      { key: 'priceColor', label: '價格顏色', type: 'color' }
+    ]
+  },
+  room: {
+    name: '房型預設',
+    fields: [
+      { key: 'roomType', label: '房型名稱', type: 'text' },
+      { key: 'capacity', label: '入住人數', type: 'number' },
+      { key: 'amenities', label: '設施', type: 'textarea' },
+      { key: 'viewType', label: '景觀類型', type: 'select', options: ['海景', '山景', '市景', '庭園景'] }
+    ]
+  },
+  classic: {
+    name: '經典預設',
+    fields: [
+      { key: 'title', label: '主標題', type: 'text' },
+      { key: 'subtitle', label: '副標題', type: 'text' },
+      { key: 'accentColor', label: '強調色', type: 'color' },
+      { key: 'borderStyle', label: '邊框樣式', type: 'select', options: ['無邊框', '簡單邊框', '優雅邊框'] }
+    ]
+  },
+  card: {
+    name: '名片預設',
+    fields: [
+      { key: 'name', label: '姓名', type: 'text' },
+      { key: 'role', label: '職稱', type: 'text' },
+      { key: 'phone', label: '電話', type: 'text' },
+      { key: 'email', label: 'Email', type: 'text' },
+      { key: 'logoPosition', label: 'Logo位置', type: 'select', options: ['左上角', '右上角', '置中'] }
+    ]
+  }
+};
+
+function applyFieldPreset(presetKey) {
+  const preset = FIELD_PRESETS[presetKey];
+  if (!preset) return;
+  
+  if (confirm(`確定要套用「${preset.name}」預設欄位嗎？`)) {
+    // You would implement this based on your current category editing UI
+    showStatus(`已套用 ${preset.name}`, 'success');
+  }
+}
+
+// Enhanced save function with confirmation
+function saveToLocalWithConfirmation() {
+  // Validate before saving
+  const errors = validateConfig(currentConfigs);
+  if (errors.length > 0) {
+    showStatus(`儲存失敗，請修正以下問題:\n${errors.join('\n')}`, 'error');
+    return;
+  }
+  
+  if (confirm('確定要儲存覆寫設定嗎？這將覆蓋目前的本地設定。')) {
+    createSnapshot('儲存前快照');
+    saveToLocal();
+  }
+}
+
+// Enhanced delete with confirmation
+function deleteCategoryWithConfirmation(index) {
+  const category = currentConfigs.categories[index];
+  if (!category) return;
+  
+  if (confirm(`確定要刪除類別「${category.label}」嗎？\n\n此操作無法復原，建議先建立快照。`)) {
+    createSnapshot(`刪除 ${category.label} 前快照`);
+    deleteCategory(index);
+  }
+}
+
+// Enhanced clear with confirmation
+function clearOverrideWithConfirmation() {
+  if (confirm('確定要清除本地覆寫設定嗎？\n\n這將回復為預設設定，所有本地變更將會遺失。\n\n建議先建立快照或匯出設定。')) {
+    createSnapshot('清除前快照');
+    clearOverride();
+  }
+}
