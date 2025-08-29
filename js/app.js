@@ -51,261 +51,526 @@ let CANVAS_WIDTH = 1200;
 let CANVAS_HEIGHT = 1680; // 5:7 aspect ratio
 
 // Image Layer Management System
-class LayerManager {
+// Slot-based Image Layer Management System
+class SlotLayerManager {
   constructor() {
-    this.layers = [];
-    this.selectedLayer = null;
+    this.slots = new Map(); // slotId -> layer data
+    this.selectedSlot = null;
+    this.currentCategory = null;
   }
   
-  addLayer(image, name) {
-    const layer = {
-      id: Date.now() + Math.random(),
-      image,
-      name,
-      scale: 1,
-      offsetX: 0,
-      offsetY: 0,
-      rotation: 0,
-      flipH: false,
-      flipV: false,
-      crop: { top: 0, right: 0, bottom: 0, left: 0 },
-      opacity: 1,
-      blendMode: 'normal',
-      zIndex: this.layers.length,
-      visible: true
-    };
-    this.layers.push(layer);
-    this.updateLayersList();
-    return layer;
-  }
-  
-  removeLayer(layerId) {
-    const index = this.layers.findIndex(l => l.id === layerId);
-    if (index >= 0) {
-      this.layers.splice(index, 1);
-      // Update z-indices
-      this.layers.forEach((layer, i) => layer.zIndex = i);
-      this.updateLayersList();
-      if (this.selectedLayer?.id === layerId) {
-        this.selectedLayer = null;
-        this.updateImageAdjustmentPanel();
-      }
-    }
-  }
-  
-  selectLayer(layerId) {
-    this.selectedLayer = this.layers.find(l => l.id === layerId);
-    this.updateLayersList();
-    this.updateImageAdjustmentPanel();
-  }
-  
-  moveLayer(layerId, direction) {
-    const index = this.layers.findIndex(l => l.id === layerId);
-    if (index < 0) return;
+  // Initialize slots for a category
+  initializeCategory(categoryConfig) {
+    this.currentCategory = categoryConfig;
+    this.slots.clear();
     
-    let newIndex;
-    if (direction === 'up' && index < this.layers.length - 1) {
-      newIndex = index + 1;
-    } else if (direction === 'down' && index > 0) {
-      newIndex = index - 1;
-    } else if (direction === 'front') {
-      newIndex = this.layers.length - 1;
-    } else if (direction === 'back') {
-      newIndex = 0;
-    } else {
-      return;
+    // Create slots from category configuration
+    if (categoryConfig && categoryConfig.slots) {
+      categoryConfig.slots.forEach(slotConfig => {
+        this.slots.set(slotConfig.id, {
+          id: slotConfig.id,
+          name: slotConfig.name,
+          type: slotConfig.type,
+          fixed: slotConfig.fixed || false,
+          reorderable: slotConfig.reorderable || false,
+          defaultMask: slotConfig.defaultMask || 'none',
+          defaultStroke: slotConfig.defaultStroke || null,
+          accepts: slotConfig.accepts || [],
+          visible: true,
+          image: null,
+          // Transform properties
+          scale: 1,
+          offsetX: 0,
+          offsetY: 0,
+          rotation: 0,
+          flipH: false,
+          flipV: false,
+          // Crop properties
+          crop: { top: 0, right: 0, bottom: 0, left: 0 },
+          // Mask properties
+          mask: slotConfig.defaultMask || 'none',
+          maskParams: {},
+          // Effects
+          opacity: 1,
+          blendMode: 'normal',
+          brightness: 0,
+          contrast: 0,
+          saturation: 0,
+          blur: 0,
+          // Stroke/border
+          stroke: slotConfig.defaultStroke ? { ...slotConfig.defaultStroke } : null,
+          // Feather/shadow
+          feather: 0,
+          shadow: null,
+          // Z-index for ordering
+          zIndex: slotConfig.type === 'template' ? 0 : this.slots.size
+        });
+        
+        // Auto-select template slot if marked as default
+        if (slotConfig.defaultSelected) {
+          this.selectedSlot = slotConfig.id;
+        }
+      });
     }
     
-    // Move layer
-    const layer = this.layers.splice(index, 1)[0];
-    this.layers.splice(newIndex, 0, layer);
-    
-    // Update z-indices
-    this.layers.forEach((layer, i) => layer.zIndex = i);
-    this.updateLayersList();
+    this.updateSlotsList();
   }
   
-  updateLayerProperty(layerId, property, value) {
-    const layer = this.layers.find(l => l.id === layerId);
-    if (layer) {
+  // Set image for a slot
+  setSlotImage(slotId, image, imageName = null) {
+    const slot = this.slots.get(slotId);
+    if (slot && slot.type !== 'template') {
+      slot.image = image;
+      slot.imageName = imageName || `Image ${slotId}`;
+      this.updateSlotsList();
+      return true;
+    }
+    return false;
+  }
+  
+  // Set template for the template slot
+  setTemplate(templateImage) {
+    const templateSlot = Array.from(this.slots.values()).find(slot => slot.type === 'template');
+    if (templateSlot) {
+      templateSlot.image = templateImage;
+      this.updateSlotsList();
+      return true;
+    }
+    return false;
+  }
+  
+  // Select a slot
+  selectSlot(slotId) {
+    if (this.slots.has(slotId)) {
+      this.selectedSlot = slotId;
+      this.updateSlotsList();
+      this.updateImageAdjustmentPanel();
+      return true;
+    }
+    return false;
+  }
+  
+  // Get selected slot data
+  getSelectedSlot() {
+    return this.selectedSlot ? this.slots.get(this.selectedSlot) : null;
+  }
+  
+  // Remove image from slot (but keep slot)
+  clearSlot(slotId) {
+    const slot = this.slots.get(slotId);
+    if (slot && slot.type !== 'template' && !slot.fixed) {
+      slot.image = null;
+      slot.imageName = null;
+      this.updateSlotsList();
+      return true;
+    }
+    return false;
+  }
+  
+  // Update slot property
+  updateSlotProperty(slotId, property, value) {
+    const slot = this.slots.get(slotId);
+    if (slot) {
       if (property.includes('.')) {
         const [parent, child] = property.split('.');
-        layer[parent][child] = value;
+        if (!slot[parent]) slot[parent] = {};
+        slot[parent][child] = value;
       } else {
-        layer[property] = value;
+        slot[property] = value;
       }
-      updateCanvas();
+      return true;
     }
+    return false;
   }
   
-  updateLayersList() {
+  // Reorder slots (for reorderable slots only)
+  reorderSlots(fromSlotId, toSlotId) {
+    const fromSlot = this.slots.get(fromSlotId);
+    const toSlot = this.slots.get(toSlotId);
+    
+    if (fromSlot && toSlot && fromSlot.reorderable && toSlot.reorderable) {
+      // Swap z-indices
+      const tempZIndex = fromSlot.zIndex;
+      fromSlot.zIndex = toSlot.zIndex;
+      toSlot.zIndex = tempZIndex;
+      this.updateSlotsList();
+      return true;
+    }
+    return false;
+  }
+  
+  // Get all slots sorted by z-index
+  getSortedSlots() {
+    return Array.from(this.slots.values()).sort((a, b) => a.zIndex - b.zIndex);
+  }
+  
+  // Render all slots on canvas
+  renderOnCanvas(ctx, width, height) {
+    const sortedSlots = this.getSortedSlots();
+    
+    sortedSlots.forEach(slot => {
+      if (!slot.visible || !slot.image) return;
+      
+      ctx.save();
+      
+      // Set blend mode and opacity
+      ctx.globalCompositeOperation = slot.blendMode;
+      ctx.globalAlpha = slot.opacity;
+      
+      // Calculate position and size
+      const centerX = width / 2 + slot.offsetX;
+      const centerY = height / 2 + slot.offsetY;
+      
+      // Apply transformations
+      ctx.translate(centerX, centerY);
+      if (slot.rotation) ctx.rotate((slot.rotation * Math.PI) / 180);
+      if (slot.flipH || slot.flipV) ctx.scale(slot.flipH ? -1 : 1, slot.flipV ? -1 : 1);
+      
+      // Calculate dimensions with crop and scale
+      const { crop } = slot;
+      const sourceX = crop.left;
+      const sourceY = crop.top;
+      const sourceWidth = slot.image.width - crop.left - crop.right;
+      const sourceHeight = slot.image.height - crop.top - crop.bottom;
+      
+      const scaledWidth = sourceWidth * slot.scale;
+      const scaledHeight = sourceHeight * slot.scale;
+      
+      // Apply mask if specified
+      if (slot.mask && slot.mask !== 'none') {
+        this.applyMask(ctx, slot.mask, slot.maskParams, scaledWidth, scaledHeight);
+      }
+      
+      // Apply filters
+      if (slot.brightness || slot.contrast || slot.saturation || slot.blur) {
+        const filterString = [
+          slot.brightness !== 0 ? `brightness(${100 + slot.brightness}%)` : '',
+          slot.contrast !== 0 ? `contrast(${100 + slot.contrast}%)` : '',
+          slot.saturation !== 0 ? `saturate(${100 + slot.saturation}%)` : '',
+          slot.blur > 0 ? `blur(${slot.blur}px)` : ''
+        ].filter(f => f).join(' ');
+        
+        if (filterString) {
+          ctx.filter = filterString;
+        }
+      }
+      
+      // Draw image
+      ctx.drawImage(
+        slot.image,
+        sourceX, sourceY, sourceWidth, sourceHeight,
+        -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight
+      );
+      
+      // Apply stroke if specified
+      if (slot.stroke && slot.stroke.enabled) {
+        ctx.strokeStyle = slot.stroke.color;
+        ctx.lineWidth = slot.stroke.width;
+        ctx.strokeRect(-scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+      }
+      
+      ctx.restore();
+    });
+  }
+  
+  // Apply mask to the current context
+  applyMask(ctx, maskType, maskParams, width, height) {
+    ctx.beginPath();
+    
+    switch (maskType) {
+      case 'circle':
+        const radius = Math.min(width, height) / 2;
+        ctx.arc(0, 0, radius, 0, 2 * Math.PI);
+        break;
+      case 'ellipse':
+        ctx.ellipse(0, 0, width / 2, height / 2, 0, 0, 2 * Math.PI);
+        break;
+      case 'roundRect':
+        const cornerRadius = maskParams.radius || 20;
+        this.roundRect(ctx, -width / 2, -height / 2, width, height, cornerRadius);
+        break;
+      case 'capsule':
+        const capsuleRadius = Math.min(width, height) / 2;
+        this.roundRect(ctx, -width / 2, -height / 2, width, height, capsuleRadius);
+        break;
+      default:
+        // No mask, just clip to rectangle
+        ctx.rect(-width / 2, -height / 2, width, height);
+    }
+    
+    ctx.clip();
+  }
+  
+  // Helper to draw rounded rectangle
+  roundRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  }
+  
+  // Update the slots list UI
+  updateSlotsList() {
     const container = document.getElementById('image-layers-list');
     if (!container) return;
     
     container.innerHTML = '';
     
-    // Reverse to show top layers first in UI
-    [...this.layers].reverse().forEach(layer => {
-      const layerItem = document.createElement('div');
-      layerItem.className = `layer-item ${this.selectedLayer?.id === layer.id ? 'selected' : ''}`;
-      layerItem.innerHTML = `
-        <div class="layer-preview">
+    // Get slots sorted by z-index (reversed to show top layers first in UI)
+    const sortedSlots = this.getSortedSlots().reverse();
+    
+    sortedSlots.forEach(slot => {
+      const slotItem = document.createElement('div');
+      slotItem.className = `slot-item ${this.selectedSlot === slot.id ? 'selected' : ''}`;
+      slotItem.dataset.slotId = slot.id;
+      
+      const hasImage = slot.image !== null;
+      const isTemplate = slot.type === 'template';
+      
+      slotItem.innerHTML = `
+        <div class="slot-preview">
           <canvas width="40" height="40"></canvas>
+          ${!hasImage && !isTemplate ? '<div class="slot-placeholder">+</div>' : ''}
         </div>
-        <div class="layer-info">
-          <div class="layer-name">${layer.name}</div>
-          <div class="layer-size">${layer.image.width}×${layer.image.height}</div>
+        <div class="slot-info">
+          <div class="slot-name">${slot.name}</div>
+          <div class="slot-status">${hasImage ? (slot.imageName || 'Image loaded') : (isTemplate ? 'Template' : 'Empty')}</div>
         </div>
-        <div class="layer-controls">
-          <button class="layer-toggle" title="顯示/隱藏" data-id="${layer.id}">
-            <span class="eye-icon">${layer.visible ? '👁' : '👁‍🗨'}</span>
+        <div class="slot-controls">
+          <button class="slot-visibility" title="顯示/隱藏" data-slot-id="${slot.id}">
+            ${slot.visible ? '👁' : '👁‍🗨'}
           </button>
-          <button class="layer-delete" title="刪除" data-id="${layer.id}">🗑</button>
+          ${!isTemplate && !slot.fixed ? `
+            <button class="slot-upload" title="上傳圖片" data-slot-id="${slot.id}">📁</button>
+            ${hasImage ? `<button class="slot-clear" title="清除" data-slot-id="${slot.id}">🗑</button>` : ''}
+          ` : ''}
+          ${slot.reorderable ? `<div class="slot-drag-handle" title="拖拽排序">⋮⋮</div>` : ''}
         </div>
       `;
       
-      // Draw thumbnail
-      const canvas = layerItem.querySelector('canvas');
-      const ctx = canvas.getContext('2d');
-      const scale = Math.min(40 / layer.image.width, 40 / layer.image.height);
-      const w = layer.image.width * scale;
-      const h = layer.image.height * scale;
-      ctx.drawImage(layer.image, (40 - w) / 2, (40 - h) / 2, w, h);
+      // Draw preview thumbnail
+      const canvas = slotItem.querySelector('canvas');
+      const previewCtx = canvas.getContext('2d');
+      if (slot.image) {
+        // Clear canvas
+        previewCtx.clearRect(0, 0, 40, 40);
+        
+        // Calculate scale to fit in 40x40
+        const scale = Math.min(40 / slot.image.width, 40 / slot.image.height);
+        const scaledWidth = slot.image.width * scale;
+        const scaledHeight = slot.image.height * scale;
+        const offsetX = (40 - scaledWidth) / 2;
+        const offsetY = (40 - scaledHeight) / 2;
+        
+        previewCtx.drawImage(slot.image, offsetX, offsetY, scaledWidth, scaledHeight);
+      }
       
       // Add event listeners
-      layerItem.addEventListener('click', (e) => {
-        if (!e.target.closest('.layer-controls')) {
-          this.selectLayer(layer.id);
-        }
-      });
+      slotItem.addEventListener('click', () => this.selectSlot(slot.id));
       
-      layerItem.querySelector('.layer-toggle').addEventListener('click', (e) => {
+      // Visibility toggle
+      slotItem.querySelector('.slot-visibility').addEventListener('click', (e) => {
         e.stopPropagation();
-        layer.visible = !layer.visible;
-        this.updateLayersList();
+        slot.visible = !slot.visible;
+        this.updateSlotsList();
         updateCanvas();
       });
       
-      layerItem.querySelector('.layer-delete').addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.removeLayer(layer.id);
-        updateCanvas();
-      });
+      // Upload button
+      const uploadBtn = slotItem.querySelector('.slot-upload');
+      if (uploadBtn) {
+        uploadBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openFileDialog(slot.id);
+        });
+      }
       
-      container.appendChild(layerItem);
+      // Clear button
+      const clearBtn = slotItem.querySelector('.slot-clear');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm('確定要清除這個圖片嗎？')) {
+            this.clearSlot(slot.id);
+            updateCanvas();
+          }
+        });
+      }
+      
+      container.appendChild(slotItem);
     });
   }
   
-  updateImageAdjustmentPanel() {
-    const panel = document.getElementById('image-adjustment-content');
-    if (!panel || !this.selectedLayer) {
-      if (panel) panel.style.display = 'none';
-      return;
-    }
+  // Open file dialog for slot
+  openFileDialog(slotId) {
+    const slot = this.slots.get(slotId);
+    if (!slot || slot.type === 'template') return;
     
-    panel.style.display = 'block';
-    const layer = this.selectedLayer;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = slot.accepts.join(',') || 'image/*';
+    input.style.display = 'none';
     
-    // Update all controls with current values
-    this.updateControlValue('image-scale', layer.scale);
-    this.updateControlValue('image-offset-x', layer.offsetX);
-    this.updateControlValue('image-offset-y', layer.offsetY);
-    this.updateControlValue('image-rotation', layer.rotation);
-    this.updateControlValue('image-opacity', layer.opacity);
-    this.updateControlValue('image-crop-top', layer.crop.top);
-    this.updateControlValue('image-crop-right', layer.crop.right);
-    this.updateControlValue('image-crop-bottom', layer.crop.bottom);
-    this.updateControlValue('image-crop-left', layer.crop.left);
+    input.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            this.setSlotImage(slotId, img, file.name);
+            updateCanvas();
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
     
-    // Update checkboxes
-    document.getElementById('image-flip-h').checked = layer.flipH;
-    document.getElementById('image-flip-v').checked = layer.flipV;
-    
-    // Update blend mode
-    document.getElementById('image-blend-mode').value = layer.blendMode;
-    
-    // Update layer info
-    const layerInfo = document.getElementById('selected-layer-info');
-    if (layerInfo) {
-      layerInfo.textContent = `${layer.name} (${layer.image.width}×${layer.image.height})`;
-    }
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
   }
   
-  updateControlValue(id, value) {
-    const input = document.getElementById(id);
-    const display = document.getElementById(id + '-value');
-    if (input) {
-      input.value = value;
-      if (display) {
-        let unit = '';
-        if (id.includes('rotation')) unit = '°';
-        else if (id.includes('crop') || id.includes('offset')) unit = 'px';
-        else if (id.includes('opacity') || id.includes('scale')) unit = id.includes('opacity') ? '' : '';
-        display.textContent = value + unit;
+  // Update image adjustment panel
+  updateImageAdjustmentPanel() {
+    const selectedSlot = this.getSelectedSlot();
+    const infoElement = document.getElementById('selected-layer-info');
+    
+    if (infoElement) {
+      if (selectedSlot) {
+        infoElement.textContent = `已選擇: ${selectedSlot.name}${selectedSlot.image ? ` (${selectedSlot.imageName || 'Image'})` : ' (空白)'}`;
+      } else {
+        infoElement.textContent = '請選擇一個圖層進行調整';
       }
     }
-  }
-  
-  getMaxSlots() {
-    // First try to get from category config
-    const category = getCurrentCategoryConfig();
-    if (category && category.imageSlots) {
-      return category.imageSlots;
-    }
-    // Fall back to built-in defaults
-    return maxImageSlots[currentCategory] || 2;
-  }
-  
-  canAddMore() {
-    return this.layers.length < this.getMaxSlots();
-  }
-  
-  renderOnCanvas(ctx, width, height) {
-    // Sort layers by z-index
-    const sortedLayers = [...this.layers].sort((a, b) => a.zIndex - b.zIndex);
     
-    sortedLayers.forEach(layer => {
-      if (!layer.visible) return;
+    // Update adjustment controls if slot is selected
+    if (selectedSlot) {
+      this.updateAdjustmentControls(selectedSlot);
+    }
+  }
+  
+  // Update adjustment control values
+  updateAdjustmentControls(slot) {
+    const controls = [
+      { id: 'image-scale', property: 'scale', suffix: '' },
+      { id: 'image-offset-x', property: 'offsetX', suffix: 'px' },
+      { id: 'image-offset-y', property: 'offsetY', suffix: 'px' },
+      { id: 'image-rotation', property: 'rotation', suffix: '°' },
+      { id: 'image-opacity', property: 'opacity', suffix: '' },
+      { id: 'image-flip-h', property: 'flipH', suffix: '' },
+      { id: 'image-flip-v', property: 'flipV', suffix: '' },
+      { id: 'image-blend-mode', property: 'blendMode', suffix: '' },
+      { id: 'image-mask-radius', property: 'maskParams.radius', suffix: 'px', default: 10 },
+      { id: 'image-feather', property: 'feather', suffix: 'px' },
+      { id: 'image-stroke-width', property: 'stroke.width', suffix: 'px', default: 2 },
+      { id: 'image-filter-intensity', property: 'filterIntensity', suffix: '%', default: 100 },
+      { id: 'image-brightness', property: 'brightness', suffix: '%' },
+      { id: 'image-contrast', property: 'contrast', suffix: '%' },
+      { id: 'image-saturation', property: 'saturation', suffix: '%' },
+      { id: 'image-blur', property: 'blur', suffix: 'px' }
+    ];
+    
+    controls.forEach(({ id, property, suffix, default: defaultValue }) => {
+      const input = document.getElementById(id);
+      const valueSpan = document.getElementById(id + '-value');
       
-      ctx.save();
-      
-      // Set blend mode
-      ctx.globalCompositeOperation = layer.blendMode;
-      ctx.globalAlpha = layer.opacity;
-      
-      // Calculate position and size
-      const centerX = width / 2 + layer.offsetX;
-      const centerY = height / 2 + layer.offsetY;
-      
-      // Apply transformations
-      ctx.translate(centerX, centerY);
-      if (layer.rotation) ctx.rotate((layer.rotation * Math.PI) / 180);
-      if (layer.flipH || layer.flipV) ctx.scale(layer.flipH ? -1 : 1, layer.flipV ? -1 : 1);
-      
-      // Calculate dimensions with crop and scale
-      const { crop } = layer;
-      const sourceX = crop.left;
-      const sourceY = crop.top;
-      const sourceWidth = layer.image.width - crop.left - crop.right;
-      const sourceHeight = layer.image.height - crop.top - crop.bottom;
-      
-      const scaledWidth = sourceWidth * layer.scale;
-      const scaledHeight = sourceHeight * layer.scale;
-      
-      // Draw image
-      ctx.drawImage(
-        layer.image,
-        sourceX, sourceY, sourceWidth, sourceHeight,
-        -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight
-      );
-      
-      ctx.restore();
+      if (input) {
+        let value = this.getNestedProperty(slot, property);
+        if (value === undefined && defaultValue !== undefined) {
+          value = defaultValue;
+        }
+        
+        if (input.type === 'checkbox') {
+          input.checked = !!value;
+        } else {
+          input.value = value || 0;
+        }
+        
+        if (valueSpan) {
+          valueSpan.textContent = (value || 0) + suffix;
+        }
+      }
     });
+    
+    // Special controls
+    const maskType = document.getElementById('image-mask-type');
+    if (maskType) {
+      maskType.value = slot.mask || 'none';
+    }
+    
+    const strokeEnabled = document.getElementById('image-stroke-enabled');
+    if (strokeEnabled) {
+      strokeEnabled.checked = slot.stroke && slot.stroke.enabled;
+      
+      // Show/hide stroke controls
+      const strokeControls = document.getElementById('stroke-controls');
+      if (strokeControls) {
+        strokeControls.style.display = strokeEnabled.checked ? 'flex' : 'none';
+      }
+    }
+    
+    const strokeColor = document.getElementById('image-stroke-color');
+    if (strokeColor && slot.stroke) {
+      strokeColor.value = slot.stroke.color || '#ffffff';
+    }
+    
+    // Crop controls
+    const cropControls = ['top', 'right', 'bottom', 'left'];
+    cropControls.forEach(side => {
+      const input = document.getElementById(`image-crop-${side}`);
+      const valueSpan = document.getElementById(`image-crop-${side}-value`);
+      
+      if (input) {
+        input.value = slot.crop[side];
+        if (valueSpan) {
+          valueSpan.textContent = slot.crop[side] + 'px';
+        }
+      }
+    });
+  }
+  
+  // Helper to get nested property values
+  getNestedProperty(obj, path) {
+    return path.split('.').reduce((current, key) => current && current[key], obj);
   }
 }
 
-// Initialize layer manager
-const layerManager = new LayerManager();
+// Apply filter preset to a slot
+function applyFilterPreset(slotId, preset) {
+  const presets = {
+    'none': { brightness: 0, contrast: 0, saturation: 0, blur: 0 },
+    'vintage': { brightness: -10, contrast: 15, saturation: -20, blur: 0 },
+    'vivid': { brightness: 5, contrast: 25, saturation: 30, blur: 0 },
+    'soft': { brightness: 5, contrast: -10, saturation: -5, blur: 0.5 },
+    'hdr': { brightness: 0, contrast: 30, saturation: 10, blur: 0 },
+    'bw': { brightness: 0, contrast: 10, saturation: -100, blur: 0 },
+    'sepia': { brightness: 10, contrast: 5, saturation: -50, blur: 0 }
+  };
+  
+  const settings = presets[preset] || presets['none'];
+  
+  Object.keys(settings).forEach(property => {
+    slotLayerManager.updateSlotProperty(slotId, property, settings[property]);
+  });
+  
+  // Update UI controls
+  const selectedSlot = slotLayerManager.getSelectedSlot();
+  if (selectedSlot) {
+    slotLayerManager.updateAdjustmentControls(selectedSlot);
+  }
+}
+
+// Initialize the slot-based layer manager
+const slotLayerManager = new SlotLayerManager();
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', async function() {
@@ -534,13 +799,15 @@ function handleCategoryChange(event) {
 
 // Update UI for current category
 function updateUIForCategory() {
+  // Initialize slot system for the current category
+  const categoryConfig = getCurrentCategoryConfig();
+  slotLayerManager.initializeCategory(categoryConfig);
+  
   renderTemplatesGrid();
   renderCategoryOptions();
-  updatePreviewControls();
   updateTextTuningPanel();
   loadTemplateImages();
-  updateAddImageButton();
-  layerManager.updateLayersList();
+  // updateAddImageButton(); // No longer needed with slot-based system
 }
 
 // Render templates grid for current category
@@ -696,40 +963,10 @@ function getCurrentCategoryConfig() {
   return categoryConfigs.categories.find(cat => cat.key === currentCategory);
 }
 
-// Handle image upload
+// Handle image upload (DEPRECATED - using slot-based uploads now)
 function handleImageUpload(event) {
-  const files = event.target.files;
-  if (!files || files.length === 0) return;
-  
-  Array.from(files).forEach(file => {
-    if (!file.type.startsWith('image/')) {
-      alert('請選擇圖片檔案');
-      return;
-    }
-    
-    // Check if we can add more images
-    if (!layerManager.canAddMore()) {
-      alert(`此類別最多只能上傳 ${layerManager.getMaxSlots()} 張圖片`);
-      return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const img = new Image();
-      img.onload = function() {
-        // Add to layer manager
-        const layer = layerManager.addLayer(img, file.name);
-        layerManager.selectLayer(layer.id);
-        updateCanvas();
-        updateAddImageButton();
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-  
-  // Clear the input so the same file can be selected again
-  event.target.value = '';
+  // This function is no longer used since we moved to slot-based uploading
+  console.warn('handleImageUpload called but uploads should go through slots now');
 }
 
 // Update canvas with current settings
@@ -755,11 +992,11 @@ function updateCanvas() {
       drawTemplate();
   }
 
-  // Draw image layers
-  layerManager.renderOnCanvas(ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
+  // Draw slot layers
+  slotLayerManager.renderOnCanvas(ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
 
   // Draw uploaded image (legacy support)
-  if (uploadedImage && layerManager.layers.length === 0) {
+  if (uploadedImage && slotLayerManager.slots.size === 0) {
     drawUploadedImage();
   }
 
@@ -2123,6 +2360,8 @@ function loadTemplateImages() {
     ['png', 'jpg', 'svg'],
     (img) => {
       backgroundImage = img;
+      // Also set as template in slot system
+      slotLayerManager.setTemplate(img);
       updateCanvas();
     },
     () => {
@@ -2540,24 +2779,13 @@ function revealAdminLink() {
   }
 }
 
-// Helper function to update add image button state
+// Update add image button (DEPRECATED - no longer used in slot system)
 function updateAddImageButton() {
-  const addButton = document.getElementById('add-image-btn');
-  const currentCount = document.getElementById('current-image-count');
-  const maxCount = document.getElementById('max-image-count');
-  
-  if (addButton) {
-    addButton.disabled = !layerManager.canAddMore();
-    addButton.textContent = layerManager.canAddMore() ? 
-      `新增圖片 (${layerManager.layers.length}/${layerManager.getMaxSlots()})` : 
-      `已達上限 (${layerManager.layers.length}/${layerManager.getMaxSlots()})`;
-  }
-  
-  if (currentCount) currentCount.textContent = layerManager.layers.length;
-  if (maxCount) maxCount.textContent = layerManager.getMaxSlots();
+  // This function is no longer needed since we use slot-based uploads
+  console.warn('updateAddImageButton called but not needed in slot system');
 }
 
-// Setup multi-image controls
+// Setup slot-based image controls
 function setupMultiImageControls() {
   // Image tuning toggle
   const imageTuningHeader = document.querySelector('#image-tuning-toggle').closest('.tuning-header');
@@ -2565,26 +2793,21 @@ function setupMultiImageControls() {
     imageTuningHeader.addEventListener('click', toggleImageTuningPanel);
   }
   
-  // Add image button
-  const addImageBtn = document.getElementById('add-image-btn');
-  if (addImageBtn) {
-    addImageBtn.addEventListener('click', () => {
-      document.getElementById('image-upload').click();
-    });
-  }
-  
   // Image adjustment controls
   const adjustmentControls = [
     'image-scale', 'image-offset-x', 'image-offset-y', 'image-rotation',
     'image-opacity', 'image-crop-top', 'image-crop-right', 
-    'image-crop-bottom', 'image-crop-left'
+    'image-crop-bottom', 'image-crop-left', 'image-mask-radius',
+    'image-feather', 'image-stroke-width', 'image-filter-intensity',
+    'image-brightness', 'image-contrast', 'image-saturation', 'image-blur'
   ];
   
   adjustmentControls.forEach(id => {
     const input = document.getElementById(id);
     if (input) {
       input.addEventListener('input', (e) => {
-        if (!layerManager.selectedLayer) return;
+        const selectedSlot = slotLayerManager.getSelectedSlot();
+        if (!selectedSlot) return;
         
         let property = id.replace('image-', '');
         if (property.startsWith('crop-')) {
@@ -2596,7 +2819,7 @@ function setupMultiImageControls() {
         }
         
         const value = parseFloat(e.target.value);
-        layerManager.updateLayerProperty(layerManager.selectedLayer.id, property, value);
+        slotLayerManager.updateSlotProperty(selectedSlot.id, property, value);
         
         // Update display value
         const display = document.getElementById(id + '-value');
@@ -2606,6 +2829,8 @@ function setupMultiImageControls() {
           else if (id.includes('crop') || id.includes('offset')) unit = 'px';
           display.textContent = value + unit;
         }
+        
+        updateCanvas();
       });
     }
   });
@@ -2616,16 +2841,20 @@ function setupMultiImageControls() {
   
   if (flipH) {
     flipH.addEventListener('change', (e) => {
-      if (layerManager.selectedLayer) {
-        layerManager.updateLayerProperty(layerManager.selectedLayer.id, 'flipH', e.target.checked);
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot) {
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'flipH', e.target.checked);
+        updateCanvas();
       }
     });
   }
   
   if (flipV) {
     flipV.addEventListener('change', (e) => {
-      if (layerManager.selectedLayer) {
-        layerManager.updateLayerProperty(layerManager.selectedLayer.id, 'flipV', e.target.checked);
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot) {
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'flipV', e.target.checked);
+        updateCanvas();
       }
     });
   }
@@ -2634,43 +2863,88 @@ function setupMultiImageControls() {
   const blendMode = document.getElementById('image-blend-mode');
   if (blendMode) {
     blendMode.addEventListener('change', (e) => {
-      if (layerManager.selectedLayer) {
-        layerManager.updateLayerProperty(layerManager.selectedLayer.id, 'blendMode', e.target.value);
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot) {
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'blendMode', e.target.value);
+        updateCanvas();
       }
     });
   }
   
-  // Z-order controls
+  // Mask type
+  const maskType = document.getElementById('image-mask-type');
+  if (maskType) {
+    maskType.addEventListener('change', (e) => {
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot) {
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'mask', e.target.value);
+        updateCanvas();
+      }
+    });
+  }
+  
+  // Stroke enabled
+  const strokeEnabled = document.getElementById('image-stroke-enabled');
+  if (strokeEnabled) {
+    strokeEnabled.addEventListener('change', (e) => {
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot) {
+        if (e.target.checked) {
+          slotLayerManager.updateSlotProperty(selectedSlot.id, 'stroke', {
+            enabled: true,
+            width: 2,
+            color: '#ffffff'
+          });
+        } else {
+          slotLayerManager.updateSlotProperty(selectedSlot.id, 'stroke', { enabled: false });
+        }
+        
+        // Show/hide stroke controls
+        const strokeControls = document.getElementById('stroke-controls');
+        if (strokeControls) {
+          strokeControls.style.display = e.target.checked ? 'flex' : 'none';
+        }
+        updateCanvas();
+      }
+    });
+  }
+  
+  // Stroke color
+  const strokeColor = document.getElementById('image-stroke-color');
+  if (strokeColor) {
+    strokeColor.addEventListener('change', (e) => {
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot && selectedSlot.stroke) {
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'stroke.color', e.target.value);
+        updateCanvas();
+      }
+    });
+  }
+  
+  // Filter preset
+  const filterPreset = document.getElementById('image-filter-preset');
+  if (filterPreset) {
+    filterPreset.addEventListener('change', (e) => {
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot) {
+        applyFilterPreset(selectedSlot.id, e.target.value);
+        updateCanvas();
+      }
+    });
+  }
+  
+  // Z-order controls - Note: these may need different logic for reorderable slots
   const moveUpBtn = document.getElementById('layer-move-up');
   const moveDownBtn = document.getElementById('layer-move-down');
   const moveTopBtn = document.getElementById('layer-move-top');
   const moveBottomBtn = document.getElementById('layer-move-bottom');
   
-  if (moveUpBtn) moveUpBtn.addEventListener('click', () => {
-    if (layerManager.selectedLayer) {
-      layerManager.moveLayer(layerManager.selectedLayer.id, 'up');
-      updateCanvas();
-    }
-  });
-  
-  if (moveDownBtn) moveDownBtn.addEventListener('click', () => {
-    if (layerManager.selectedLayer) {
-      layerManager.moveLayer(layerManager.selectedLayer.id, 'down');
-      updateCanvas();
-    }
-  });
-  
-  if (moveTopBtn) moveTopBtn.addEventListener('click', () => {
-    if (layerManager.selectedLayer) {
-      layerManager.moveLayer(layerManager.selectedLayer.id, 'front');
-      updateCanvas();
-    }
-  });
-  
-  if (moveBottomBtn) moveBottomBtn.addEventListener('click', () => {
-    if (layerManager.selectedLayer) {
-      layerManager.moveLayer(layerManager.selectedLayer.id, 'back');
-      updateCanvas();
+  // For now, these buttons are disabled since slot ordering is different
+  [moveUpBtn, moveDownBtn, moveTopBtn, moveBottomBtn].forEach(btn => {
+    if (btn) {
+      btn.addEventListener('click', () => {
+        console.log('Z-order controls not yet implemented for slot system');
+      });
     }
   });
   
@@ -2680,18 +2954,19 @@ function setupMultiImageControls() {
   
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
-      if (layerManager.selectedLayer) {
-        const layer = layerManager.selectedLayer;
-        layer.scale = 1;
-        layer.offsetX = 0;
-        layer.offsetY = 0;
-        layer.rotation = 0;
-        layer.flipH = false;
-        layer.flipV = false;
-        layer.crop = { top: 0, right: 0, bottom: 0, left: 0 };
-        layer.opacity = 1;
-        layer.blendMode = 'normal';
-        layerManager.updateImageAdjustmentPanel();
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot) {
+        // Reset slot properties
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'scale', 1);
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'offsetX', 0);
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'offsetY', 0);
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'rotation', 0);
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'flipH', false);
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'flipV', false);
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'crop', { top: 0, right: 0, bottom: 0, left: 0 });
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'opacity', 1);
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'blendMode', 'normal');
+        slotLayerManager.updateImageAdjustmentPanel();
         updateCanvas();
       }
     });
@@ -2699,10 +2974,10 @@ function setupMultiImageControls() {
   
   if (deleteBtn) {
     deleteBtn.addEventListener('click', () => {
-      if (layerManager.selectedLayer && confirm('確定要刪除這個圖層嗎？')) {
-        layerManager.removeLayer(layerManager.selectedLayer.id);
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot && selectedSlot.type !== 'template' && confirm('確定要清除這個圖片嗎？')) {
+        slotLayerManager.clearSlot(selectedSlot.id);
         updateCanvas();
-        updateAddImageButton();
       }
     });
   }
@@ -2727,7 +3002,9 @@ function toggleImageTuningPanel() {
   }
   
   // Update panel when opened
-  if (newState && layerManager.selectedLayer) {
-    layerManager.updateImageAdjustmentPanel();
+  // Update image adjustment panel if slot is selected
+  const selectedSlot = slotLayerManager.getSelectedSlot();
+  if (selectedSlot) {
+    slotLayerManager.updateImageAdjustmentPanel();
   }
 }
