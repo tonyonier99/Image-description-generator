@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,17 +12,26 @@
         <header>
             <h1>Image Description Generator</h1>
             <p>Create professional image descriptions with live preview</p>
+            <!-- 原本的選單區 -->
+            <nav class="top-nav">
+                <a href="#" class="nav-item">Home</a>
+                <a href="#" class="nav-item">Templates</a>
+                <a href="/admin/" class="nav-item">Admin</a>
+            </nav>
         </header>
         
         <main class="main-layout">
-            <!-- Left Column: Preview -->
+            <!-- 左欄：預覽（canvas） -->
             <div class="preview-column">
                 <div class="canvas-container">
                     <canvas id="canvas" width="1200" height="675"></canvas>
                 </div>
+                <div class="preview-meta">
+                    <small id="image-info"></small>
+                </div>
             </div>
             
-            <!-- Right Column: Controls -->
+            <!-- 右欄：控制（保留原本表單／選單項目） -->
             <div class="controls-column">
                 <div class="controls-section">
                     <!-- Image Upload -->
@@ -62,6 +71,8 @@
                     
                     <!-- Download Button -->
                     <button id="download-btn" class="download-button">Download PNG</button>
+
+                    <div class="hint">Client-side only — images are not uploaded to a server.</div>
                 </div>
             </div>
         </main>
