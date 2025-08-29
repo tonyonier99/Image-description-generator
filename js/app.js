@@ -16,6 +16,16 @@ let loadedFonts = [];
 let selectedTextField = null;
 let textStyles = {};
 
+// Multi-image layer system
+let imageLayers = [];
+let selectedLayer = null;
+let maxImageSlots = {
+  'classic': 2,
+  'menu': 4,
+  'room': 4,
+  'card': 3
+};
+
 // Guide and safe area state
 let guidesEnabled = false;
 let safeAreaEnabled = false;
@@ -40,10 +50,271 @@ const MAX_HISTORY = 50;
 let CANVAS_WIDTH = 1200;
 let CANVAS_HEIGHT = 1680; // 5:7 aspect ratio
 
+// Image Layer Management System
+class LayerManager {
+  constructor() {
+    this.layers = [];
+    this.selectedLayer = null;
+  }
+  
+  addLayer(image, name) {
+    const layer = {
+      id: Date.now() + Math.random(),
+      image,
+      name,
+      scale: 1,
+      offsetX: 0,
+      offsetY: 0,
+      rotation: 0,
+      flipH: false,
+      flipV: false,
+      crop: { top: 0, right: 0, bottom: 0, left: 0 },
+      opacity: 1,
+      blendMode: 'normal',
+      zIndex: this.layers.length,
+      visible: true
+    };
+    this.layers.push(layer);
+    this.updateLayersList();
+    return layer;
+  }
+  
+  removeLayer(layerId) {
+    const index = this.layers.findIndex(l => l.id === layerId);
+    if (index >= 0) {
+      this.layers.splice(index, 1);
+      // Update z-indices
+      this.layers.forEach((layer, i) => layer.zIndex = i);
+      this.updateLayersList();
+      if (this.selectedLayer?.id === layerId) {
+        this.selectedLayer = null;
+        this.updateImageAdjustmentPanel();
+      }
+    }
+  }
+  
+  selectLayer(layerId) {
+    this.selectedLayer = this.layers.find(l => l.id === layerId);
+    this.updateLayersList();
+    this.updateImageAdjustmentPanel();
+  }
+  
+  moveLayer(layerId, direction) {
+    const index = this.layers.findIndex(l => l.id === layerId);
+    if (index < 0) return;
+    
+    let newIndex;
+    if (direction === 'up' && index < this.layers.length - 1) {
+      newIndex = index + 1;
+    } else if (direction === 'down' && index > 0) {
+      newIndex = index - 1;
+    } else if (direction === 'front') {
+      newIndex = this.layers.length - 1;
+    } else if (direction === 'back') {
+      newIndex = 0;
+    } else {
+      return;
+    }
+    
+    // Move layer
+    const layer = this.layers.splice(index, 1)[0];
+    this.layers.splice(newIndex, 0, layer);
+    
+    // Update z-indices
+    this.layers.forEach((layer, i) => layer.zIndex = i);
+    this.updateLayersList();
+  }
+  
+  updateLayerProperty(layerId, property, value) {
+    const layer = this.layers.find(l => l.id === layerId);
+    if (layer) {
+      if (property.includes('.')) {
+        const [parent, child] = property.split('.');
+        layer[parent][child] = value;
+      } else {
+        layer[property] = value;
+      }
+      updateCanvas();
+    }
+  }
+  
+  updateLayersList() {
+    const container = document.getElementById('image-layers-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    // Reverse to show top layers first in UI
+    [...this.layers].reverse().forEach(layer => {
+      const layerItem = document.createElement('div');
+      layerItem.className = `layer-item ${this.selectedLayer?.id === layer.id ? 'selected' : ''}`;
+      layerItem.innerHTML = `
+        <div class="layer-preview">
+          <canvas width="40" height="40"></canvas>
+        </div>
+        <div class="layer-info">
+          <div class="layer-name">${layer.name}</div>
+          <div class="layer-size">${layer.image.width}×${layer.image.height}</div>
+        </div>
+        <div class="layer-controls">
+          <button class="layer-toggle" title="顯示/隱藏" data-id="${layer.id}">
+            <span class="eye-icon">${layer.visible ? '👁' : '👁‍🗨'}</span>
+          </button>
+          <button class="layer-delete" title="刪除" data-id="${layer.id}">🗑</button>
+        </div>
+      `;
+      
+      // Draw thumbnail
+      const canvas = layerItem.querySelector('canvas');
+      const ctx = canvas.getContext('2d');
+      const scale = Math.min(40 / layer.image.width, 40 / layer.image.height);
+      const w = layer.image.width * scale;
+      const h = layer.image.height * scale;
+      ctx.drawImage(layer.image, (40 - w) / 2, (40 - h) / 2, w, h);
+      
+      // Add event listeners
+      layerItem.addEventListener('click', (e) => {
+        if (!e.target.closest('.layer-controls')) {
+          this.selectLayer(layer.id);
+        }
+      });
+      
+      layerItem.querySelector('.layer-toggle').addEventListener('click', (e) => {
+        e.stopPropagation();
+        layer.visible = !layer.visible;
+        this.updateLayersList();
+        updateCanvas();
+      });
+      
+      layerItem.querySelector('.layer-delete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.removeLayer(layer.id);
+        updateCanvas();
+      });
+      
+      container.appendChild(layerItem);
+    });
+  }
+  
+  updateImageAdjustmentPanel() {
+    const panel = document.getElementById('image-adjustment-content');
+    if (!panel || !this.selectedLayer) {
+      if (panel) panel.style.display = 'none';
+      return;
+    }
+    
+    panel.style.display = 'block';
+    const layer = this.selectedLayer;
+    
+    // Update all controls with current values
+    this.updateControlValue('image-scale', layer.scale);
+    this.updateControlValue('image-offset-x', layer.offsetX);
+    this.updateControlValue('image-offset-y', layer.offsetY);
+    this.updateControlValue('image-rotation', layer.rotation);
+    this.updateControlValue('image-opacity', layer.opacity);
+    this.updateControlValue('image-crop-top', layer.crop.top);
+    this.updateControlValue('image-crop-right', layer.crop.right);
+    this.updateControlValue('image-crop-bottom', layer.crop.bottom);
+    this.updateControlValue('image-crop-left', layer.crop.left);
+    
+    // Update checkboxes
+    document.getElementById('image-flip-h').checked = layer.flipH;
+    document.getElementById('image-flip-v').checked = layer.flipV;
+    
+    // Update blend mode
+    document.getElementById('image-blend-mode').value = layer.blendMode;
+    
+    // Update layer info
+    const layerInfo = document.getElementById('selected-layer-info');
+    if (layerInfo) {
+      layerInfo.textContent = `${layer.name} (${layer.image.width}×${layer.image.height})`;
+    }
+  }
+  
+  updateControlValue(id, value) {
+    const input = document.getElementById(id);
+    const display = document.getElementById(id + '-value');
+    if (input) {
+      input.value = value;
+      if (display) {
+        let unit = '';
+        if (id.includes('rotation')) unit = '°';
+        else if (id.includes('crop') || id.includes('offset')) unit = 'px';
+        else if (id.includes('opacity') || id.includes('scale')) unit = id.includes('opacity') ? '' : '';
+        display.textContent = value + unit;
+      }
+    }
+  }
+  
+  getMaxSlots() {
+    // First try to get from category config
+    const category = getCurrentCategoryConfig();
+    if (category && category.imageSlots) {
+      return category.imageSlots;
+    }
+    // Fall back to built-in defaults
+    return maxImageSlots[currentCategory] || 2;
+  }
+  
+  canAddMore() {
+    return this.layers.length < this.getMaxSlots();
+  }
+  
+  renderOnCanvas(ctx, width, height) {
+    // Sort layers by z-index
+    const sortedLayers = [...this.layers].sort((a, b) => a.zIndex - b.zIndex);
+    
+    sortedLayers.forEach(layer => {
+      if (!layer.visible) return;
+      
+      ctx.save();
+      
+      // Set blend mode
+      ctx.globalCompositeOperation = layer.blendMode;
+      ctx.globalAlpha = layer.opacity;
+      
+      // Calculate position and size
+      const centerX = width / 2 + layer.offsetX;
+      const centerY = height / 2 + layer.offsetY;
+      
+      // Apply transformations
+      ctx.translate(centerX, centerY);
+      if (layer.rotation) ctx.rotate((layer.rotation * Math.PI) / 180);
+      if (layer.flipH || layer.flipV) ctx.scale(layer.flipH ? -1 : 1, layer.flipV ? -1 : 1);
+      
+      // Calculate dimensions with crop and scale
+      const { crop } = layer;
+      const sourceX = crop.left;
+      const sourceY = crop.top;
+      const sourceWidth = layer.image.width - crop.left - crop.right;
+      const sourceHeight = layer.image.height - crop.top - crop.bottom;
+      
+      const scaledWidth = sourceWidth * layer.scale;
+      const scaledHeight = sourceHeight * layer.scale;
+      
+      // Draw image
+      ctx.drawImage(
+        layer.image,
+        sourceX, sourceY, sourceWidth, sourceHeight,
+        -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight
+      );
+      
+      ctx.restore();
+    });
+  }
+}
+
+// Initialize layer manager
+const layerManager = new LayerManager();
+
 // Initialize application
 document.addEventListener('DOMContentLoaded', async function() {
   await loadConfigs();
   await loadFonts();
+  // Wait for fonts to be ready before continuing
+  await document.fonts.ready;
+  console.log('All fonts loaded and ready');
+  
   initializeCanvas();
   loadSavedState();
   setupEventListeners();
@@ -220,6 +491,9 @@ function setupEventListeners() {
   // Text tuning controls
   setupTextTuningControls();
   
+  // Multi-image controls
+  setupMultiImageControls();
+  
   // Guides and safe area controls
   setupGuidesControls();
   
@@ -265,6 +539,8 @@ function updateUIForCategory() {
   updatePreviewControls();
   updateTextTuningPanel();
   loadTemplateImages();
+  updateAddImageButton();
+  layerManager.updateLayersList();
 }
 
 // Render templates grid for current category
@@ -422,23 +698,38 @@ function getCurrentCategoryConfig() {
 
 // Handle image upload
 function handleImageUpload(event) {
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/')) {
-    alert('請選擇圖片檔案');
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const img = new Image();
-    img.onload = function() {
-      uploadedImage = img;
-      updateCanvas();
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
+  
+  Array.from(files).forEach(file => {
+    if (!file.type.startsWith('image/')) {
+      alert('請選擇圖片檔案');
+      return;
+    }
+    
+    // Check if we can add more images
+    if (!layerManager.canAddMore()) {
+      alert(`此類別最多只能上傳 ${layerManager.getMaxSlots()} 張圖片`);
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        // Add to layer manager
+        const layer = layerManager.addLayer(img, file.name);
+        layerManager.selectLayer(layer.id);
+        updateCanvas();
+        updateAddImageButton();
+      };
+      img.src = e.target.result;
     };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
+    reader.readAsDataURL(file);
+  });
+  
+  // Clear the input so the same file can be selected again
+  event.target.value = '';
 }
 
 // Update canvas with current settings
@@ -464,8 +755,11 @@ function updateCanvas() {
       drawTemplate();
   }
 
-  // Draw uploaded image
-  if (uploadedImage) {
+  // Draw image layers
+  layerManager.renderOnCanvas(ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+  // Draw uploaded image (legacy support)
+  if (uploadedImage && layerManager.layers.length === 0) {
     drawUploadedImage();
   }
 
@@ -2243,5 +2537,197 @@ function revealAdminLink() {
   if (adminLink) {
     adminLink.removeAttribute('hidden');
     console.log('Admin link revealed');
+  }
+}
+
+// Helper function to update add image button state
+function updateAddImageButton() {
+  const addButton = document.getElementById('add-image-btn');
+  const currentCount = document.getElementById('current-image-count');
+  const maxCount = document.getElementById('max-image-count');
+  
+  if (addButton) {
+    addButton.disabled = !layerManager.canAddMore();
+    addButton.textContent = layerManager.canAddMore() ? 
+      `新增圖片 (${layerManager.layers.length}/${layerManager.getMaxSlots()})` : 
+      `已達上限 (${layerManager.layers.length}/${layerManager.getMaxSlots()})`;
+  }
+  
+  if (currentCount) currentCount.textContent = layerManager.layers.length;
+  if (maxCount) maxCount.textContent = layerManager.getMaxSlots();
+}
+
+// Setup multi-image controls
+function setupMultiImageControls() {
+  // Image tuning toggle
+  const imageTuningHeader = document.querySelector('#image-tuning-toggle').closest('.tuning-header');
+  if (imageTuningHeader) {
+    imageTuningHeader.addEventListener('click', toggleImageTuningPanel);
+  }
+  
+  // Add image button
+  const addImageBtn = document.getElementById('add-image-btn');
+  if (addImageBtn) {
+    addImageBtn.addEventListener('click', () => {
+      document.getElementById('image-upload').click();
+    });
+  }
+  
+  // Image adjustment controls
+  const adjustmentControls = [
+    'image-scale', 'image-offset-x', 'image-offset-y', 'image-rotation',
+    'image-opacity', 'image-crop-top', 'image-crop-right', 
+    'image-crop-bottom', 'image-crop-left'
+  ];
+  
+  adjustmentControls.forEach(id => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.addEventListener('input', (e) => {
+        if (!layerManager.selectedLayer) return;
+        
+        let property = id.replace('image-', '');
+        if (property.startsWith('crop-')) {
+          property = 'crop.' + property.replace('crop-', '');
+        } else if (property.includes('-')) {
+          property = property.replace('-', '');
+          if (property === 'offsetx') property = 'offsetX';
+          if (property === 'offsety') property = 'offsetY';
+        }
+        
+        const value = parseFloat(e.target.value);
+        layerManager.updateLayerProperty(layerManager.selectedLayer.id, property, value);
+        
+        // Update display value
+        const display = document.getElementById(id + '-value');
+        if (display) {
+          let unit = '';
+          if (id.includes('rotation')) unit = '°';
+          else if (id.includes('crop') || id.includes('offset')) unit = 'px';
+          display.textContent = value + unit;
+        }
+      });
+    }
+  });
+  
+  // Flip checkboxes
+  const flipH = document.getElementById('image-flip-h');
+  const flipV = document.getElementById('image-flip-v');
+  
+  if (flipH) {
+    flipH.addEventListener('change', (e) => {
+      if (layerManager.selectedLayer) {
+        layerManager.updateLayerProperty(layerManager.selectedLayer.id, 'flipH', e.target.checked);
+      }
+    });
+  }
+  
+  if (flipV) {
+    flipV.addEventListener('change', (e) => {
+      if (layerManager.selectedLayer) {
+        layerManager.updateLayerProperty(layerManager.selectedLayer.id, 'flipV', e.target.checked);
+      }
+    });
+  }
+  
+  // Blend mode
+  const blendMode = document.getElementById('image-blend-mode');
+  if (blendMode) {
+    blendMode.addEventListener('change', (e) => {
+      if (layerManager.selectedLayer) {
+        layerManager.updateLayerProperty(layerManager.selectedLayer.id, 'blendMode', e.target.value);
+      }
+    });
+  }
+  
+  // Z-order controls
+  const moveUpBtn = document.getElementById('layer-move-up');
+  const moveDownBtn = document.getElementById('layer-move-down');
+  const moveTopBtn = document.getElementById('layer-move-top');
+  const moveBottomBtn = document.getElementById('layer-move-bottom');
+  
+  if (moveUpBtn) moveUpBtn.addEventListener('click', () => {
+    if (layerManager.selectedLayer) {
+      layerManager.moveLayer(layerManager.selectedLayer.id, 'up');
+      updateCanvas();
+    }
+  });
+  
+  if (moveDownBtn) moveDownBtn.addEventListener('click', () => {
+    if (layerManager.selectedLayer) {
+      layerManager.moveLayer(layerManager.selectedLayer.id, 'down');
+      updateCanvas();
+    }
+  });
+  
+  if (moveTopBtn) moveTopBtn.addEventListener('click', () => {
+    if (layerManager.selectedLayer) {
+      layerManager.moveLayer(layerManager.selectedLayer.id, 'front');
+      updateCanvas();
+    }
+  });
+  
+  if (moveBottomBtn) moveBottomBtn.addEventListener('click', () => {
+    if (layerManager.selectedLayer) {
+      layerManager.moveLayer(layerManager.selectedLayer.id, 'back');
+      updateCanvas();
+    }
+  });
+  
+  // Reset and delete buttons
+  const resetBtn = document.getElementById('reset-image-adjustments');
+  const deleteBtn = document.getElementById('delete-current-layer');
+  
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      if (layerManager.selectedLayer) {
+        const layer = layerManager.selectedLayer;
+        layer.scale = 1;
+        layer.offsetX = 0;
+        layer.offsetY = 0;
+        layer.rotation = 0;
+        layer.flipH = false;
+        layer.flipV = false;
+        layer.crop = { top: 0, right: 0, bottom: 0, left: 0 };
+        layer.opacity = 1;
+        layer.blendMode = 'normal';
+        layerManager.updateImageAdjustmentPanel();
+        updateCanvas();
+      }
+    });
+  }
+  
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', () => {
+      if (layerManager.selectedLayer && confirm('確定要刪除這個圖層嗎？')) {
+        layerManager.removeLayer(layerManager.selectedLayer.id);
+        updateCanvas();
+        updateAddImageButton();
+      }
+    });
+  }
+}
+
+// Toggle image tuning panel
+function toggleImageTuningPanel() {
+  const toggle = document.getElementById('image-tuning-toggle');
+  const content = document.getElementById('image-adjustment-content');
+  
+  if (!toggle || !content) return;
+  
+  const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+  const newState = !isExpanded;
+  
+  toggle.setAttribute('aria-expanded', newState);
+  content.style.display = newState ? 'block' : 'none';
+  
+  const icon = toggle.querySelector('.toggle-icon');
+  if (icon) {
+    icon.textContent = newState ? '▲' : '▼';
+  }
+  
+  // Update panel when opened
+  if (newState && layerManager.selectedLayer) {
+    layerManager.updateImageAdjustmentPanel();
   }
 }

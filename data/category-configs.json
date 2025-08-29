@@ -6,6 +6,7 @@
       "folder": "Classic",
       "ext": "svg",
       "count": 4,
+      "imageSlots": 2,
       "options": [
         {
           "key": "title",
@@ -38,6 +39,7 @@
       "folder": "Menu",
       "ext": "svg",
       "count": 3,
+      "imageSlots": 4,
       "options": [
         {
           "key": "section",
@@ -52,8 +54,7 @@
         {
           "key": "currency",
           "label": "幣別",
-          "type": "select",
-          "options": ["$", "NT$", "¥"]
+          "type": "text"
         },
         {
           "key": "priceColor",
@@ -68,6 +69,7 @@
       "folder": "Room", 
       "ext": "svg",
       "count": 3,
+      "imageSlots": 4,
       "options": [
         {
           "key": "roomType",
@@ -96,10 +98,11 @@
     },
     {
       "key": "card",
-      "label": "名片",
+      "label": "明天",
       "folder": "Card",
       "ext": "svg", 
       "count": 2,
+      "imageSlots": 3,
       "options": [
         {
           "key": "name",
