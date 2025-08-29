@@ -267,6 +267,110 @@
                     </div>
                 </div>
                 
+                <!-- Image Adjustment Panel -->
+                <div class="tuning-panel">
+                    <div class="tuning-header">
+                        <h4>影像調整</h4>
+                        <button id="image-tuning-toggle" class="tuning-toggle" aria-expanded="false">
+                            <span class="toggle-icon">▼</span>
+                        </button>
+                    </div>
+                    <div id="image-adjustment-content" class="tuning-content" style="display: none;">
+                        <div id="selected-layer-info" class="layer-info-display">
+                            請選擇一個圖層進行調整
+                        </div>
+                        
+                        <div class="tuning-grid">
+                            <div class="tuning-control">
+                                <label for="image-scale">縮放</label>
+                                <input type="range" id="image-scale" min="0.1" max="3" step="0.1" value="1">
+                                <span class="range-value" id="image-scale-value">1</span>
+                            </div>
+                            <div class="tuning-control">
+                                <label for="image-offset-x">水平偏移</label>
+                                <input type="range" id="image-offset-x" min="-200" max="200" step="1" value="0">
+                                <span class="range-value" id="image-offset-x-value">0px</span>
+                            </div>
+                            <div class="tuning-control">
+                                <label for="image-offset-y">垂直偏移</label>
+                                <input type="range" id="image-offset-y" min="-200" max="200" step="1" value="0">
+                                <span class="range-value" id="image-offset-y-value">0px</span>
+                            </div>
+                            <div class="tuning-control">
+                                <label for="image-rotation">旋轉</label>
+                                <input type="range" id="image-rotation" min="-180" max="180" step="1" value="0">
+                                <span class="range-value" id="image-rotation-value">0°</span>
+                            </div>
+                            <div class="tuning-control">
+                                <label for="image-opacity">透明度</label>
+                                <input type="range" id="image-opacity" min="0" max="1" step="0.1" value="1">
+                                <span class="range-value" id="image-opacity-value">1</span>
+                            </div>
+                        </div>
+                        
+                        <div class="tuning-row">
+                            <div class="tuning-control">
+                                <label for="image-flip-h">水平翻轉</label>
+                                <input type="checkbox" id="image-flip-h">
+                            </div>
+                            <div class="tuning-control">
+                                <label for="image-flip-v">垂直翻轉</label>
+                                <input type="checkbox" id="image-flip-v">
+                            </div>
+                            <div class="tuning-control">
+                                <label for="image-blend-mode">混合模式</label>
+                                <select id="image-blend-mode">
+                                    <option value="normal">正常</option>
+                                    <option value="multiply">正片疊底</option>
+                                    <option value="screen">螢幕</option>
+                                    <option value="overlay">覆蓋</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="crop-controls">
+                            <h5>裁切設定</h5>
+                            <div class="tuning-grid">
+                                <div class="tuning-control">
+                                    <label for="image-crop-top">上方</label>
+                                    <input type="range" id="image-crop-top" min="0" max="100" step="1" value="0">
+                                    <span class="range-value" id="image-crop-top-value">0px</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="image-crop-right">右側</label>
+                                    <input type="range" id="image-crop-right" min="0" max="100" step="1" value="0">
+                                    <span class="range-value" id="image-crop-right-value">0px</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="image-crop-bottom">下方</label>
+                                    <input type="range" id="image-crop-bottom" min="0" max="100" step="1" value="0">
+                                    <span class="range-value" id="image-crop-bottom-value">0px</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="image-crop-left">左側</label>
+                                    <input type="range" id="image-crop-left" min="0" max="100" step="1" value="0">
+                                    <span class="range-value" id="image-crop-left-value">0px</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="z-order-controls">
+                            <h5>圖層順序</h5>
+                            <div class="button-group">
+                                <button id="layer-move-up" class="secondary">向上</button>
+                                <button id="layer-move-down" class="secondary">向下</button>
+                                <button id="layer-move-top" class="secondary">置頂</button>
+                                <button id="layer-move-bottom" class="secondary">置底</button>
+                            </div>
+                        </div>
+                        
+                        <div class="tuning-buttons">
+                            <button id="reset-image-adjustments" class="secondary">重設</button>
+                            <button id="delete-current-layer" class="danger">刪除圖層</button>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="preview-meta">
                     <small id="image-info"></small>
                 </div>
@@ -276,10 +380,22 @@
             <div class="controls-column">
                 <!-- 圖片上傳 -->
                 <div class="controls-section">
-                    <h3>圖片上傳</h3>
+                    <h3>多圖片與圖層</h3>
                     <div class="input-group">
                         <label for="image-upload">選擇圖片</label>
-                        <input type="file" id="image-upload" accept="image/*">
+                        <input type="file" id="image-upload" accept="image/*" multiple>
+                    </div>
+                    <button id="add-image-btn" class="add-image-button">新增圖片 (0/2)</button>
+                    
+                    <div class="image-count-info">
+                        <span>已上傳：<span id="current-image-count">0</span>/<span id="max-image-count">2</span> 張圖片</span>
+                    </div>
+                    
+                    <div class="image-layers-section">
+                        <h4>圖層列表</h4>
+                        <div id="image-layers-list" class="layers-list">
+                            <!-- Layers will be populated by JavaScript -->
+                        </div>
                     </div>
                 </div>
 
