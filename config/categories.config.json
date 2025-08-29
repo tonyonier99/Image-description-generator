@@ -23,7 +23,7 @@
     { "key": "amenities", "label": "設施（多選）", "type": "checkbox-group", "options": ["Wi-Fi", "TV", "Mini Bar", "Ocean View"] }
     ]
   },
-  "BusinessCard": {
+  "Card": {
     "label": "名片",
     "fields": [
     { "key": "name", "label": "姓名", "type": "text" },
