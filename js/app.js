@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   updateUIForCategory();
   updateCanvas();
   setupUndoRedoSystem();
+  checkAdminUnlock(); // Check if admin should be unlocked
 });
 
 // Load category configurations
@@ -2202,4 +2203,45 @@ function loadImageWithFallback(basePath, extensions, onSuccess, onFailure) {
   }
   
   tryExtension(0);
+}
+
+// Admin unlock functionality
+function checkAdminUnlock() {
+  const adminLink = document.getElementById('adminLink');
+  if (!adminLink) return;
+  
+  // Check if admin is unlocked via localStorage
+  const isUnlocked = localStorage.getItem('idg:admin-unlocked') === '1';
+  
+  // Check if URL hash contains 'admin'
+  const hashContainsAdmin = window.location.hash.includes('admin');
+  
+  if (isUnlocked || hashContainsAdmin) {
+    revealAdminLink();
+  }
+  
+  // Setup keyboard shortcut Alt+Shift+A
+  document.addEventListener('keydown', handleAdminUnlockShortcut);
+}
+
+function handleAdminUnlockShortcut(e) {
+  // Alt+Shift+A to unlock admin
+  if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'a') {
+    e.preventDefault();
+    unlockAdmin();
+  }
+}
+
+function unlockAdmin() {
+  localStorage.setItem('idg:admin-unlocked', '1');
+  revealAdminLink();
+  console.log('Admin unlocked via keyboard shortcut');
+}
+
+function revealAdminLink() {
+  const adminLink = document.getElementById('adminLink');
+  if (adminLink) {
+    adminLink.removeAttribute('hidden');
+    console.log('Admin link revealed');
+  }
 }
