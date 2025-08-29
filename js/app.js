@@ -72,12 +72,20 @@ async function loadConfigs() {
 // Load fonts from /fonts directory
 async function loadFonts() {
   try {
-    // Try to load font index
-    const response = await fetch('fonts/index.json');
+    // First try to load admin-configured fonts
+    const adminFonts = localStorage.getItem('idg:fonts-config');
     let fontsConfig = { fonts: [] };
     
-    if (response.ok) {
-      fontsConfig = await response.json();
+    if (adminFonts) {
+      fontsConfig = JSON.parse(adminFonts);
+      console.log('Loading fonts from admin configuration');
+    } else {
+      // Fall back to fonts/index.json
+      const response = await fetch('fonts/index.json');
+      if (response.ok) {
+        fontsConfig = await response.json();
+        console.log('Loading fonts from fonts/index.json');
+      }
     }
     
     // Load fonts using FontFace API
@@ -110,7 +118,7 @@ async function loadFonts() {
     
     console.log(`Loaded ${loadedFonts.length} fonts`);
   } catch (error) {
-    console.warn('Failed to load fonts index:', error);
+    console.warn('Failed to load fonts:', error);
   }
 }
 
@@ -532,21 +540,25 @@ function drawTextContent() {
     if (field.type === 'text' || field.type === 'textarea') {
       const value = currentOptions[field.key] || '';
       if (value) {
-        // Get field-specific styles or use defaults
+        // Get field-specific styles, admin defaults, or fallback defaults
+        const adminDefaults = getAdminTextDefaults(currentCategory, field.key);
         const fieldStyles = textStyles[field.key] || {};
-        const fontSize = fieldStyles.fontSize || (field.key.includes('title') ? 36 : 24);
-        const fontFamily = fieldStyles.fontFamily || 'Inter, sans-serif';
-        const color = fieldStyles.color || '#333333';
-        const align = fieldStyles.align || 'center';
+        
+        const fontSize = fieldStyles.fontSize || adminDefaults.fontSize || (field.key.includes('title') ? 36 : 24);
+        const fontFamily = fieldStyles.fontFamily || adminDefaults.fontFamily || 'Inter, sans-serif';
+        const color = fieldStyles.color || adminDefaults.color || '#333333';
+        const align = fieldStyles.align || adminDefaults.align || 'center';
         
         // Apply styles
         ctx.font = `${fontSize}px ${fontFamily}`;
         ctx.fillStyle = color;
         ctx.textAlign = align;
         
-        // Calculate position
-        const x = fieldStyles.x ? fieldStyles.x * CANVAS_WIDTH : centerX;
-        const fieldY = fieldStyles.y ? fieldStyles.y * CANVAS_HEIGHT : y;
+        // Calculate position with admin defaults
+        const x = fieldStyles.x ? fieldStyles.x * CANVAS_WIDTH : 
+                  adminDefaults.x ? adminDefaults.x * CANVAS_WIDTH : centerX;
+        const fieldY = fieldStyles.y ? fieldStyles.y * CANVAS_HEIGHT : 
+                      adminDefaults.y ? adminDefaults.y * CANVAS_HEIGHT : y;
         
         // Draw text
         if (field.type === 'textarea') {
@@ -577,12 +589,13 @@ function createTextBox(textLayer, field, value, styles) {
   textBox.dataset.align = styles.align || 'center';
   textBox.textContent = value;
   
-  // Apply styles
-  const fontSize = styles.fontSize || (field.key.includes('title') ? 36 : 24);
-  const fontFamily = styles.fontFamily || 'Inter, sans-serif';
-  const color = styles.color || '#333333';
-  const x = styles.x || 0.5;
-  const y = styles.y || 0.5;
+  // Apply styles with admin defaults
+  const adminDefaults = getAdminTextDefaults(currentCategory, field.key);
+  const fontSize = styles.fontSize || adminDefaults.fontSize || (field.key.includes('title') ? 36 : 24);
+  const fontFamily = styles.fontFamily || adminDefaults.fontFamily || 'Inter, sans-serif';
+  const color = styles.color || adminDefaults.color || '#333333';
+  const x = styles.x !== undefined ? styles.x : (adminDefaults.x !== undefined ? adminDefaults.x : 0.5);
+  const y = styles.y !== undefined ? styles.y : (adminDefaults.y !== undefined ? adminDefaults.y : 0.5);
   
   textBox.style.fontSize = `${fontSize}px`;
   textBox.style.fontFamily = fontFamily;
@@ -640,6 +653,17 @@ function createTextBox(textLayer, field, value, styles) {
   });
   
   textLayer.appendChild(textBox);
+}
+
+// Get admin-configured text defaults for a field
+function getAdminTextDefaults(categoryKey, fieldKey) {
+  try {
+    const textDefaults = JSON.parse(localStorage.getItem('idg:text-defaults') || '{}');
+    return textDefaults[categoryKey]?.[fieldKey] || {};
+  } catch (error) {
+    console.warn('Failed to load admin text defaults:', error);
+    return {};
+  }
 }
 
 // Select text field for tuning
@@ -856,21 +880,22 @@ function drawTextContentForExport(ctx, exportWidth, exportHeight) {
   category.options.forEach(field => {
     if ((field.type === 'text' || field.type === 'textarea') && currentOptions[field.key]) {
       const value = currentOptions[field.key];
+      const adminDefaults = getAdminTextDefaults(currentCategory, field.key);
       const fieldStyles = textStyles[field.key] || {};
       
       // Scale font size
-      const fontSize = (fieldStyles.fontSize || (field.key.includes('title') ? 36 : 24)) * Math.min(scaleX, scaleY);
-      const fontFamily = fieldStyles.fontFamily || 'Inter, sans-serif';
-      const color = fieldStyles.color || '#333333';
-      const align = fieldStyles.align || 'center';
+      const fontSize = (fieldStyles.fontSize || adminDefaults.fontSize || (field.key.includes('title') ? 36 : 24)) * Math.min(scaleX, scaleY);
+      const fontFamily = fieldStyles.fontFamily || adminDefaults.fontFamily || 'Inter, sans-serif';
+      const color = fieldStyles.color || adminDefaults.color || '#333333';
+      const align = fieldStyles.align || adminDefaults.align || 'center';
       
       ctx.font = `${fontSize}px ${fontFamily}`;
       ctx.fillStyle = color;
       ctx.textAlign = align;
       
       // Scale position
-      const x = (fieldStyles.x || 0.5) * exportWidth;
-      const y = (fieldStyles.y || 0.65) * exportHeight;
+      const x = (fieldStyles.x !== undefined ? fieldStyles.x : (adminDefaults.x !== undefined ? adminDefaults.x : 0.5)) * exportWidth;
+      const y = (fieldStyles.y !== undefined ? fieldStyles.y : (adminDefaults.y !== undefined ? adminDefaults.y : 0.65)) * exportHeight;
       
       if (field.type === 'textarea') {
         const lines = wrapText(value, exportWidth - 100, ctx);

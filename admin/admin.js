@@ -3,7 +3,9 @@
 
 // Storage keys
 const STORAGE_KEYS = {
-  CATEGORY_CONFIGS_OVERRIDE: 'idg:category-configs-override'
+  CATEGORY_CONFIGS_OVERRIDE: 'idg:category-configs-override',
+  FONTS_CONFIG: 'idg:fonts-config',
+  TEXT_DEFAULTS: 'idg:text-defaults'
 };
 
 // Global state
@@ -14,6 +16,8 @@ let hasOverride = false;
 document.addEventListener('DOMContentLoaded', async function() {
   await loadConfigs();
   renderCategories();
+  renderFonts();
+  setupTextDefaults();
   setupEventListeners();
 });
 
@@ -291,6 +295,233 @@ function saveToLocal() {
     console.error('Failed to save to localStorage:', error);
     showStatus('保存失敗', 'error');
   }
+}
+
+// Font management functions
+function renderFonts() {
+  const container = document.getElementById('fonts-container');
+  if (!container) return;
+
+  const fontsConfig = JSON.parse(localStorage.getItem(STORAGE_KEYS.FONTS_CONFIG) || '{"fonts": []}');
+  
+  if (!fontsConfig.fonts || fontsConfig.fonts.length === 0) {
+    container.innerHTML = '<p class="hint">尚未設定任何字體。點擊「新增字體」或「從 index.json 載入」開始設定。</p>';
+    return;
+  }
+
+  container.innerHTML = fontsConfig.fonts.map((font, index) => `
+    <div class="category-item" data-index="${index}">
+      <div class="category-header">
+        <div class="category-title">${font.display || font.family}</div>
+        <div class="button-group">
+          <button onclick="editFont(${index})" class="secondary">編輯</button>
+          <button onclick="deleteFont(${index})" class="danger">刪除</button>
+        </div>
+      </div>
+      <div class="field">
+        <strong>字體名稱：</strong> ${font.family} | 
+        <strong>檔案：</strong> ${font.src} | 
+        <strong>字重：</strong> ${font.weight || 'normal'} |
+        <strong>樣式：</strong> ${font.style || 'normal'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function addNewFont() {
+  const newFont = {
+    family: '新字體',
+    src: 'fonts/new-font.ttf',
+    weight: 'normal',
+    style: 'normal',
+    display: '新字體'
+  };
+
+  const fontsConfig = JSON.parse(localStorage.getItem(STORAGE_KEYS.FONTS_CONFIG) || '{"fonts": []}');
+  if (!fontsConfig.fonts) fontsConfig.fonts = [];
+  
+  fontsConfig.fonts.push(newFont);
+  localStorage.setItem(STORAGE_KEYS.FONTS_CONFIG, JSON.stringify(fontsConfig));
+  
+  renderFonts();
+  showStatus('已新增字體，請編輯詳細設定', 'success');
+}
+
+function editFont(index) {
+  const fontsConfig = JSON.parse(localStorage.getItem(STORAGE_KEYS.FONTS_CONFIG) || '{"fonts": []}');
+  const font = fontsConfig.fonts[index];
+  if (!font) return;
+
+  const family = prompt('字體名稱（CSS font-family）:', font.family);
+  if (family === null) return;
+
+  const src = prompt('字體檔案路徑:', font.src);
+  if (src === null) return;
+
+  const weight = prompt('字重 (normal, bold, 100-900):', font.weight || 'normal');
+  if (weight === null) return;
+
+  const style = prompt('樣式 (normal, italic):', font.style || 'normal');
+  if (style === null) return;
+
+  const display = prompt('顯示名稱:', font.display || font.family);
+  if (display === null) return;
+
+  fontsConfig.fonts[index] = { family, src, weight, style, display };
+  localStorage.setItem(STORAGE_KEYS.FONTS_CONFIG, JSON.stringify(fontsConfig));
+  
+  renderFonts();
+  showStatus('字體設定已更新', 'success');
+}
+
+function deleteFont(index) {
+  if (!confirm('確定要刪除這個字體嗎？')) return;
+
+  const fontsConfig = JSON.parse(localStorage.getItem(STORAGE_KEYS.FONTS_CONFIG) || '{"fonts": []}');
+  fontsConfig.fonts.splice(index, 1);
+  localStorage.setItem(STORAGE_KEYS.FONTS_CONFIG, JSON.stringify(fontsConfig));
+  
+  renderFonts();
+  showStatus('字體已刪除', 'success');
+}
+
+async function loadFontsFromIndex() {
+  try {
+    const response = await fetch('../fonts/index.json');
+    if (!response.ok) throw new Error('無法載入 fonts/index.json');
+    
+    const fontsIndex = await response.json();
+    localStorage.setItem(STORAGE_KEYS.FONTS_CONFIG, JSON.stringify(fontsIndex));
+    
+    renderFonts();
+    showStatus('已從 fonts/index.json 載入字體設定', 'success');
+  } catch (error) {
+    showStatus('載入字體設定失敗: ' + error.message, 'error');
+  }
+}
+
+// Text defaults functions
+function setupTextDefaults() {
+  const categorySelect = document.getElementById('text-defaults-category');
+  if (!categorySelect || !currentConfigs) return;
+
+  // Populate category dropdown
+  categorySelect.innerHTML = '<option value="">請選擇類別</option>';
+  if (currentConfigs.categories) {
+    currentConfigs.categories.forEach(category => {
+      const option = document.createElement('option');
+      option.value = category.key;
+      option.textContent = category.label;
+      categorySelect.appendChild(option);
+    });
+  }
+
+  // Add change listener
+  categorySelect.addEventListener('change', (e) => {
+    const categoryKey = e.target.value;
+    if (categoryKey) {
+      renderTextDefaults(categoryKey);
+    } else {
+      document.getElementById('text-defaults-container').style.display = 'none';
+      document.getElementById('save-text-defaults').style.display = 'none';
+    }
+  });
+}
+
+function renderTextDefaults(categoryKey) {
+  const container = document.getElementById('text-defaults-container');
+  const saveButton = document.getElementById('save-text-defaults');
+  if (!container || !currentConfigs) return;
+
+  const category = currentConfigs.categories.find(cat => cat.key === categoryKey);
+  if (!category) return;
+
+  const textFields = category.options.filter(opt => opt.type === 'text' || opt.type === 'textarea');
+  if (textFields.length === 0) {
+    container.innerHTML = '<p class="hint">此類別沒有文字欄位。</p>';
+    container.style.display = 'block';
+    saveButton.style.display = 'none';
+    return;
+  }
+
+  // Load existing defaults
+  const textDefaults = JSON.parse(localStorage.getItem(STORAGE_KEYS.TEXT_DEFAULTS) || '{}');
+  const categoryDefaults = textDefaults[categoryKey] || {};
+
+  container.innerHTML = textFields.map(field => {
+    const defaults = categoryDefaults[field.key] || {};
+    return `
+      <div class="field-defaults" data-category="${categoryKey}" data-field="${field.key}">
+        <h3>${field.label} (${field.key})</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div class="field">
+            <label>X 位置 (0-1):</label>
+            <input type="number" class="text-default-x" min="0" max="1" step="0.01" value="${defaults.x || 0.5}">
+          </div>
+          <div class="field">
+            <label>Y 位置 (0-1):</label>
+            <input type="number" class="text-default-y" min="0" max="1" step="0.01" value="${defaults.y || 0.5}">
+          </div>
+          <div class="field">
+            <label>字體大小:</label>
+            <input type="number" class="text-default-font-size" min="12" max="120" value="${defaults.fontSize || (field.key.includes('title') ? 36 : 24)}">
+          </div>
+          <div class="field">
+            <label>行高:</label>
+            <input type="number" class="text-default-line-height" min="1" max="3" step="0.1" value="${defaults.lineHeight || 1.4}">
+          </div>
+          <div class="field">
+            <label>字體:</label>
+            <input type="text" class="text-default-font-family" value="${defaults.fontFamily || 'Inter, sans-serif'}">
+          </div>
+          <div class="field">
+            <label>對齊:</label>
+            <select class="text-default-align">
+              <option value="left" ${defaults.align === 'left' ? 'selected' : ''}>左對齊</option>
+              <option value="center" ${defaults.align === 'center' || !defaults.align ? 'selected' : ''}>置中</option>
+              <option value="right" ${defaults.align === 'right' ? 'selected' : ''}>右對齊</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>顏色:</label>
+            <input type="color" class="text-default-color" value="${defaults.color || '#333333'}">
+          </div>
+          <div class="field">
+            <label>最大寬度 (0-1):</label>
+            <input type="number" class="text-default-max-width" min="0" max="1" step="0.01" value="${defaults.maxWidth || 0.8}">
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.style.display = 'block';
+  saveButton.style.display = 'block';
+}
+
+function saveTextDefaults() {
+  const textDefaults = JSON.parse(localStorage.getItem(STORAGE_KEYS.TEXT_DEFAULTS) || '{}');
+  
+  document.querySelectorAll('.field-defaults').forEach(fieldDiv => {
+    const categoryKey = fieldDiv.dataset.category;
+    const fieldKey = fieldDiv.dataset.field;
+    
+    if (!textDefaults[categoryKey]) textDefaults[categoryKey] = {};
+    
+    textDefaults[categoryKey][fieldKey] = {
+      x: parseFloat(fieldDiv.querySelector('.text-default-x').value),
+      y: parseFloat(fieldDiv.querySelector('.text-default-y').value),
+      fontSize: parseInt(fieldDiv.querySelector('.text-default-font-size').value),
+      lineHeight: parseFloat(fieldDiv.querySelector('.text-default-line-height').value),
+      fontFamily: fieldDiv.querySelector('.text-default-font-family').value,
+      align: fieldDiv.querySelector('.text-default-align').value,
+      color: fieldDiv.querySelector('.text-default-color').value,
+      maxWidth: parseFloat(fieldDiv.querySelector('.text-default-max-width').value)
+    };
+  });
+
+  localStorage.setItem(STORAGE_KEYS.TEXT_DEFAULTS, JSON.stringify(textDefaults));
+  showStatus('文字預設值已儲存', 'success');
 }
 
 // Add save button to config management section
