@@ -844,10 +844,14 @@ function renderTemplatesGrid() {
     const templateNumber = index + 1;
     const templatePath = `assets/templates/${category.folder}/${category.folder}_${templateNumber}.${category.ext}`;
     
+    // Use Card_N naming convention for thumbnails
+    const thumbnailPath = `assets/templates/${category.folder}/Card_${templateNumber}`;
+    
     return {
       index,
-      name: `${category.label} ${templateNumber}`,
-      path: templatePath
+      name: `${category.label}${templateNumber}`,
+      path: templatePath,
+      thumbnailPath: thumbnailPath
     };
   });
 
@@ -857,8 +861,8 @@ function renderTemplatesGrid() {
              ${template.index === currentTemplate ? 'checked' : ''}
              onchange="handleTemplateChange(${template.index})">
       <div class="template-preview">
-        <img src="${template.path}" alt="${template.name}" class="template-image" 
-             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+        <img src="${template.thumbnailPath}.jpg" alt="${template.name}" class="template-image" 
+             onerror="this.src='${template.thumbnailPath}.png'; this.onerror=function(){this.src='${template.thumbnailPath}.svg'; this.onerror=function(){this.style.display='none'; this.nextElementSibling.style.display='flex';}};">
         <div class="template-fallback" style="display: none;">
           <div class="demo-title">${template.name}</div>
         </div>
