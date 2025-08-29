@@ -2,5 +2,5 @@
   "Classic": { "templates": 4, "empties": 2 },
   "Menu": { "templates": 3, "empties": 1 },
   "Room": { "templates": 3, "empties": 1 },
-  "BusinessCard": { "templates": 2, "empties": 1 }
+  "Card": { "templates": 2, "empties": 1 }
 }

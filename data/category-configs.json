@@ -1,0 +1,133 @@
+{
+  "categories": [
+    {
+      "key": "classic",
+      "label": "經典",
+      "folder": "Classic",
+      "ext": "svg",
+      "count": 4,
+      "options": [
+        {
+          "key": "title",
+          "label": "主標題",
+          "type": "text",
+          "maxLength": 60
+        },
+        {
+          "key": "subtitle", 
+          "label": "副標題",
+          "type": "text",
+          "maxLength": 120
+        },
+        {
+          "key": "accentColor",
+          "label": "強調色",
+          "type": "color"
+        },
+        {
+          "key": "borderStyle",
+          "label": "邊框樣式",
+          "type": "select",
+          "options": ["無邊框", "簡單邊框", "優雅邊框"]
+        }
+      ]
+    },
+    {
+      "key": "menu",
+      "label": "菜單", 
+      "folder": "Menu",
+      "ext": "svg",
+      "count": 3,
+      "options": [
+        {
+          "key": "section",
+          "label": "區段標題",
+          "type": "text"
+        },
+        {
+          "key": "items",
+          "label": "品項（多行）",
+          "type": "textarea"
+        },
+        {
+          "key": "currency",
+          "label": "幣別",
+          "type": "select",
+          "options": ["$", "NT$", "¥"]
+        },
+        {
+          "key": "priceColor",
+          "label": "價格顏色",
+          "type": "color"
+        }
+      ]
+    },
+    {
+      "key": "room",
+      "label": "房型",
+      "folder": "Room", 
+      "ext": "svg",
+      "count": 3,
+      "options": [
+        {
+          "key": "roomType",
+          "label": "房型名稱",
+          "type": "text"
+        },
+        {
+          "key": "capacity",
+          "label": "入住人數",
+          "type": "number",
+          "min": 1,
+          "max": 10
+        },
+        {
+          "key": "amenities",
+          "label": "設施",
+          "type": "textarea"
+        },
+        {
+          "key": "viewType",
+          "label": "景觀類型",
+          "type": "select",
+          "options": ["海景", "山景", "市景", "庭園景"]
+        }
+      ]
+    },
+    {
+      "key": "card",
+      "label": "名片",
+      "folder": "Card",
+      "ext": "svg", 
+      "count": 2,
+      "options": [
+        {
+          "key": "name",
+          "label": "姓名",
+          "type": "text"
+        },
+        {
+          "key": "role",
+          "label": "職稱",
+          "type": "text"
+        },
+        {
+          "key": "phone",
+          "label": "電話",
+          "type": "text"
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "text"
+        },
+        {
+          "key": "logoPosition",
+          "label": "Logo位置",
+          "type": "select",
+          "options": ["左上角", "右上角", "置中"]
+        }
+      ]
+    }
+  ]
+}

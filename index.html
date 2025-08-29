@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Description Generator</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -12,16 +12,24 @@
         <header>
             <h1>Image Description Generator</h1>
             <p>Create professional image descriptions with live preview</p>
-            <!-- 原本的選單區 -->
+            
+            <!-- Category Selection -->
+            <div class="category-section">
+                <label for="category-select">選擇類別：</label>
+                <select id="category-select" class="category-dropdown">
+                    <!-- Options will be populated by JavaScript -->
+                </select>
+            </div>
+            
             <nav class="top-nav">
-                <a href="#" class="nav-item">Home</a>
-                <a href="#" class="nav-item">Templates</a>
-                <a href="/admin/" class="nav-item">Admin</a>
+                <a href="#" class="nav-item">首頁</a>
+                <a href="#templates" class="nav-item">範本</a>
+                <a href="admin/" class="nav-item">管理</a>
             </nav>
         </header>
         
         <main class="main-layout">
-            <!-- 左欄：預覽（canvas） -->
+            <!-- 左欄：預覽 -->
             <div class="preview-column">
                 <div class="canvas-container">
                     <canvas id="canvas" width="1200" height="675"></canvas>
@@ -31,57 +39,46 @@
                 </div>
             </div>
             
-            <!-- 右欄：控制（保留原本表單／選單項目） -->
+            <!-- 右欄：控制面板 -->
             <div class="controls-column">
+                <!-- 圖片上傳 -->
                 <div class="controls-section">
-                    <!-- Image Upload -->
+                    <h3>圖片上傳</h3>
                     <div class="input-group">
-                        <label for="image-upload">Upload Image</label>
+                        <label for="image-upload">選擇圖片</label>
                         <input type="file" id="image-upload" accept="image/*">
                     </div>
-                    
-                    <!-- Text Inputs -->
-                    <div class="input-group">
-                        <label for="title">Title</label>
-                        <input type="text" id="title" placeholder="Enter title text">
-                    </div>
-                    
-                    <div class="input-group">
-                        <label for="subtitle">Subtitle</label>
-                        <input type="text" id="subtitle" placeholder="Enter subtitle text">
-                    </div>
-                    
-                    <div class="input-group">
-                        <label for="description">Description</label>
-                        <textarea id="description" rows="4" placeholder="Enter detailed description..."></textarea>
-                    </div>
-                    
-                    <!-- Color Controls -->
-                    <div class="color-controls">
-                        <div class="input-group">
-                            <label for="background-color">Background Color</label>
-                            <input type="color" id="background-color" value="#ffffff">
-                        </div>
-                        
-                        <div class="input-group">
-                            <label for="text-color">Text Color</label>
-                            <input type="color" id="text-color" value="#333333">
-                        </div>
-                    </div>
-                    
-                    <!-- Download Button -->
-                    <button id="download-btn" class="download-button">Download PNG</button>
+                </div>
 
-                    <div class="hint">Client-side only — images are not uploaded to a server.</div>
+                <!-- 範本選擇 -->
+                <div class="controls-section" id="templates">
+                    <h3>範本選擇</h3>
+                    <div id="template-grid" class="template-grid">
+                        <!-- Templates will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- 類別專屬選項 -->
+                <div class="controls-section">
+                    <h3>選項設定</h3>
+                    <div id="category-options" class="category-options">
+                        <!-- Category-specific options will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- 下載 -->
+                <div class="controls-section">
+                    <button id="download-btn" class="download-button">下載 PNG</button>
+                    <div class="hint">客戶端處理 — 圖片不會上傳到伺服器</div>
                 </div>
             </div>
         </main>
         
         <footer>
-            <p>Client-side only - no images uploaded to server</p>
+            <p>客戶端處理 - 圖片不會上傳到伺服器</p>
         </footer>
     </div>
     
-    <script src="main.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>

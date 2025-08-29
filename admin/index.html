@@ -1,174 +1,205 @@
 <!doctype html>
 <html lang="zh-Hant">
-  <head>
-    <meta charset="utf-8" />
-    <title>管理後台 | Image Description Generator</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex" />
-    <style>
-      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; background:#f6f7f9; }
-      .wrap { max-width: 560px; margin: 8vh auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); background:#fff; }
-      h1 { margin: 0 0 8px; font-size: 20px; }
-      p { color: #4b5563; line-height: 1.6; }
-      .field { margin-top: 16px; }
-      input[type="password"] { width: 100%; font-size: 16px; padding: 12px 14px; border: 1px solid #d1d5db; border-radius: 8px; }
-      button { margin-top: 16px; padding: 10px 14px; border: 0; border-radius: 8px; background: #111827; color: #fff; font-weight: 600; cursor: pointer; }
-      .hint { font-size: 13px; color: #6b7280; margin-top: 6px; }
-      .danger { color: #b91c1c; }
-      .footer { margin-top: 16px; display: flex; gap: 8px; justify-content: space-between; align-items: center; }
-      .link { color: #2563eb; text-decoration: none; }
-      .link:hover { text-decoration: underline; }
-      .err { color: #b91c1c; font-size: 14px; margin-top: 10px; display:none; }
-      .note { font-size: 13px; color: #374151; margin-top: 12px; background: #f9fafb; padding: 10px 12px; border-radius: 8px; border: 1px solid #e5e7eb; }
-    </style>
+<head>
+  <meta charset="utf-8" />
+  <title>管理後台 | Image Description Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <style>
+    body { 
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", "Helvetica Neue", Arial, sans-serif; 
+      margin: 0; 
+      background: #f6f7f9; 
+      color: #333;
+    }
+    .wrap { 
+      max-width: 800px; 
+      margin: 2rem auto; 
+      padding: 2rem; 
+      border: 1px solid #e5e7eb; 
+      border-radius: 12px; 
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06); 
+      background: #fff; 
+    }
+    h1 { 
+      margin: 0 0 1rem; 
+      font-size: 1.8rem; 
+      color: #2d3748;
+    }
+    p { 
+      color: #4b5563; 
+      line-height: 1.6; 
+      margin-bottom: 1.5rem;
+    }
+    .section {
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #f9fafb;
+    }
+    .section h2 {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      color: #374151;
+    }
+    .field { 
+      margin-bottom: 1rem; 
+    }
+    .field label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: #374151;
+    }
+    input, textarea, select { 
+      width: 100%; 
+      font-size: 14px; 
+      padding: 0.75rem; 
+      border: 1px solid #d1d5db; 
+      border-radius: 6px; 
+      font-family: inherit;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+      font-family: 'Monaco', 'Consolas', monospace;
+    }
+    button { 
+      margin: 0.5rem 0.5rem 0.5rem 0; 
+      padding: 0.75rem 1rem; 
+      border: 0; 
+      border-radius: 6px; 
+      background: #111827; 
+      color: #fff; 
+      font-weight: 600; 
+      cursor: pointer; 
+      font-size: 14px;
+    }
+    button:hover {
+      background: #1f2937;
+    }
+    button.secondary {
+      background: #6b7280;
+    }
+    button.secondary:hover {
+      background: #4b5563;
+    }
+    button.danger {
+      background: #dc2626;
+    }
+    button.danger:hover {
+      background: #b91c1c;
+    }
+    .hint { 
+      font-size: 12px; 
+      color: #6b7280; 
+      margin-top: 0.5rem; 
+    }
+    .status {
+      padding: 0.75rem;
+      border-radius: 6px;
+      margin: 1rem 0;
+      font-weight: 500;
+    }
+    .status.success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+    .status.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    .category-item {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .category-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .category-title {
+      font-weight: 600;
+      color: #374151;
+    }
+    .button-group {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .options-list {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+    .option-item {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      font-size: 12px;
+    }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 1rem;
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="../" class="back-link">← 返回主頁</a>
+    
+    <h1>類別管理</h1>
+    <p>管理圖片描述生成器的類別設定與選項。所有變更僅保存在本地瀏覽器中。</p>
 
-    <!-- Manual init: prevent Decap from auto OAuth init -->
-    <script>
-      window.CMS_MANUAL_INIT = true;
-    </script>
-  </head>
-  <body>
-    <div id="token-login" class="wrap" role="dialog" aria-labelledby="title" aria-describedby="desc">
-      <h1 id="title">登入後台（以 GitHub PAT）</h1>
-      <p id="desc">
-        貼上你的 GitHub Personal Access Token（建議 Fine‑grained PAT，僅授權此倉庫，權限：Contents 與 Pull requests）。
-        Token 只會暫存於本分頁的 sessionStorage，關閉分頁即清除。
-      </p>
-      <div class="field">
-        <label for="token" class="hint">GitHub PAT</label>
-        <input id="token" type="password" autocomplete="off" placeholder="ghp_xxx 或 github_pat_xxx" />
-        <div class="hint danger">請勿將 Token 寫入程式碼或提交到版本庫</div>
-        <div id="err" class="err"></div>
+    <div id="status-message"></div>
+
+    <!-- Config Management -->
+    <div class="section">
+      <h2>設定管理</h2>
+      <div class="button-group">
+        <button onclick="loadDefaultConfig()">載入預設設定</button>
+        <button onclick="exportConfig()" class="secondary">匯出 JSON</button>
+        <button onclick="importConfig()" class="secondary">匯入 JSON</button>
+        <button onclick="clearOverride()" class="danger">清除本地覆寫</button>
       </div>
-      <button id="submit">使用 Token 登入</button>
-      <div class="note">
-        若你看到「使用你的 GitHub 帳號登入」的 OAuth 畫面，請確認你是從
-        <a class="link" href="https://tonyonier99.github.io/Image-description-generator/admin/" target="_blank" rel="noopener">這個網址</a>
-        開啟，並按下 Ctrl/Cmd+Shift+R 強制重整清除快取。
-      </div>
-      <div class="footer">
-        <a class="link" href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">建立 Fine‑grained PAT</a>
-        <a class="link" href="https://github.com/settings/tokens" target="_blank" rel="noopener">或建立 classic PAT（repo scope）</a>
+      <div class="hint">
+        本地覆寫將優先於預設設定檔。匯出的 JSON 可以備份或分享給他人匯入。
       </div>
     </div>
 
-    <!-- Pin version to avoid CDN auto-upgrades changing behavior -->
-    <script src="https://unpkg.com/decap-cms@3.0.0/dist/decap-cms.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
-    <script>
-      (function () {
-        const KEY = "decap:github_token";
-        const repo = "tonyonier99/Image-description-generator";
-        const branch = "main";
+    <!-- Categories List -->
+    <div class="section">
+      <h2>類別列表</h2>
+      <div id="categories-container">
+        <!-- Categories will be rendered here -->
+      </div>
+      <button onclick="addNewCategory()">新增類別</button>
+    </div>
 
-        function el(id){ return document.getElementById(id); }
-        function showError(msg){ const e = el("err"); if (!e) return; e.textContent = msg; e.style.display = "block"; }
-        function clearError(){ const e = el("err"); if (!e) return; e.textContent = ""; e.style.display = "none"; }
+    <!-- Import file input (hidden) -->
+    <input type="file" id="import-file" accept=".json" style="display: none" />
+  </div>
 
-        async function verifyToken(token){
-          const headers = {
-            Authorization: `token ${token}`,
-            Accept: "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28"
-          };
-          const u = await fetch("https://api.github.com/user", { headers });
-          if (!u.ok) throw new Error("Token 驗證失敗，請確認是否有效。");
-          return true;
-        }
-
-        async function loadYamlConfig(){
-          const res = await fetch("config.yml", { cache: "no-store" });
-          if (!res.ok) throw new Error(`載入設定檔失敗（${res.status}）`);
-          const text = await res.text();
-          return window.jsyaml.load(text);
-        }
-
-        let started = false;
-        async function startCMS(token) {
-          if (started) return; // avoid double init
-          started = true;
-
-          const box = el("token-login");
-          if (box) box.style.display = "none";
-
-          let cfg = {};
-          try {
-            cfg = await loadYamlConfig();
-          } catch (e) {
-            console.error(e);
-            showError((e && e.message) || "載入設定失敗");
-            started = false; // allow retry
-            return;
-          }
-
-          // Prevent Decap from reloading config.yml again
-          cfg.load_config_file = false;
-
-          // Inject backend at runtime with PAT
-          cfg.backend = {
-            name: "github",
-            repo,
-            branch,
-            auth_type: "token",
-            token,
-            api_root: "https://api.github.com",
-            use_graphql_api: false
-          };
-
-          // Defaults safeguard
-          cfg.publish_mode = cfg.publish_mode || "editorial_workflow";
-          cfg.locale = cfg.locale || "zh_Hant";
-
-          window.CMS.init({ config: cfg });
-
-          window.CMS.registerEventListener({
-            name: "logout",
-            handler: () => {
-              sessionStorage.removeItem(KEY);
-              location.reload();
-            }
-          });
-        }
-
-        async function loginWith(token) {
-          if (!token) return;
-          clearError();
-          try {
-            await verifyToken(token);
-            sessionStorage.setItem(KEY, token);
-            startCMS(token);
-          } catch (err) {
-            showError((err && err.message) || "登入失敗，請檢查 Token 是否正確並具備 Contents / Pull requests 權限。");
-          }
-        }
-
-        // Auto-login in this tab if a token already exists
-        (async () => {
-          const saved = sessionStorage.getItem(KEY);
-          if (saved) {
-            try {
-              await verifyToken(saved);
-              startCMS(saved);
-              return;
-            } catch (e) {
-              sessionStorage.removeItem(KEY);
-              showError("先前的 Token 已無效，請重新登入。");
-            }
-          }
-        })();
-
-        const btn = document.getElementById("submit");
-        btn?.addEventListener("click", () => {
-          const t = (document.getElementById("token")?.value || "").trim();
-          if (!t) { showError("請先輸入 Token"); return; }
-          loginWith(t);
-        });
-
-        const input = document.getElementById("token");
-        input?.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") btn?.click();
-        });
-      })();
-    </script>
-  </body>
+  <script src="admin.js"></script>
+</body>
 </html>
