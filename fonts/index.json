@@ -5,21 +5,21 @@
       "src": "fonts/ChenYuluoyan-Thin.ttf",
       "weight": "300",
       "style": "normal",
-      "display": "陳玉洛嫣-細體"
+      "display": "辰宇落雁-細體"
     },
     {
-      "family": "ChenYuluoyan 2.0 Thin", 
+      "family": "ChenYuluoyan 2.0 Thin",
       "src": "fonts/ChenYuluoyan-2.0-Thin.ttf",
       "weight": "300",
       "style": "normal",
-      "display": "陳玉洛嫣 2.0-細體"
+      "display": "辰宇落雁 2.0-細體"
     },
     {
       "family": "ChenYuluoyan Thin Monospaced",
-      "src": "fonts/ChenYuluoyan-Thin-Monospaced.ttf", 
+      "src": "fonts/ChenYuluoyan-Thin-Monospaced.ttf",
       "weight": "300",
       "style": "normal",
-      "display": "陳玉洛嫣-細體等寬"
+      "display": "辰宇落雁-細體等寬"
     },
     {
       "family": "極影段片和圓",
@@ -31,7 +31,7 @@
     {
       "family": "極影段片圓",
       "src": "fonts/極影段片圓.ttf",
-      "weight": "400", 
+      "weight": "400",
       "style": "normal",
       "display": "極影段片圓"
     },
@@ -39,8 +39,18 @@
       "family": "極影段片英圓",
       "src": "fonts/極影段片英圓.ttf",
       "weight": "400",
-      "style": "normal", 
+      "style": "normal",
       "display": "極影段片英圓"
-    }
+    },
+
+    { "family": "Noto Sans TC Thin",       "src": "fonts/NotoSansTC-Thin.ttf",       "weight": "100", "style": "normal", "display": "Noto Sans TC Thin" },
+    { "family": "Noto Sans TC ExtraLight","src": "fonts/NotoSansTC-ExtraLight.ttf","weight": "200", "style": "normal", "display": "Noto Sans TC ExtraLight" },
+    { "family": "Noto Sans TC Light",      "src": "fonts/NotoSansTC-Light.ttf",      "weight": "300", "style": "normal", "display": "Noto Sans TC Light" },
+    { "family": "Noto Sans TC Regular",    "src": "fonts/NotoSansTC-Regular.ttf",    "weight": "400", "style": "normal", "display": "Noto Sans TC Regular" },
+    { "family": "Noto Sans TC Medium",     "src": "fonts/NotoSansTC-Medium.ttf",     "weight": "500", "style": "normal", "display": "Noto Sans TC Medium" },
+    { "family": "Noto Sans TC SemiBold",   "src": "fonts/NotoSansTC-SemiBold.ttf",   "weight": "600", "style": "normal", "display": "Noto Sans TC SemiBold" },
+    { "family": "Noto Sans TC Bold",       "src": "fonts/NotoSansTC-Bold.ttf",       "weight": "700", "style": "normal", "display": "Noto Sans TC Bold" },
+    { "family": "Noto Sans TC ExtraBold",  "src": "fonts/NotoSansTC-ExtraBold.ttf",  "weight": "800", "style": "normal", "display": "Noto Sans TC ExtraBold" },
+    { "family": "Noto Sans TC Black",      "src": "fonts/NotoSansTC-Black.ttf",      "weight": "900", "style": "normal", "display": "Noto Sans TC Black" }
   ]
 }
