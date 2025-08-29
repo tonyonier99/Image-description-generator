@@ -379,6 +379,19 @@ header p {
   background: var(--hover-bg);
 }
 
+/* Settings controls */
+.settings-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.settings-controls button {
+  flex: 1;
+  min-width: 120px;
+}
+
 .preview-meta {
   margin-top: 1rem;
   padding-top: 1rem;

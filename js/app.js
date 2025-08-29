@@ -31,6 +31,11 @@ let exportSettings = {
   customHeight: 1680
 };
 
+// Undo/redo system state
+let historyStack = [];
+let historyIndex = -1;
+const MAX_HISTORY = 50;
+
 // Canvas dimensions - will be adjusted based on aspect ratio
 let CANVAS_WIDTH = 1200;
 let CANVAS_HEIGHT = 1680; // 5:7 aspect ratio
@@ -45,6 +50,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   renderCategoryDropdown();
   updateUIForCategory();
   updateCanvas();
+  setupUndoRedoSystem();
 });
 
 // Load category configurations
@@ -218,6 +224,9 @@ function setupEventListeners() {
   
   // Export controls
   setupExportControls();
+  
+  // Settings controls
+  setupSettingsControls();
 }
 
 // Render category dropdown
@@ -394,8 +403,14 @@ function renderOptionField(option, value) {
 
 // Handle option value change
 window.handleOptionChange = function(key, value) {
+  const oldValue = currentOptions[key];
   currentOptions[key] = value;
   updateCanvas();
+  
+  // Save history state for text content changes
+  if (oldValue !== value) {
+    saveHistoryState(`Text content "${key}" changed`);
+  }
 };
 
 // Get current category configuration
@@ -785,6 +800,10 @@ function createTextBox(textLayer, field, value, styles) {
         // Save to storage
         categoryStorage.setTextStyles(currentCategory, textStyles);
         updateCanvas();
+        
+        // Save history state
+        const action = isDragging ? 'moved' : 'resized';
+        saveHistoryState(`Text field "${field.key}" ${action}`);
       }
     });
   }
@@ -1469,6 +1488,7 @@ function setupTransformControls() {
       document.getElementById('scale-value').textContent = currentTransform.scale.toFixed(1);
       categoryStorage.setPreviewTransform(currentCategory, currentTransform);
       updateCanvas();
+      saveHistoryState('Transform scale changed');
     });
   }
 
@@ -1480,6 +1500,7 @@ function setupTransformControls() {
       document.getElementById('offsetX-value').textContent = currentTransform.offsetX;
       categoryStorage.setPreviewTransform(currentCategory, currentTransform);
       updateCanvas();
+      saveHistoryState('Transform offset X changed');
     });
   }
 
@@ -1491,6 +1512,7 @@ function setupTransformControls() {
       document.getElementById('offsetY-value').textContent = currentTransform.offsetY;
       categoryStorage.setPreviewTransform(currentCategory, currentTransform);
       updateCanvas();
+      saveHistoryState('Transform offset Y changed');
     });
   }
 
@@ -1502,6 +1524,7 @@ function setupTransformControls() {
       document.getElementById('rotate-value').textContent = currentTransform.rotate + '°';
       categoryStorage.setPreviewTransform(currentCategory, currentTransform);
       updateCanvas();
+      saveHistoryState('Transform rotate changed');
     });
   }
 }
@@ -1696,6 +1719,13 @@ function updateTextFieldStyle() {
   // Save and update
   categoryStorage.setTextStyles(currentCategory, textStyles);
   updateCanvas();
+  
+  // Save history state for significant changes
+  if (fontSize !== undefined || x !== undefined || y !== undefined || 
+      fontFamily !== undefined || align !== undefined || color !== undefined ||
+      autoFit !== undefined || strokeEnabled !== undefined || bgEnabled !== undefined) {
+    saveHistoryState(`Text field "${selectedTextField}" updated`);
+  }
 }
 
 // Toggle text tuning panel
@@ -1770,6 +1800,9 @@ function nudgeTextField(direction, shiftKey) {
   categoryStorage.setTextStyles(currentCategory, textStyles);
   updateTextControlValues();
   updateCanvas();
+  
+  // Save history state
+  saveHistoryState(`Text field "${selectedTextField}" nudged ${direction}`);
 }
 
 function toggleTuningPanel() {
@@ -1906,6 +1939,250 @@ function setupExportControls() {
   
   // Update controls on initialization
   updateExportControls();
+}
+
+// Undo/Redo system
+function saveHistoryState(description = 'Action') {
+  // Create a snapshot of the current state
+  const state = {
+    timestamp: Date.now(),
+    description,
+    textStyles: JSON.parse(JSON.stringify(textStyles)),
+    currentOptions: JSON.parse(JSON.stringify(currentOptions)),
+    currentTransform: JSON.parse(JSON.stringify(currentTransform))
+  };
+  
+  // Remove any states after the current index (when we're not at the end)
+  if (historyIndex < historyStack.length - 1) {
+    historyStack = historyStack.slice(0, historyIndex + 1);
+  }
+  
+  // Add new state
+  historyStack.push(state);
+  
+  // Limit history size
+  if (historyStack.length > MAX_HISTORY) {
+    historyStack.shift();
+  } else {
+    historyIndex++;
+  }
+  
+  console.log(`History saved: ${description} (${historyIndex + 1}/${historyStack.length})`);
+}
+
+function undo() {
+  if (historyIndex <= 0) {
+    console.log('Nothing to undo');
+    return false;
+  }
+  
+  historyIndex--;
+  const state = historyStack[historyIndex];
+  
+  // Restore state
+  textStyles = JSON.parse(JSON.stringify(state.textStyles));
+  currentOptions = JSON.parse(JSON.stringify(state.currentOptions));
+  currentTransform = JSON.parse(JSON.stringify(state.currentTransform));
+  
+  // Update UI
+  updateTextControlValues();
+  updateTransformControls();
+  updateUIForCategory();
+  updateCanvas();
+  
+  // Save to storage
+  categoryStorage.setTextStyles(currentCategory, textStyles);
+  categoryStorage.setPreviewTransform(currentCategory, currentTransform);
+  
+  console.log(`Undo: ${state.description} (${historyIndex + 1}/${historyStack.length})`);
+  return true;
+}
+
+function redo() {
+  if (historyIndex >= historyStack.length - 1) {
+    console.log('Nothing to redo');
+    return false;
+  }
+  
+  historyIndex++;
+  const state = historyStack[historyIndex];
+  
+  // Restore state
+  textStyles = JSON.parse(JSON.stringify(state.textStyles));
+  currentOptions = JSON.parse(JSON.stringify(state.currentOptions));
+  currentTransform = JSON.parse(JSON.stringify(state.currentTransform));
+  
+  // Update UI
+  updateTextControlValues();
+  updateTransformControls();
+  updateUIForCategory();
+  updateCanvas();
+  
+  // Save to storage
+  categoryStorage.setTextStyles(currentCategory, textStyles);
+  categoryStorage.setPreviewTransform(currentCategory, currentTransform);
+  
+  console.log(`Redo: ${state.description} (${historyIndex + 1}/${historyStack.length})`);
+  return true;
+}
+
+function setupUndoRedoSystem() {
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      if (e.shiftKey && e.key.toLowerCase() === 'z') {
+        // Ctrl/Cmd + Shift + Z = Redo
+        e.preventDefault();
+        redo();
+      } else if (e.key.toLowerCase() === 'z') {
+        // Ctrl/Cmd + Z = Undo
+        e.preventDefault();
+        undo();
+      }
+    }
+  });
+  
+  // Save initial state
+  setTimeout(() => {
+    saveHistoryState('Initial state');
+  }, 1000);
+}
+
+// Settings import/export functionality
+function exportUserSettings() {
+  try {
+    // Collect all settings to export (excluding blobs/images)
+    const settings = {
+      version: '1.0',
+      timestamp: new Date().toISOString(),
+      category: currentCategory,
+      textStyles: categoryStorage.getTextStyles(currentCategory),
+      exportPreferences: exportSettings,
+      safeAreaSettings: {
+        enabled: safeAreaEnabled,
+        padding: safeAreaPadding,
+        guidesEnabled: guidesEnabled,
+        snapEnabled: snapEnabled
+      },
+      // Include config overrides if any
+      configOverrides: categoryStorage.getConfigsOverride(),
+      // Include current options (text content)
+      currentOptions: currentOptions
+    };
+    
+    // Create download
+    const dataStr = JSON.stringify(settings, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `idg-settings-${currentCategory}-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    console.log('Settings exported successfully');
+    alert('設定已匯出！');
+  } catch (error) {
+    console.error('Failed to export settings:', error);
+    alert('匯出設定失敗！');
+  }
+}
+
+function importSettings(file) {
+  try {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const settings = JSON.parse(e.target.result);
+        
+        // Validate settings format
+        if (!settings.version || !settings.textStyles) {
+          throw new Error('Invalid settings file format');
+        }
+        
+        // Import text styles
+        if (settings.textStyles) {
+          textStyles = settings.textStyles;
+          categoryStorage.setTextStyles(currentCategory, textStyles);
+        }
+        
+        // Import export settings
+        if (settings.exportPreferences) {
+          Object.assign(exportSettings, settings.exportPreferences);
+        }
+        
+        // Import safe area settings
+        if (settings.safeAreaSettings) {
+          safeAreaEnabled = settings.safeAreaSettings.enabled || false;
+          safeAreaPadding = settings.safeAreaSettings.padding || 0.08;
+          guidesEnabled = settings.safeAreaSettings.guidesEnabled || false;
+          snapEnabled = settings.safeAreaSettings.snapEnabled || false;
+          
+          // Update UI controls
+          const safeAreaToggle = document.getElementById('safe-area-toggle');
+          const guidesToggle = document.getElementById('guides-toggle');
+          const snapToggle = document.getElementById('snap-toggle');
+          
+          if (safeAreaToggle) safeAreaToggle.checked = safeAreaEnabled;
+          if (guidesToggle) guidesToggle.checked = guidesEnabled;
+          if (snapToggle) snapToggle.checked = snapEnabled;
+          
+          updateSafeAreaOverlay();
+          updateGuidesOverlay();
+        }
+        
+        // Import current options (text content)
+        if (settings.currentOptions) {
+          currentOptions = settings.currentOptions;
+        }
+        
+        // Update UI
+        updateTextControlValues();
+        updateExportControls();
+        updateUIForCategory();
+        updateCanvas();
+        
+        console.log('Settings imported successfully');
+        alert('設定已匯入！');
+        
+        // Save history state
+        saveHistoryState('Settings imported');
+        
+      } catch (parseError) {
+        console.error('Failed to parse settings file:', parseError);
+        alert('設定檔案格式錯誤！');
+      }
+    };
+    
+    reader.readAsText(file);
+  } catch (error) {
+    console.error('Failed to import settings:', error);
+    alert('匯入設定失敗！');
+  }
+}
+
+function setupSettingsControls() {
+  const exportBtn = document.getElementById('export-settings-btn');
+  const importBtn = document.getElementById('import-settings-btn');
+  const importInput = document.getElementById('import-settings-input');
+  
+  if (exportBtn) {
+    exportBtn.addEventListener('click', exportUserSettings);
+  }
+  
+  if (importBtn && importInput) {
+    importBtn.addEventListener('click', () => {
+      importInput.click();
+    });
+    
+    importInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        importSettings(file);
+      }
+    });
+  }
 }
 
 // Helper function to load images with multiple extension fallbacks
