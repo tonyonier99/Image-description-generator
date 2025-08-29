@@ -323,6 +323,99 @@
                             </div>
                         </div>
                         
+                        <!-- Mask Controls -->
+                        <div class="mask-controls">
+                            <h5>遮罩形狀</h5>
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="image-mask-type">形狀</label>
+                                    <select id="image-mask-type">
+                                        <option value="none">無</option>
+                                        <option value="circle">圓形</option>
+                                        <option value="ellipse">橢圓</option>
+                                        <option value="roundRect">圓角矩形</option>
+                                        <option value="capsule">膠囊</option>
+                                        <option value="squircle">方圓</option>
+                                        <option value="blob">不規則</option>
+                                        <option value="custom">自訂 SVG</option>
+                                    </select>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="image-mask-radius">圓角半徑</label>
+                                    <input type="range" id="image-mask-radius" min="0" max="50" step="1" value="10">
+                                    <span class="range-value" id="image-mask-radius-value">10px</span>
+                                </div>
+                            </div>
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="image-feather">羽化</label>
+                                    <input type="range" id="image-feather" min="0" max="40" step="1" value="0">
+                                    <span class="range-value" id="image-feather-value">0px</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="image-stroke-enabled">外框</label>
+                                    <input type="checkbox" id="image-stroke-enabled">
+                                </div>
+                            </div>
+                            <div class="tuning-row" id="stroke-controls" style="display: none;">
+                                <div class="tuning-control">
+                                    <label for="image-stroke-width">外框寬度</label>
+                                    <input type="range" id="image-stroke-width" min="1" max="20" step="1" value="2">
+                                    <span class="range-value" id="image-stroke-width-value">2px</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="image-stroke-color">外框顏色</label>
+                                    <input type="color" id="image-stroke-color" value="#ffffff">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Filter Controls -->
+                        <div class="filter-controls">
+                            <h5>濾鏡效果</h5>
+                            <div class="tuning-row">
+                                <div class="tuning-control">
+                                    <label for="image-filter-preset">預設濾鏡</label>
+                                    <select id="image-filter-preset">
+                                        <option value="none">無</option>
+                                        <option value="vintage">復古</option>
+                                        <option value="vivid">鮮豔</option>
+                                        <option value="soft">柔和</option>
+                                        <option value="hdr">高動態</option>
+                                        <option value="bw">黑白</option>
+                                        <option value="sepia">棕褐</option>
+                                    </select>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="image-filter-intensity">濾鏡強度</label>
+                                    <input type="range" id="image-filter-intensity" min="0" max="100" step="5" value="100">
+                                    <span class="range-value" id="image-filter-intensity-value">100%</span>
+                                </div>
+                            </div>
+                            <div class="tuning-grid">
+                                <div class="tuning-control">
+                                    <label for="image-brightness">亮度</label>
+                                    <input type="range" id="image-brightness" min="-100" max="100" step="5" value="0">
+                                    <span class="range-value" id="image-brightness-value">0%</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="image-contrast">對比度</label>
+                                    <input type="range" id="image-contrast" min="-100" max="100" step="5" value="0">
+                                    <span class="range-value" id="image-contrast-value">0%</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="image-saturation">飽和度</label>
+                                    <input type="range" id="image-saturation" min="-100" max="100" step="5" value="0">
+                                    <span class="range-value" id="image-saturation-value">0%</span>
+                                </div>
+                                <div class="tuning-control">
+                                    <label for="image-blur">模糊</label>
+                                    <input type="range" id="image-blur" min="0" max="20" step="0.5" value="0">
+                                    <span class="range-value" id="image-blur-value">0px</span>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="z-order-controls">
                             <h5>圖層順序</h5>
                             <div class="button-group">

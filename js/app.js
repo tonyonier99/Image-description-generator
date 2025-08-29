@@ -468,25 +468,60 @@ class SlotLayerManager {
       { id: 'image-opacity', property: 'opacity', suffix: '' },
       { id: 'image-flip-h', property: 'flipH', suffix: '' },
       { id: 'image-flip-v', property: 'flipV', suffix: '' },
-      { id: 'image-blend-mode', property: 'blendMode', suffix: '' }
+      { id: 'image-blend-mode', property: 'blendMode', suffix: '' },
+      { id: 'image-mask-radius', property: 'maskParams.radius', suffix: 'px', default: 10 },
+      { id: 'image-feather', property: 'feather', suffix: 'px' },
+      { id: 'image-stroke-width', property: 'stroke.width', suffix: 'px', default: 2 },
+      { id: 'image-filter-intensity', property: 'filterIntensity', suffix: '%', default: 100 },
+      { id: 'image-brightness', property: 'brightness', suffix: '%' },
+      { id: 'image-contrast', property: 'contrast', suffix: '%' },
+      { id: 'image-saturation', property: 'saturation', suffix: '%' },
+      { id: 'image-blur', property: 'blur', suffix: 'px' }
     ];
     
-    controls.forEach(({ id, property, suffix }) => {
+    controls.forEach(({ id, property, suffix, default: defaultValue }) => {
       const input = document.getElementById(id);
       const valueSpan = document.getElementById(id + '-value');
       
       if (input) {
+        let value = this.getNestedProperty(slot, property);
+        if (value === undefined && defaultValue !== undefined) {
+          value = defaultValue;
+        }
+        
         if (input.type === 'checkbox') {
-          input.checked = slot[property];
+          input.checked = !!value;
         } else {
-          input.value = slot[property];
+          input.value = value || 0;
         }
         
         if (valueSpan) {
-          valueSpan.textContent = slot[property] + suffix;
+          valueSpan.textContent = (value || 0) + suffix;
         }
       }
     });
+    
+    // Special controls
+    const maskType = document.getElementById('image-mask-type');
+    if (maskType) {
+      maskType.value = slot.mask || 'none';
+    }
+    
+    const strokeEnabled = document.getElementById('image-stroke-enabled');
+    if (strokeEnabled) {
+      strokeEnabled.checked = slot.stroke && slot.stroke.enabled;
+      
+      // Show/hide stroke controls
+      const strokeControls = document.getElementById('stroke-controls');
+      if (strokeControls) {
+        strokeControls.style.display = strokeEnabled.checked ? 'flex' : 'none';
+      }
+    }
+    
+    const strokeColor = document.getElementById('image-stroke-color');
+    if (strokeColor && slot.stroke) {
+      strokeColor.value = slot.stroke.color || '#ffffff';
+    }
     
     // Crop controls
     const cropControls = ['top', 'right', 'bottom', 'left'];
@@ -501,6 +536,36 @@ class SlotLayerManager {
         }
       }
     });
+  }
+  
+  // Helper to get nested property values
+  getNestedProperty(obj, path) {
+    return path.split('.').reduce((current, key) => current && current[key], obj);
+  }
+}
+
+// Apply filter preset to a slot
+function applyFilterPreset(slotId, preset) {
+  const presets = {
+    'none': { brightness: 0, contrast: 0, saturation: 0, blur: 0 },
+    'vintage': { brightness: -10, contrast: 15, saturation: -20, blur: 0 },
+    'vivid': { brightness: 5, contrast: 25, saturation: 30, blur: 0 },
+    'soft': { brightness: 5, contrast: -10, saturation: -5, blur: 0.5 },
+    'hdr': { brightness: 0, contrast: 30, saturation: 10, blur: 0 },
+    'bw': { brightness: 0, contrast: 10, saturation: -100, blur: 0 },
+    'sepia': { brightness: 10, contrast: 5, saturation: -50, blur: 0 }
+  };
+  
+  const settings = presets[preset] || presets['none'];
+  
+  Object.keys(settings).forEach(property => {
+    slotLayerManager.updateSlotProperty(slotId, property, settings[property]);
+  });
+  
+  // Update UI controls
+  const selectedSlot = slotLayerManager.getSelectedSlot();
+  if (selectedSlot) {
+    slotLayerManager.updateAdjustmentControls(selectedSlot);
   }
 }
 
@@ -2732,7 +2797,9 @@ function setupMultiImageControls() {
   const adjustmentControls = [
     'image-scale', 'image-offset-x', 'image-offset-y', 'image-rotation',
     'image-opacity', 'image-crop-top', 'image-crop-right', 
-    'image-crop-bottom', 'image-crop-left'
+    'image-crop-bottom', 'image-crop-left', 'image-mask-radius',
+    'image-feather', 'image-stroke-width', 'image-filter-intensity',
+    'image-brightness', 'image-contrast', 'image-saturation', 'image-blur'
   ];
   
   adjustmentControls.forEach(id => {
@@ -2799,6 +2866,68 @@ function setupMultiImageControls() {
       const selectedSlot = slotLayerManager.getSelectedSlot();
       if (selectedSlot) {
         slotLayerManager.updateSlotProperty(selectedSlot.id, 'blendMode', e.target.value);
+        updateCanvas();
+      }
+    });
+  }
+  
+  // Mask type
+  const maskType = document.getElementById('image-mask-type');
+  if (maskType) {
+    maskType.addEventListener('change', (e) => {
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot) {
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'mask', e.target.value);
+        updateCanvas();
+      }
+    });
+  }
+  
+  // Stroke enabled
+  const strokeEnabled = document.getElementById('image-stroke-enabled');
+  if (strokeEnabled) {
+    strokeEnabled.addEventListener('change', (e) => {
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot) {
+        if (e.target.checked) {
+          slotLayerManager.updateSlotProperty(selectedSlot.id, 'stroke', {
+            enabled: true,
+            width: 2,
+            color: '#ffffff'
+          });
+        } else {
+          slotLayerManager.updateSlotProperty(selectedSlot.id, 'stroke', { enabled: false });
+        }
+        
+        // Show/hide stroke controls
+        const strokeControls = document.getElementById('stroke-controls');
+        if (strokeControls) {
+          strokeControls.style.display = e.target.checked ? 'flex' : 'none';
+        }
+        updateCanvas();
+      }
+    });
+  }
+  
+  // Stroke color
+  const strokeColor = document.getElementById('image-stroke-color');
+  if (strokeColor) {
+    strokeColor.addEventListener('change', (e) => {
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot && selectedSlot.stroke) {
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'stroke.color', e.target.value);
+        updateCanvas();
+      }
+    });
+  }
+  
+  // Filter preset
+  const filterPreset = document.getElementById('image-filter-preset');
+  if (filterPreset) {
+    filterPreset.addEventListener('change', (e) => {
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot) {
+        applyFilterPreset(selectedSlot.id, e.target.value);
         updateCanvas();
       }
     });
