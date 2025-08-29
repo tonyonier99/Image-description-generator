@@ -12,14 +12,18 @@ let currentPreviewMode = 'template';
 let currentTransform = { scale: 1, offsetX: 0, offsetY: 0, rotate: 0 };
 let backgroundImage = null;
 let foregroundImage = null;
+let loadedFonts = [];
+let selectedTextField = null;
+let textStyles = {};
 
-// Canvas dimensions
-const CANVAS_WIDTH = 1200;
-const CANVAS_HEIGHT = 675;
+// Canvas dimensions - will be adjusted based on aspect ratio
+let CANVAS_WIDTH = 1200;
+let CANVAS_HEIGHT = 1680; // 5:7 aspect ratio
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', async function() {
   await loadConfigs();
+  await loadFonts();
   initializeCanvas();
   loadSavedState();
   setupEventListeners();
@@ -65,13 +69,78 @@ async function loadConfigs() {
   }
 }
 
+// Load fonts from /fonts directory
+async function loadFonts() {
+  try {
+    // Try to load font index
+    const response = await fetch('fonts/index.json');
+    let fontsConfig = { fonts: [] };
+    
+    if (response.ok) {
+      fontsConfig = await response.json();
+    }
+    
+    // Load fonts using FontFace API
+    for (const fontDef of fontsConfig.fonts) {
+      try {
+        const fontFace = new FontFace(
+          fontDef.family,
+          `url(${fontDef.src})`,
+          {
+            weight: fontDef.weight || 'normal',
+            style: fontDef.style || 'normal'
+          }
+        );
+        
+        await fontFace.load();
+        document.fonts.add(fontFace);
+        
+        loadedFonts.push({
+          family: fontDef.family,
+          display: fontDef.display || fontDef.family,
+          weight: fontDef.weight || 'normal',
+          style: fontDef.style || 'normal'
+        });
+        
+        console.log(`Font loaded: ${fontDef.family}`);
+      } catch (error) {
+        console.warn(`Failed to load font ${fontDef.family}:`, error);
+      }
+    }
+    
+    console.log(`Loaded ${loadedFonts.length} fonts`);
+  } catch (error) {
+    console.warn('Failed to load fonts index:', error);
+  }
+}
+
+// Apply aspect ratio for category
+function applyAspectRatio(category) {
+  const aspectRatio = categoryStorage.getAspectRatio(category, '5:7');
+  const [w, h] = aspectRatio.split(':').map(Number);
+  
+  // Update CSS variables
+  document.documentElement.style.setProperty('--stage-w', w);
+  document.documentElement.style.setProperty('--stage-h', h);
+  
+  // Update canvas dimensions
+  CANVAS_WIDTH = 1200;
+  CANVAS_HEIGHT = Math.round(CANVAS_WIDTH * h / w);
+  
+  if (canvas) {
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
+  }
+}
+
 // Initialize canvas
 function initializeCanvas() {
   canvas = document.getElementById('canvas');
   if (!canvas) return;
   ctx = canvas.getContext('2d');
-  canvas.width = CANVAS_WIDTH;
-  canvas.height = CANVAS_HEIGHT;
+  
+  // Apply current category aspect ratio
+  applyAspectRatio(currentCategory);
 }
 
 // Load saved state from localStorage
@@ -117,6 +186,9 @@ function setupEventListeners() {
 
   // Transform controls
   setupTransformControls();
+  
+  // Text tuning controls
+  setupTextTuningControls();
 }
 
 // Render category dropdown
@@ -137,7 +209,12 @@ function handleCategoryChange(event) {
   currentTemplate = categoryStorage.getSelectedTemplate(currentCategory, 0);
   currentPreviewMode = categoryStorage.getPreviewMode(currentCategory, 'template');
   currentTransform = categoryStorage.getPreviewTransform(currentCategory, { scale: 1, offsetX: 0, offsetY: 0, rotate: 0 });
+  textStyles = categoryStorage.getTextStyles(currentCategory, {});
   categoryStorage.setSelectedCategory(currentCategory);
+  
+  // Apply aspect ratio for this category
+  applyAspectRatio(currentCategory);
+  
   updateUIForCategory();
   updateCanvas();
 }
@@ -147,6 +224,7 @@ function updateUIForCategory() {
   renderTemplatesGrid();
   renderCategoryOptions();
   updatePreviewControls();
+  updateTextTuningPanel();
   loadTemplateImages();
 }
 
@@ -431,27 +509,217 @@ function drawUploadedImage() {
 
 // Draw text content based on current options
 function drawTextContent() {
-  const startY = Math.floor(CANVAS_HEIGHT * 0.7);
+  // Get category config for text fields
+  const category = getCurrentCategoryConfig();
+  if (!category || !category.options) return;
+  
+  // Clear existing text layer
+  const textLayer = document.getElementById('text-layer');
+  if (textLayer) {
+    textLayer.innerHTML = '';
+  }
+  
+  // Start at a better position for portrait layout
+  const startY = Math.floor(CANVAS_HEIGHT * 0.65);
   let y = startY;
   const centerX = CANVAS_WIDTH / 2;
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#333333';
 
-  // Draw each text option
-  Object.entries(currentOptions).forEach(([key, value]) => {
-    if (value && typeof value === 'string') {
-      const fontSize = key.includes('title') ? 36 : 24;
-      ctx.font = `${fontSize}px Inter, sans-serif`;
-      
-      const lines = wrapText(value, CANVAS_WIDTH - 100, ctx);
-      lines.forEach(line => {
-        ctx.fillText(line, centerX, y);
-        y += fontSize + 8;
-      });
-      y += 16;
+  // Render text for each field
+  category.options.forEach((field, index) => {
+    if (field.type === 'text' || field.type === 'textarea') {
+      const value = currentOptions[field.key] || '';
+      if (value) {
+        // Get field-specific styles or use defaults
+        const fieldStyles = textStyles[field.key] || {};
+        const fontSize = fieldStyles.fontSize || (field.key.includes('title') ? 36 : 24);
+        const fontFamily = fieldStyles.fontFamily || 'Inter, sans-serif';
+        const color = fieldStyles.color || '#333333';
+        const align = fieldStyles.align || 'center';
+        
+        // Apply styles
+        ctx.font = `${fontSize}px ${fontFamily}`;
+        ctx.fillStyle = color;
+        ctx.textAlign = align;
+        
+        // Calculate position
+        const x = fieldStyles.x ? fieldStyles.x * CANVAS_WIDTH : centerX;
+        const fieldY = fieldStyles.y ? fieldStyles.y * CANVAS_HEIGHT : y;
+        
+        // Draw text
+        if (field.type === 'textarea') {
+          const lines = wrapText(value, CANVAS_WIDTH - 100, ctx);
+          lines.forEach((line, lineIndex) => {
+            ctx.fillText(line, x, fieldY + (lineIndex * (fontSize + 8)));
+          });
+          y = fieldY + (lines.length * (fontSize + 8)) + 20;
+        } else {
+          ctx.fillText(value, x, fieldY);
+          y = fieldY + fontSize + 20;
+        }
+        
+        // Create text box for dragging if text layer exists
+        if (textLayer) {
+          createTextBox(textLayer, field, value, fieldStyles);
+        }
+      }
     }
   });
+}
+
+// Create draggable text box for the text layer
+function createTextBox(textLayer, field, value, styles) {
+  const textBox = document.createElement('div');
+  textBox.className = 'text-box';
+  textBox.dataset.field = field.key;
+  textBox.dataset.align = styles.align || 'center';
+  textBox.textContent = value;
+  
+  // Apply styles
+  const fontSize = styles.fontSize || (field.key.includes('title') ? 36 : 24);
+  const fontFamily = styles.fontFamily || 'Inter, sans-serif';
+  const color = styles.color || '#333333';
+  const x = styles.x || 0.5;
+  const y = styles.y || 0.5;
+  
+  textBox.style.fontSize = `${fontSize}px`;
+  textBox.style.fontFamily = fontFamily;
+  textBox.style.color = color;
+  textBox.style.left = `${x * 100}%`;
+  textBox.style.top = `${y * 100}%`;
+  textBox.style.transform = 'translate(-50%, -50%)';
+  
+  // Add click handler
+  textBox.addEventListener('click', (e) => {
+    e.stopPropagation();
+    selectTextField(field.key);
+  });
+  
+  // Add drag functionality
+  let isDragging = false;
+  let startX, startY, startLeft, startTop;
+  
+  textBox.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    const rect = textLayer.getBoundingClientRect();
+    startLeft = (parseFloat(textBox.style.left) / 100) * rect.width;
+    startTop = (parseFloat(textBox.style.top) / 100) * rect.height;
+    e.preventDefault();
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    
+    const rect = textLayer.getBoundingClientRect();
+    const deltaX = e.clientX - startX;
+    const deltaY = e.clientY - startY;
+    
+    const newLeft = Math.max(0, Math.min(1, (startLeft + deltaX) / rect.width));
+    const newTop = Math.max(0, Math.min(1, (startTop + deltaY) / rect.height));
+    
+    textBox.style.left = `${newLeft * 100}%`;
+    textBox.style.top = `${newTop * 100}%`;
+    
+    // Update styles
+    if (!textStyles[field.key]) textStyles[field.key] = {};
+    textStyles[field.key].x = newLeft;
+    textStyles[field.key].y = newTop;
+  });
+  
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      // Save to storage
+      categoryStorage.setTextStyles(currentCategory, textStyles);
+      updateCanvas();
+    }
+  });
+  
+  textLayer.appendChild(textBox);
+}
+
+// Select text field for tuning
+function selectTextField(fieldKey) {
+  selectedTextField = fieldKey;
+  
+  // Update visual selection
+  document.querySelectorAll('.text-box').forEach(box => {
+    box.classList.toggle('selected', box.dataset.field === fieldKey);
+  });
+  
+  // Update tuning panel
+  updateTextTuningPanel();
+}
+
+// Update text tuning panel
+function updateTextTuningPanel() {
+  const fieldSelect = document.getElementById('text-field-select');
+  const tuningControls = document.getElementById('text-tuning-controls');
+  
+  if (!fieldSelect) return;
+  
+  // Populate field selector
+  const category = getCurrentCategoryConfig();
+  if (category && category.options) {
+    fieldSelect.innerHTML = '<option value="">請選擇欄位</option>';
+    category.options.forEach(field => {
+      if (field.type === 'text' || field.type === 'textarea') {
+        const option = document.createElement('option');
+        option.value = field.key;
+        option.textContent = field.label;
+        option.selected = field.key === selectedTextField;
+        fieldSelect.appendChild(option);
+      }
+    });
+  }
+  
+  // Show/hide controls based on selection
+  if (tuningControls) {
+    tuningControls.style.display = selectedTextField ? 'block' : 'none';
+    
+    if (selectedTextField) {
+      updateTextControlValues();
+    }
+  }
+}
+
+// Update text control values
+function updateTextControlValues() {
+  if (!selectedTextField) return;
+  
+  const styles = textStyles[selectedTextField] || {};
+  
+  // Update range inputs
+  const elements = {
+    'text-x': styles.x || 0.5,
+    'text-y': styles.y || 0.5, 
+    'text-font-size': styles.fontSize || 24,
+    'text-line-height': styles.lineHeight || 1.4
+  };
+  
+  Object.entries(elements).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    const valueSpan = document.getElementById(id + '-value');
+    if (input) {
+      input.value = value;
+      if (valueSpan) {
+        valueSpan.textContent = id === 'text-font-size' ? value + 'px' : value;
+      }
+    }
+  });
+  
+  // Update selects and color
+  const fontFamily = document.getElementById('text-font-family');
+  const textAlign = document.getElementById('text-align');
+  const textColor = document.getElementById('text-color');
+  
+  if (fontFamily) fontFamily.value = styles.fontFamily || 'Inter';
+  if (textAlign) textAlign.value = styles.align || 'center';
+  if (textColor) textColor.value = styles.color || '#333333';
 }
 
 // Utility: calculate scaled dimensions
@@ -487,16 +755,61 @@ function wrapText(text, maxWidth, context) {
   return lines;
 }
 
-// Download current canvas as PNG
+// Download current canvas as PNG with proper export sizing
 function downloadImage() {
   if (!canvas) {
     alert('Canvas not ready');
     return;
   }
+  
   try {
+    // Create export canvas with proper portrait dimensions
+    const aspectRatio = categoryStorage.getAspectRatio(currentCategory, '5:7');
+    const [w, h] = aspectRatio.split(':').map(Number);
+    
+    // Export at high resolution (1500px width, height computed by ratio)
+    const exportWidth = 1500;
+    const exportHeight = Math.round(exportWidth * h / w);
+    
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = exportWidth;
+    exportCanvas.height = exportHeight;
+    const exportCtx = exportCanvas.getContext('2d');
+    
+    // Fill background
+    exportCtx.fillStyle = '#ffffff';
+    exportCtx.fillRect(0, 0, exportWidth, exportHeight);
+    
+    // Draw background image with cover algorithm
+    if (backgroundImage) {
+      drawImageWithCover(exportCtx, backgroundImage, 0, 0, exportWidth, exportHeight);
+    }
+    
+    // Draw foreground template with cover algorithm  
+    if (foregroundImage) {
+      drawImageWithCover(exportCtx, foregroundImage, 0, 0, exportWidth, exportHeight);
+    }
+    
+    // Draw uploaded image
+    if (uploadedImage) {
+      const padding = Math.floor(exportWidth * 0.05); // 5% padding
+      const maxWidth = exportWidth - padding * 2;
+      const maxHeight = Math.floor(exportHeight * 0.6) - padding;
+      
+      const dims = calculateScaledDimensions(uploadedImage.width, uploadedImage.height, maxWidth, maxHeight);
+      const x = (exportWidth - dims.width) / 2;
+      const y = padding;
+      
+      exportCtx.drawImage(uploadedImage, x, y, dims.width, dims.height);
+    }
+    
+    // Draw text content at export scale
+    drawTextContentForExport(exportCtx, exportWidth, exportHeight);
+    
+    // Download
     const link = document.createElement('a');
     link.download = `${currentCategory}-template-${currentTemplate + 1}.png`;
-    link.href = canvas.toDataURL('image/png');
+    link.href = exportCanvas.toDataURL('image/png');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -504,6 +817,71 @@ function downloadImage() {
     console.error(e);
     alert('Download failed');
   }
+}
+
+// Draw image with cover behavior (no stretching)
+function drawImageWithCover(ctx, image, x, y, width, height) {
+  const imageAspect = image.width / image.height;
+  const targetAspect = width / height;
+  
+  let drawWidth, drawHeight, drawX, drawY;
+  
+  if (imageAspect > targetAspect) {
+    // Image is wider - fit height, center horizontally
+    drawHeight = height;
+    drawWidth = height * imageAspect;
+    drawX = x + (width - drawWidth) / 2;
+    drawY = y;
+  } else {
+    // Image is taller - fit width, center vertically
+    drawWidth = width;
+    drawHeight = width / imageAspect;
+    drawX = x;
+    drawY = y + (height - drawHeight) / 2;
+  }
+  
+  ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+}
+
+// Draw text content for export at higher resolution
+function drawTextContentForExport(ctx, exportWidth, exportHeight) {
+  const category = getCurrentCategoryConfig();
+  if (!category || !category.options) return;
+  
+  const scaleX = exportWidth / CANVAS_WIDTH;
+  const scaleY = exportHeight / CANVAS_HEIGHT;
+  
+  ctx.textAlign = 'center';
+  
+  category.options.forEach(field => {
+    if ((field.type === 'text' || field.type === 'textarea') && currentOptions[field.key]) {
+      const value = currentOptions[field.key];
+      const fieldStyles = textStyles[field.key] || {};
+      
+      // Scale font size
+      const fontSize = (fieldStyles.fontSize || (field.key.includes('title') ? 36 : 24)) * Math.min(scaleX, scaleY);
+      const fontFamily = fieldStyles.fontFamily || 'Inter, sans-serif';
+      const color = fieldStyles.color || '#333333';
+      const align = fieldStyles.align || 'center';
+      
+      ctx.font = `${fontSize}px ${fontFamily}`;
+      ctx.fillStyle = color;
+      ctx.textAlign = align;
+      
+      // Scale position
+      const x = (fieldStyles.x || 0.5) * exportWidth;
+      const y = (fieldStyles.y || 0.65) * exportHeight;
+      
+      if (field.type === 'textarea') {
+        const lines = wrapText(value, exportWidth - 100, ctx);
+        lines.forEach((line, lineIndex) => {
+          ctx.fillText(line, x, y + (lineIndex * (fontSize + 8)));
+        });
+      } else {
+        ctx.fillText(value, x, y);
+      }
+    }
+  });
 }
 
 // Preview mode and tuning functions
@@ -604,6 +982,197 @@ function setupTransformControls() {
       updateCanvas();
     });
   }
+}
+
+// Setup text tuning controls
+function setupTextTuningControls() {
+  // Text tuning toggle
+  const textTuningHeader = document.querySelector('#text-tuning-toggle').closest('.tuning-header');
+  if (textTuningHeader) {
+    textTuningHeader.addEventListener('click', toggleTextTuningPanel);
+  }
+  
+  // Field selector
+  const fieldSelect = document.getElementById('text-field-select');
+  if (fieldSelect) {
+    fieldSelect.addEventListener('change', (e) => {
+      selectedTextField = e.target.value;
+      updateTextTuningPanel();
+    });
+  }
+  
+  // Font family dropdown - populate with loaded fonts
+  const fontFamilySelect = document.getElementById('text-font-family');
+  if (fontFamilySelect) {
+    // Add system fonts
+    fontFamilySelect.innerHTML = `
+      <option value="Inter">Inter</option>
+      <option value="Arial">Arial</option>
+      <option value="serif">Serif</option>
+    `;
+    
+    // Add loaded custom fonts
+    loadedFonts.forEach(font => {
+      const option = document.createElement('option');
+      option.value = font.family;
+      option.textContent = font.display;
+      fontFamilySelect.appendChild(option);
+    });
+    
+    fontFamilySelect.addEventListener('change', updateTextFieldStyle);
+  }
+  
+  // Text controls
+  const textControls = [
+    'text-x', 'text-y', 'text-font-size', 'text-line-height'
+  ];
+  
+  textControls.forEach(id => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.addEventListener('input', (e) => {
+        const valueSpan = document.getElementById(id + '-value');
+        if (valueSpan) {
+          valueSpan.textContent = id === 'text-font-size' ? e.target.value + 'px' : e.target.value;
+        }
+        updateTextFieldStyle();
+      });
+    }
+  });
+  
+  // Text align and color
+  const textAlign = document.getElementById('text-align');
+  const textColor = document.getElementById('text-color');
+  
+  if (textAlign) textAlign.addEventListener('change', updateTextFieldStyle);
+  if (textColor) textColor.addEventListener('change', updateTextFieldStyle);
+  
+  // Reset and apply buttons
+  const resetBtn = document.getElementById('reset-text-field');
+  const applyBtn = document.getElementById('apply-as-default');
+  
+  if (resetBtn) {
+    resetBtn.addEventListener('click', resetTextField);
+  }
+  
+  if (applyBtn) {
+    applyBtn.addEventListener('click', applyAsDefault);
+  }
+  
+  // Keyboard navigation for text boxes
+  document.addEventListener('keydown', (e) => {
+    if (selectedTextField && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      nudgeTextField(e.key, e.shiftKey);
+    }
+  });
+}
+
+// Update text field style from controls
+function updateTextFieldStyle() {
+  if (!selectedTextField) return;
+  
+  if (!textStyles[selectedTextField]) {
+    textStyles[selectedTextField] = {};
+  }
+  
+  const styles = textStyles[selectedTextField];
+  
+  // Get values from controls
+  const x = document.getElementById('text-x')?.value;
+  const y = document.getElementById('text-y')?.value;
+  const fontSize = document.getElementById('text-font-size')?.value;
+  const lineHeight = document.getElementById('text-line-height')?.value;
+  const fontFamily = document.getElementById('text-font-family')?.value;
+  const align = document.getElementById('text-align')?.value;
+  const color = document.getElementById('text-color')?.value;
+  
+  // Update styles
+  if (x !== undefined) styles.x = parseFloat(x);
+  if (y !== undefined) styles.y = parseFloat(y);
+  if (fontSize !== undefined) styles.fontSize = parseInt(fontSize);
+  if (lineHeight !== undefined) styles.lineHeight = parseFloat(lineHeight);
+  if (fontFamily !== undefined) styles.fontFamily = fontFamily;
+  if (align !== undefined) styles.align = align;
+  if (color !== undefined) styles.color = color;
+  
+  // Save and update
+  categoryStorage.setTextStyles(currentCategory, textStyles);
+  updateCanvas();
+}
+
+// Toggle text tuning panel
+function toggleTextTuningPanel() {
+  const toggle = document.getElementById('text-tuning-toggle');
+  const content = document.getElementById('text-tuning-content');
+  
+  if (!toggle || !content) return;
+  
+  const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+  const newState = !isExpanded;
+  
+  toggle.setAttribute('aria-expanded', newState);
+  content.style.display = newState ? 'block' : 'none';
+  
+  const icon = toggle.querySelector('.toggle-icon');
+  if (icon) {
+    icon.textContent = newState ? '▲' : '▼';
+  }
+  
+  // Update field options when opened
+  if (newState) {
+    updateTextTuningPanel();
+  }
+}
+
+// Reset text field to defaults
+function resetTextField() {
+  if (!selectedTextField) return;
+  
+  delete textStyles[selectedTextField];
+  categoryStorage.setTextStyles(currentCategory, textStyles);
+  updateTextControlValues();
+  updateCanvas();
+}
+
+// Apply current settings as default
+function applyAsDefault() {
+  if (!selectedTextField) return;
+  
+  // This would save to admin config - for now just show message
+  alert('功能開發中：將在管理面板中實現設為預設功能');
+}
+
+// Nudge text field with keyboard
+function nudgeTextField(direction, shiftKey) {
+  if (!selectedTextField) return;
+  
+  const step = shiftKey ? 0.01 : 0.001; // Shift = 10x larger step
+  
+  if (!textStyles[selectedTextField]) {
+    textStyles[selectedTextField] = { x: 0.5, y: 0.5 };
+  }
+  
+  const styles = textStyles[selectedTextField];
+  
+  switch (direction) {
+    case 'ArrowUp':
+      styles.y = Math.max(0, (styles.y || 0.5) - step);
+      break;
+    case 'ArrowDown':
+      styles.y = Math.min(1, (styles.y || 0.5) + step);
+      break;
+    case 'ArrowLeft':
+      styles.x = Math.max(0, (styles.x || 0.5) - step);
+      break;
+    case 'ArrowRight':
+      styles.x = Math.min(1, (styles.x || 0.5) + step);
+      break;
+  }
+  
+  categoryStorage.setTextStyles(currentCategory, textStyles);
+  updateTextControlValues();
+  updateCanvas();
 }
 
 function toggleTuningPanel() {
