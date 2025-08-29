@@ -31,38 +31,7 @@
         <main class="main-layout">
             <!-- 左欄：預覽 -->
             <div class="preview-column">
-                <!-- Preview Mode Controls -->
-                <div class="preview-controls">
-                    <label for="preview-mode-select">預覽模式：</label>
-                    <select id="preview-mode-select" class="preview-mode-dropdown">
-                        <option value="template">Template</option>
-                        <option value="background">Background</option>
-                        <option value="composite">Composite</option>
-                    </select>
-                    
-                    <!-- Safe area and guides controls -->
-                    <div class="guides-controls">
-                        <label>
-                            <input type="checkbox" id="safe-area-toggle" title="顯示安全區域">
-                            安全區域
-                        </label>
-                        <label>
-                            <input type="checkbox" id="guides-toggle" title="顯示參考線">
-                            參考線
-                        </label>
-                        <label>
-                            <input type="checkbox" id="snap-toggle" title="啟用磁吸">
-                            磁吸
-                        </label>
-                        <select id="safe-area-preset" title="安全區域預設">
-                            <option value="0.05">5%</option>
-                            <option value="0.08" selected>8%</option>
-                            <option value="0.10">10%</option>
-                            <option value="0.15">15%</option>
-                            <option value="custom">自訂</option>
-                        </select>
-                    </div>
-                </div>
+
                 
                 <div class="canvas-container">
                     <canvas id="canvas" width="1200" height="1680"></canvas>
@@ -380,16 +349,7 @@
             <div class="controls-column">
                 <!-- 圖片上傳 -->
                 <div class="controls-section">
-                    <h3>多圖片與圖層</h3>
-                    <div class="input-group">
-                        <label for="image-upload">選擇圖片</label>
-                        <input type="file" id="image-upload" accept="image/*" multiple>
-                    </div>
-                    <button id="add-image-btn" class="add-image-button">新增圖片 (0/2)</button>
-                    
-                    <div class="image-count-info">
-                        <span>已上傳：<span id="current-image-count">0</span>/<span id="max-image-count">2</span> 張圖片</span>
-                    </div>
+                    <h3>圖層管理</h3>
                     
                     <div class="image-layers-section">
                         <h4>圖層列表</h4>

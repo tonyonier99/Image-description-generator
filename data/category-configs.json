@@ -6,7 +6,21 @@
       "folder": "Classic",
       "ext": "svg",
       "count": 4,
-      "imageSlots": 2,
+      "slots": [
+        {
+          "id": "template",
+          "name": "範本",
+          "type": "template",
+          "fixed": true,
+          "defaultSelected": true
+        },
+        {
+          "id": "image1",
+          "name": "圖片",
+          "type": "image",
+          "accepts": ["image/*"]
+        }
+      ],
       "options": [
         {
           "key": "title",
@@ -39,7 +53,21 @@
       "folder": "Menu",
       "ext": "svg",
       "count": 3,
-      "imageSlots": 4,
+      "slots": [
+        {
+          "id": "template",
+          "name": "範本",
+          "type": "template",
+          "fixed": true,
+          "defaultSelected": true
+        },
+        {
+          "id": "image1",
+          "name": "圖片",
+          "type": "image",
+          "accepts": ["image/*"]
+        }
+      ],
       "options": [
         {
           "key": "section",
@@ -69,7 +97,43 @@
       "folder": "Room", 
       "ext": "svg",
       "count": 3,
-      "imageSlots": 4,
+      "slots": [
+        {
+          "id": "template",
+          "name": "範本",
+          "type": "template",
+          "fixed": true,
+          "defaultSelected": true
+        },
+        {
+          "id": "overview",
+          "name": "總覽",
+          "type": "image",
+          "accepts": ["image/*"],
+          "reorderable": true
+        },
+        {
+          "id": "detail1",
+          "name": "細節 1",
+          "type": "image",
+          "accepts": ["image/*"],
+          "reorderable": true
+        },
+        {
+          "id": "detail2",
+          "name": "細節 2",
+          "type": "image",
+          "accepts": ["image/*"],
+          "reorderable": true
+        },
+        {
+          "id": "detail3",
+          "name": "細節 3",
+          "type": "image",
+          "accepts": ["image/*"],
+          "reorderable": true
+        }
+      ],
       "options": [
         {
           "key": "roomType",
@@ -98,11 +162,39 @@
     },
     {
       "key": "card",
-      "label": "明天",
+      "label": "名片",
       "folder": "Card",
       "ext": "svg", 
       "count": 2,
-      "imageSlots": 3,
+      "slots": [
+        {
+          "id": "template",
+          "name": "範本",
+          "type": "template",
+          "fixed": true,
+          "defaultSelected": true
+        },
+        {
+          "id": "avatar",
+          "name": "頭貼",
+          "type": "image",
+          "accepts": ["image/*"],
+          "defaultMask": "circle",
+          "defaultStroke": {
+            "enabled": true,
+            "width": 2,
+            "color": "#ffffff"
+          },
+          "reorderable": true
+        },
+        {
+          "id": "background",
+          "name": "背景",
+          "type": "image",
+          "accepts": ["image/*"],
+          "reorderable": true
+        }
+      ],
       "options": [
         {
           "key": "name",
