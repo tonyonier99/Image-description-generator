@@ -134,6 +134,11 @@ header p {
   color: var(--accent-primary);
 }
 
+/* Admin link hidden by default */
+.admin-link[hidden] {
+  display: none !important;
+}
+
 /* Main Layout */
 .main-layout {
   display: grid;
