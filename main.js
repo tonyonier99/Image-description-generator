@@ -18,8 +18,6 @@ const CANVAS_HEIGHT = 675;
 
 // Initialize application
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Initializing Live Preview Image Description Generator');
-    
     initializeCanvas();
     setupEventListeners();
     updateCanvas();
@@ -28,100 +26,49 @@ document.addEventListener('DOMContentLoaded', function() {
 // Initialize canvas
 function initializeCanvas() {
     canvas = document.getElementById('canvas');
-    if (!canvas) {
-        console.error('❌ Canvas element not found');
-        return;
-    }
-    
+    if (!canvas) return;
     ctx = canvas.getContext('2d');
     canvas.width = CANVAS_WIDTH;
     canvas.height = CANVAS_HEIGHT;
-    
-    console.log('✅ Canvas initialized:', CANVAS_WIDTH + 'x' + CANVAS_HEIGHT);
 }
 
 // Setup all event listeners
 function setupEventListeners() {
-    // Image upload
     const imageUpload = document.getElementById('image-upload');
     if (imageUpload) {
         imageUpload.addEventListener('change', handleImageUpload);
     }
-    
-    // Text inputs
     const titleInput = document.getElementById('title');
     const subtitleInput = document.getElementById('subtitle');
     const descriptionInput = document.getElementById('description');
-    
-    if (titleInput) {
-        titleInput.addEventListener('input', function() {
-            currentSettings.title = this.value;
-            updateCanvas();
-        });
-    }
-    
-    if (subtitleInput) {
-        subtitleInput.addEventListener('input', function() {
-            currentSettings.subtitle = this.value;
-            updateCanvas();
-        });
-    }
-    
-    if (descriptionInput) {
-        descriptionInput.addEventListener('input', function() {
-            currentSettings.description = this.value;
-            updateCanvas();
-        });
-    }
-    
-    // Color pickers
-    const backgroundColorPicker = document.getElementById('background-color');
-    const textColorPicker = document.getElementById('text-color');
-    
-    if (backgroundColorPicker) {
-        backgroundColorPicker.addEventListener('input', function() {
-            currentSettings.backgroundColor = this.value;
-            updateCanvas();
-        });
-    }
-    
-    if (textColorPicker) {
-        textColorPicker.addEventListener('input', function() {
-            currentSettings.textColor = this.value;
-            updateCanvas();
-        });
-    }
-    
-    // Download button
+
+    if (titleInput) titleInput.addEventListener('input', e => { currentSettings.title = e.target.value; updateCanvas(); });
+    if (subtitleInput) subtitleInput.addEventListener('input', e => { currentSettings.subtitle = e.target.value; updateCanvas(); });
+    if (descriptionInput) descriptionInput.addEventListener('input', e => { currentSettings.description = e.target.value; updateCanvas(); });
+
+    const bgPicker = document.getElementById('background-color');
+    const textPicker = document.getElementById('text-color');
+    if (bgPicker) bgPicker.addEventListener('input', e => { currentSettings.backgroundColor = e.target.value; updateCanvas(); });
+    if (textPicker) textPicker.addEventListener('input', e => { currentSettings.textColor = e.target.value; updateCanvas(); });
+
     const downloadBtn = document.getElementById('download-btn');
-    if (downloadBtn) {
-        downloadBtn.addEventListener('click', downloadImage);
-    }
-    
-    console.log('✅ Event listeners set up');
+    if (downloadBtn) downloadBtn.addEventListener('click', downloadImage);
 }
 
 // Handle image upload
 function handleImageUpload(event) {
-    const file = event.target.files[0];
+    const file = event.target.files && event.target.files[0];
     if (!file) return;
-    
-    if (!file.type.startsWith('image/')) {
-        alert('Please select a valid image file (JPG, PNG, GIF)');
-        return;
-    }
-    
+    if (!file.type.startsWith('image/')) { alert('Please select an image file'); return; }
+
     const reader = new FileReader();
     reader.onload = function(e) {
         const img = new Image();
         img.onload = function() {
             uploadedImage = img;
-            console.log('✅ Image loaded:', img.width + 'x' + img.height);
+            const infoEl = document.getElementById('image-info');
+            if (infoEl) infoEl.textContent = `Image: ${img.width}×${img.height} — ${file.name}`;
             updateCanvas();
-        };
-        img.onerror = function() {
-            console.error('❌ Failed to load image');
-            alert('Failed to load image. Please try another file.');
         };
         img.src = e.target.result;
     };
@@ -131,241 +78,152 @@ function handleImageUpload(event) {
 // Update canvas with current settings
 function updateCanvas() {
     if (!ctx) return;
-    
-    // Clear canvas
+
+    // Background
     ctx.fillStyle = currentSettings.backgroundColor;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    
-    // Draw uploaded image if available
-    if (uploadedImage) {
-        drawImage();
-    }
-    
-    // Draw text elements
+
+    // Draw uploaded image (scaled & centered)
+    if (uploadedImage) drawImage();
+
+    // Draw texts
     drawText();
 }
 
-// Draw uploaded image with proper scaling and centering
+// Draw image scaled to fit within area (leave space for text)
 function drawImage() {
-    if (!uploadedImage) return;
-    
     const padding = 40;
-    const maxWidth = CANVAS_WIDTH - (padding * 2);
-    const maxHeight = CANVAS_HEIGHT * 0.7 - (padding * 2); // Leave space for text
-    
-    // Calculate scaled dimensions maintaining aspect ratio
-    let { width, height } = calculateScaledDimensions(
-        uploadedImage.width, 
-        uploadedImage.height, 
-        maxWidth, 
-        maxHeight
-    );
-    
-    // Center the image
-    const x = (CANVAS_WIDTH - width) / 2;
+    const maxWidth = CANVAS_WIDTH - padding * 2;
+    const maxHeight = Math.floor(CANVAS_HEIGHT * 0.68) - padding * 2; // keep room for text under image
+
+    const dims = calculateScaledDimensions(uploadedImage.width, uploadedImage.height, maxWidth, maxHeight);
+    const x = (CANVAS_WIDTH - dims.width) / 2;
     const y = padding;
-    
-    // Draw image
-    ctx.drawImage(uploadedImage, x, y, width, height);
+
+    ctx.drawImage(uploadedImage, x, y, dims.width, dims.height);
 }
 
-// Calculate scaled dimensions maintaining aspect ratio
-function calculateScaledDimensions(originalWidth, originalHeight, maxWidth, maxHeight) {
-    const aspectRatio = originalWidth / originalHeight;
-    
-    let width = maxWidth;
-    let height = width / aspectRatio;
-    
-    if (height > maxHeight) {
-        height = maxHeight;
-        width = height * aspectRatio;
+// Utility: aspect-ratio scaling
+function calculateScaledDimensions(ow, oh, maxW, maxH) {
+    const ratio = ow / oh;
+    let w = maxW;
+    let h = w / ratio;
+    if (h > maxH) {
+        h = maxH;
+        w = h * ratio;
     }
-    
-    return { width, height };
+    return { width: w, height: h };
 }
 
-// Draw text elements
+// Draw text regions: title, subtitle, description box
 function drawText() {
-    const textStartY = CANVAS_HEIGHT * 0.75; // Start text at 75% down the canvas
-    let currentY = textStartY;
-    
-    // Title
+    const centerX = CANVAS_WIDTH / 2;
+    let y = Math.floor(CANVAS_HEIGHT * 0.72);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = currentSettings.textColor;
+
     if (currentSettings.title) {
         ctx.font = 'bold 48px Inter, sans-serif';
-        ctx.fillStyle = currentSettings.textColor;
-        ctx.textAlign = 'center';
-        
-        const titleLines = wrapText(currentSettings.title, CANVAS_WIDTH - 80, ctx);
-        titleLines.forEach(line => {
-            ctx.fillText(line, CANVAS_WIDTH / 2, currentY);
-            currentY += 60;
+        const lines = wrapText(currentSettings.title, CANVAS_WIDTH - 80, ctx);
+        lines.forEach(line => {
+            ctx.fillText(line, centerX, y);
+            y += 56;
         });
-        currentY += 20; // Extra spacing after title
+        y += 8;
     }
-    
-    // Subtitle
+
     if (currentSettings.subtitle) {
-        ctx.font = '32px Inter, sans-serif';
-        ctx.fillStyle = currentSettings.textColor;
-        ctx.textAlign = 'center';
-        
-        const subtitleLines = wrapText(currentSettings.subtitle, CANVAS_WIDTH - 80, ctx);
-        subtitleLines.forEach(line => {
-            ctx.fillText(line, CANVAS_WIDTH / 2, currentY);
-            currentY += 40;
+        ctx.font = 'bold 28px Inter, sans-serif';
+        const lines = wrapText(currentSettings.subtitle, CANVAS_WIDTH - 100, ctx);
+        lines.forEach(line => {
+            ctx.fillText(line, centerX, y);
+            y += 38;
         });
-        currentY += 20; // Extra spacing after subtitle
+        y += 6;
     }
-    
-    // Description with background box
+
     if (currentSettings.description) {
-        drawDescriptionBox(currentY);
+        drawDescriptionBox(y);
     }
 }
 
-// Draw description text in a semi-transparent box
+// Draw a semi-transparent description box with wrapped text
 function drawDescriptionBox(startY) {
-    const padding = 30;
-    const boxWidth = CANVAS_WIDTH - (padding * 2);
-    const lineHeight = 32;
-    
-    // Set font for measuring
-    ctx.font = '24px Inter, sans-serif';
-    
-    // Wrap text
-    const lines = wrapText(currentSettings.description, boxWidth - 40, ctx);
-    const boxHeight = (lines.length * lineHeight) + 40;
-    
-    // Draw semi-transparent background box
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(padding, startY - 20, boxWidth, boxHeight);
-    
-    // Draw border
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(padding, startY - 20, boxWidth, boxHeight);
-    
-    // Draw text
+    const padding = 28;
+    const boxX = padding;
+    const boxW = CANVAS_WIDTH - padding * 2;
+    const textW = boxW - 36;
+
+    ctx.font = '20px Inter, sans-serif';
+    const lines = wrapText(currentSettings.description, textW, ctx);
+    const lineHeight = 28;
+    const boxH = lines.length * lineHeight + 32;
+
+    // Box background (semi-transparent)
+    ctx.fillStyle = 'rgba(0,0,0,0.68)';
+    ctx.fillRect(boxX, startY, boxW, boxH);
+
+    // Optional border
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(boxX, startY, boxW, boxH);
+
+    // Text
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    
-    lines.forEach((line, index) => {
-        const y = startY + 20 + (index * lineHeight);
-        ctx.fillText(line, CANVAS_WIDTH / 2, y);
+    const textX = CANVAS_WIDTH / 2;
+    let ty = startY + 24;
+    lines.forEach(line => {
+        ctx.fillText(line, textX, ty);
+        ty += lineHeight;
     });
 }
 
-// Wrap text to fit within specified width
+// Word-wrap helper
 function wrapText(text, maxWidth, context) {
+    if (!text) return [];
     const words = text.split(' ');
     const lines = [];
-    let currentLine = words[0];
-    
+    let current = words[0] || '';
+
     for (let i = 1; i < words.length; i++) {
         const word = words[i];
-        const width = context.measureText(currentLine + ' ' + word).width;
-        
+        const width = context.measureText(current + ' ' + word).width;
         if (width < maxWidth) {
-            currentLine += ' ' + word;
+            current += ' ' + word;
         } else {
-            lines.push(currentLine);
-            currentLine = word;
+            lines.push(current);
+            current = word;
         }
     }
-    lines.push(currentLine);
-    
+    lines.push(current);
     return lines;
 }
 
-// Download canvas as PNG
+// Download current canvas as PNG
 function downloadImage() {
-    if (!canvas) {
-        alert('Canvas not available for download');
-        return;
-    }
-    
+    if (!canvas) { alert('Canvas not ready'); return; }
     try {
-        // Create download link
         const link = document.createElement('a');
         link.download = 'image-description.png';
         link.href = canvas.toDataURL('image/png');
-        
-        // Trigger download
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
-        console.log('✅ Image downloaded successfully');
-        
-        // Show success message
-        showNotification('Image downloaded successfully!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Download failed:', error);
-        alert('Download failed. Please try again.');
+        showNotification('Image downloaded', 'success');
+    } catch (e) {
+        console.error(e);
+        alert('Download failed');
     }
 }
 
-// Show notification message
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${type === 'success' ? '#10b981' : '#6b7280'};
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        font-weight: 500;
-        z-index: 1000;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        animation: slideIn 0.3s ease-out;
-    `;
-    
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    
-    // Auto remove after 3 seconds
-    setTimeout(() => {
-        if (document.body.contains(notification)) {
-            notification.style.animation = 'slideOut 0.3s ease-in';
-            setTimeout(() => {
-                if (document.body.contains(notification)) {
-                    document.body.removeChild(notification);
-                }
-            }, 300);
-        }
-    }, 3000);
+// Small notification UI
+function showNotification(text, type='info') {
+    const n = document.createElement('div');
+    n.textContent = text;
+    n.style.cssText = 'position:fixed;top:18px;right:18px;padding:10px 14px;border-radius:8px;color:#fff;z-index:2000;font-weight:600';
+    n.style.background = type === 'success' ? '#10B981' : '#6B7280';
+    document.body.appendChild(n);
+    setTimeout(()=>{ n.style.opacity='0'; setTimeout(()=>n.remove(),300); }, 2500);
 }
-
-// Add CSS animations for notifications
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
-`;
-document.head.appendChild(style);
-
-console.log('🎉 Live Preview Image Description Generator loaded successfully');
-console.log('📅 Compatible with GitHub Pages - client-side only');
-console.log('✨ Features: Live preview, image upload, text wrapping, PNG download');
