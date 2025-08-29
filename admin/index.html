@@ -22,7 +22,7 @@
       .note { font-size: 13px; color: #374151; margin-top: 12px; background: #f9fafb; padding: 10px 12px; border-radius: 8px; border: 1px solid #e5e7eb; }
     </style>
 
-    <!-- Important: prevent Decap from auto-initializing OAuth -->
+    <!-- Manual init: prevent Decap from auto OAuth init -->
     <script>
       window.CMS_MANUAL_INIT = true;
     </script>
@@ -52,13 +52,14 @@
       </div>
     </div>
 
-    <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
+    <!-- Pin version to avoid CDN auto-upgrades changing behavior -->
+    <script src="https://unpkg.com/decap-cms@3.0.0/dist/decap-cms.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <script>
       (function () {
         const KEY = "decap:github_token";
-        const repo = "tonyonier99/Image-description-generator"; // this repo
-        const branch = "main"; // adjust if needed
+        const repo = "tonyonier99/Image-description-generator";
+        const branch = "main";
 
         function el(id){ return document.getElementById(id); }
         function showError(msg){ const e = el("err"); if (!e) return; e.textContent = msg; e.style.display = "block"; }
@@ -79,19 +80,17 @@
           const res = await fetch("config.yml", { cache: "no-store" });
           if (!res.ok) throw new Error(`載入設定檔失敗（${res.status}）`);
           const text = await res.text();
-          // jsyaml is loaded from CDN
           return window.jsyaml.load(text);
         }
 
         let started = false;
         async function startCMS(token) {
-          if (started) return; // guard against double init
+          if (started) return; // avoid double init
           started = true;
 
           const box = el("token-login");
           if (box) box.style.display = "none";
 
-          // Load YAML config and merge runtime backend with token
           let cfg = {};
           try {
             cfg = await loadYamlConfig();
@@ -102,6 +101,10 @@
             return;
           }
 
+          // Prevent Decap from reloading config.yml again
+          cfg.load_config_file = false;
+
+          // Inject backend at runtime with PAT
           cfg.backend = {
             name: "github",
             repo,
@@ -112,7 +115,7 @@
             use_graphql_api: false
           };
 
-          // Safety: ensure locale/publish_mode defaults if missing
+          // Defaults safeguard
           cfg.publish_mode = cfg.publish_mode || "editorial_workflow";
           cfg.locale = cfg.locale || "zh_Hant";
 
@@ -123,13 +126,6 @@
             handler: () => {
               sessionStorage.removeItem(KEY);
               location.reload();
-            }
-          });
-
-          window.CMS.registerEventListener({
-            name: "error",
-            handler: (e) => {
-              console.error("Decap error:", e?.error || e);
             }
           });
         }
@@ -146,7 +142,7 @@
           }
         }
 
-        // Auto-login within this tab if a token exists
+        // Auto-login in this tab if a token already exists
         (async () => {
           const saved = sessionStorage.getItem(KEY);
           if (saved) {
