@@ -19,6 +19,7 @@
       .link { color: #2563eb; text-decoration: none; }
       .link:hover { text-decoration: underline; }
       .err { color: #b91c1c; font-size: 14px; margin-top: 10px; display:none; }
+      .note { font-size: 13px; color: #374151; margin-top: 12px; background: #f9fafb; padding: 10px 12px; border-radius: 8px; border: 1px solid #e5e7eb; }
     </style>
 
     <!-- Important: prevent Decap from auto-initializing OAuth -->
@@ -40,24 +41,24 @@
         <div id="err" class="err"></div>
       </div>
       <button id="submit">使用 Token 登入</button>
+      <div class="note">
+        若你看到「使用你的 GitHub 帳號登入」的 OAuth 畫面，請確認你是從
+        <a class="link" href="https://tonyonier99.github.io/Image-description-generator/admin/" target="_blank" rel="noopener">這個網址</a>
+        開啟，並按下 Ctrl/Cmd+Shift+R 強制重整清除快取。
+      </div>
       <div class="footer">
         <a class="link" href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">建立 Fine‑grained PAT</a>
         <a class="link" href="https://github.com/settings/tokens" target="_blank" rel="noopener">或建立 classic PAT（repo scope）</a>
       </div>
-      <div class="hint" style="margin-top: 12px; font-size: 12px; color: #6b7280;">
-        <strong>注意：</strong>如果你看到「GitHub OAuth」按鈕而非此登入表單，請確認網址為 
-        <code style="background: #f3f4f6; padding: 2px 4px; border-radius: 3px;">https://tonyonier99.github.io/Image-description-generator/admin/</code> 
-        並嘗試強制重新整理（Ctrl+F5 或 Cmd+Shift+R）。
-      </div>
     </div>
 
     <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <script>
       (function () {
         const KEY = "decap:github_token";
         const repo = "tonyonier99/Image-description-generator"; // this repo
         const branch = "main"; // adjust if needed
-        const CONFIG_PATH = "admin/config.yml";
 
         function el(id){ return document.getElementById(id); }
         function showError(msg){ const e = el("err"); if (!e) return; e.textContent = msg; e.style.display = "block"; }
@@ -71,43 +72,64 @@
           };
           const u = await fetch("https://api.github.com/user", { headers });
           if (!u.ok) throw new Error("Token 驗證失敗，請確認是否有效。");
-
-          const cfg = await fetch(`https://api.github.com/repos/${repo}/contents/${CONFIG_PATH}?ref=${branch}`, { headers });
-          if (!cfg.ok) {
-            if (cfg.status === 404 || cfg.status === 403) {
-              throw new Error("Token 沒有讀取此倉庫的權限，或 PAT 未授權到此 repo。");
-            }
-            throw new Error(`讀取設定檔失敗（${cfg.status}）`);
-          }
           return true;
         }
 
-        function startCMS(token) {
+        async function loadYamlConfig(){
+          const res = await fetch("config.yml", { cache: "no-store" });
+          if (!res.ok) throw new Error(`載入設定檔失敗（${res.status}）`);
+          const text = await res.text();
+          // jsyaml is loaded from CDN
+          return window.jsyaml.load(text);
+        }
+
+        let started = false;
+        async function startCMS(token) {
+          if (started) return; // guard against double init
+          started = true;
+
           const box = el("token-login");
           if (box) box.style.display = "none";
 
-          window.CMS.init({
-            config: {
-              load_config_file: true,
-              backend: {
-                name: "github",
-                repo,
-                branch,
-                auth_type: "token",
-                token,
-                api_root: "https://api.github.com",
-                use_graphql_api: false // critical: avoid FG-PAT GraphQL issues
-              },
-              publish_mode: "editorial_workflow",
-              locale: "zh_Hant"
-            }
-          });
+          // Load YAML config and merge runtime backend with token
+          let cfg = {};
+          try {
+            cfg = await loadYamlConfig();
+          } catch (e) {
+            console.error(e);
+            showError((e && e.message) || "載入設定失敗");
+            started = false; // allow retry
+            return;
+          }
+
+          cfg.backend = {
+            name: "github",
+            repo,
+            branch,
+            auth_type: "token",
+            token,
+            api_root: "https://api.github.com",
+            use_graphql_api: false
+          };
+
+          // Safety: ensure locale/publish_mode defaults if missing
+          cfg.publish_mode = cfg.publish_mode || "editorial_workflow";
+          cfg.locale = cfg.locale || "zh_Hant";
+
+          window.CMS.init({ config: cfg });
 
           window.CMS.registerEventListener({
             name: "logout",
             handler: () => {
               sessionStorage.removeItem(KEY);
               location.reload();
+            }
+          });
+
+          window.CMS.registerEventListener({
+            name: "error",
+            handler: (e) => {
+              console.error("Decap error:", e?.error || e);
             }
           });
         }
@@ -124,7 +146,7 @@
           }
         }
 
-        // If a token exists from this tab, verify first to avoid white screen
+        // Auto-login within this tab if a token exists
         (async () => {
           const saved = sessionStorage.getItem(KEY);
           if (saved) {
