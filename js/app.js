@@ -93,6 +93,18 @@ class SlotLayerManager {
           // Effects
           opacity: 1,
           blendMode: 'normal',
+          // Edge feathering properties
+          edgeFeather: {
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            radialEnabled: false,
+            radialSize: 20,
+            linearEnabled: false,
+            linearAngle: 90,
+            linearSize: 50
+          },
           brightness: 0,
           contrast: 0,
           saturation: 0,
@@ -476,7 +488,17 @@ class SlotLayerManager {
       { id: 'image-brightness', property: 'brightness', suffix: '%' },
       { id: 'image-contrast', property: 'contrast', suffix: '%' },
       { id: 'image-saturation', property: 'saturation', suffix: '%' },
-      { id: 'image-blur', property: 'blur', suffix: 'px' }
+      { id: 'image-blur', property: 'blur', suffix: 'px' },
+      // Edge feathering controls
+      { id: 'edge-feather-top', property: 'edgeFeather.top', suffix: 'px' },
+      { id: 'edge-feather-right', property: 'edgeFeather.right', suffix: 'px' },
+      { id: 'edge-feather-bottom', property: 'edgeFeather.bottom', suffix: 'px' },
+      { id: 'edge-feather-left', property: 'edgeFeather.left', suffix: 'px' },
+      { id: 'edge-feather-radial-enabled', property: 'edgeFeather.radialEnabled', suffix: '' },
+      { id: 'edge-feather-radial-size', property: 'edgeFeather.radialSize', suffix: 'px' },
+      { id: 'edge-feather-linear-enabled', property: 'edgeFeather.linearEnabled', suffix: '' },
+      { id: 'edge-feather-linear-angle', property: 'edgeFeather.linearAngle', suffix: '°' },
+      { id: 'edge-feather-linear-size', property: 'edgeFeather.linearSize', suffix: 'px' }
     ];
     
     controls.forEach(({ id, property, suffix, default: defaultValue }) => {
@@ -1370,6 +1392,7 @@ function selectTextField(fieldKey) {
 // Update text tuning panel
 function updateTextTuningPanel() {
   const fieldSelect = document.getElementById('text-field-select');
+  const titleFieldSelect = document.getElementById('title-field-select'); // Add reference to title field selector
   const tuningControls = document.getElementById('text-tuning-controls');
   
   if (!fieldSelect) return;
@@ -1377,16 +1400,18 @@ function updateTextTuningPanel() {
   // Populate field selector
   const category = getCurrentCategoryConfig();
   if (category && category.options) {
-    fieldSelect.innerHTML = '<option value="">請選擇欄位</option>';
-    category.options.forEach(field => {
-      if (field.type === 'text' || field.type === 'textarea') {
-        const option = document.createElement('option');
-        option.value = field.key;
-        option.textContent = field.label;
-        option.selected = field.key === selectedTextField;
-        fieldSelect.appendChild(option);
-      }
-    });
+    const optionsHTML = '<option value="">請選擇欄位</option>' + 
+      category.options
+        .filter(field => field.type === 'text' || field.type === 'textarea')
+        .map(field => `<option value="${field.key}" ${field.key === selectedTextField ? 'selected' : ''}>${field.label}</option>`)
+        .join('');
+    
+    fieldSelect.innerHTML = optionsHTML;
+    
+    // Sync with title field selector
+    if (titleFieldSelect) {
+      titleFieldSelect.innerHTML = optionsHTML;
+    }
   }
   
   // Show/hide controls based on selection
@@ -2075,6 +2100,26 @@ function setupTextTuningControls() {
     fieldSelect.addEventListener('change', (e) => {
       selectedTextField = e.target.value;
       updateTextTuningPanel();
+      
+      // Sync with title field selector
+      const titleFieldSelect = document.getElementById('title-field-select');
+      if (titleFieldSelect && titleFieldSelect.value !== e.target.value) {
+        titleFieldSelect.value = e.target.value;
+      }
+    });
+  }
+  
+  // Title field selector (sync with main field selector)
+  const titleFieldSelect = document.getElementById('title-field-select');
+  if (titleFieldSelect) {
+    titleFieldSelect.addEventListener('change', (e) => {
+      selectedTextField = e.target.value;
+      updateTextTuningPanel();
+      
+      // Sync with main field selector
+      if (fieldSelect && fieldSelect.value !== e.target.value) {
+        fieldSelect.value = e.target.value;
+      }
     });
   }
   
@@ -2799,7 +2844,10 @@ function setupMultiImageControls() {
     'image-opacity', 'image-crop-top', 'image-crop-right', 
     'image-crop-bottom', 'image-crop-left', 'image-mask-radius',
     'image-feather', 'image-stroke-width', 'image-filter-intensity',
-    'image-brightness', 'image-contrast', 'image-saturation', 'image-blur'
+    'image-brightness', 'image-contrast', 'image-saturation', 'image-blur',
+    // Edge feathering controls
+    'edge-feather-top', 'edge-feather-right', 'edge-feather-bottom', 'edge-feather-left',
+    'edge-feather-radial-size', 'edge-feather-linear-angle', 'edge-feather-linear-size'
   ];
   
   adjustmentControls.forEach(id => {
@@ -2812,6 +2860,8 @@ function setupMultiImageControls() {
         let property = id.replace('image-', '');
         if (property.startsWith('crop-')) {
           property = 'crop.' + property.replace('crop-', '');
+        } else if (property.startsWith('edge-feather-')) {
+          property = 'edgeFeather.' + property.replace('edge-feather-', '');
         } else if (property.includes('-')) {
           property = property.replace('-', '');
           if (property === 'offsetx') property = 'offsetX';
@@ -2825,8 +2875,8 @@ function setupMultiImageControls() {
         const display = document.getElementById(id + '-value');
         if (display) {
           let unit = '';
-          if (id.includes('rotation')) unit = '°';
-          else if (id.includes('crop') || id.includes('offset')) unit = 'px';
+          if (id.includes('rotation') || id.includes('angle')) unit = '°';
+          else if (id.includes('crop') || id.includes('offset') || id.includes('feather')) unit = 'px';
           display.textContent = value + unit;
         }
         
@@ -2916,6 +2966,46 @@ function setupMultiImageControls() {
       const selectedSlot = slotLayerManager.getSelectedSlot();
       if (selectedSlot && selectedSlot.stroke) {
         slotLayerManager.updateSlotProperty(selectedSlot.id, 'stroke.color', e.target.value);
+        updateCanvas();
+      }
+    });
+  }
+  
+  // Edge feather radial enabled
+  const radialFeatherEnabled = document.getElementById('edge-feather-radial-enabled');
+  if (radialFeatherEnabled) {
+    radialFeatherEnabled.addEventListener('change', (e) => {
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot) {
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'edgeFeather.radialEnabled', e.target.checked);
+        
+        // Enable/disable radial size control
+        const radialSize = document.getElementById('edge-feather-radial-size');
+        if (radialSize) {
+          radialSize.disabled = !e.target.checked;
+        }
+        updateCanvas();
+      }
+    });
+  }
+  
+  // Edge feather linear enabled
+  const linearFeatherEnabled = document.getElementById('edge-feather-linear-enabled');
+  if (linearFeatherEnabled) {
+    linearFeatherEnabled.addEventListener('change', (e) => {
+      const selectedSlot = slotLayerManager.getSelectedSlot();
+      if (selectedSlot) {
+        slotLayerManager.updateSlotProperty(selectedSlot.id, 'edgeFeather.linearEnabled', e.target.checked);
+        
+        // Enable/disable linear controls
+        const linearAngle = document.getElementById('edge-feather-linear-angle');
+        const linearControls = document.getElementById('linear-feather-controls');
+        if (linearAngle) {
+          linearAngle.disabled = !e.target.checked;
+        }
+        if (linearControls) {
+          linearControls.style.display = e.target.checked ? 'flex' : 'none';
+        }
         updateCanvas();
       }
     });

@@ -10,8 +10,8 @@
 <body>
     <div class="app-container">
         <header>
-            <h1>Image Description Generator</h1>
-            <p>Create professional image descriptions with live preview</p>
+            <h1>圖片說明產生器</h1>
+            <p>以即時預覽建立專業的圖片說明</p>
             
             <!-- Category Selection -->
             <div class="category-section">
@@ -21,9 +21,8 @@
                 </select>
             </div>
             
-            <nav class="top-nav">
-                <a href="#" class="nav-item">首頁</a>
-                <a href="#templates" class="nav-item">範本</a>
+            <!-- Admin link kept but hidden nav buttons removed -->
+            <nav class="top-nav" style="display: none;">
                 <a href="admin/" class="nav-item admin-link" id="adminLink" hidden>管理</a>
             </nav>
         </header>
@@ -357,6 +356,64 @@
                                     <input type="checkbox" id="image-stroke-enabled">
                                 </div>
                             </div>
+                            
+                            <!-- Edge Feathering Controls -->
+                            <div class="edge-feather-controls">
+                                <h5>邊緣羽化</h5>
+                                <div class="tuning-grid">
+                                    <div class="tuning-control">
+                                        <label for="edge-feather-top">上</label>
+                                        <input type="range" id="edge-feather-top" min="0" max="100" step="1" value="0">
+                                        <span class="range-value" id="edge-feather-top-value">0px</span>
+                                    </div>
+                                    <div class="tuning-control">
+                                        <label for="edge-feather-right">右</label>
+                                        <input type="range" id="edge-feather-right" min="0" max="100" step="1" value="0">
+                                        <span class="range-value" id="edge-feather-right-value">0px</span>
+                                    </div>
+                                </div>
+                                <div class="tuning-grid">
+                                    <div class="tuning-control">
+                                        <label for="edge-feather-bottom">下</label>
+                                        <input type="range" id="edge-feather-bottom" min="0" max="100" step="1" value="0">
+                                        <span class="range-value" id="edge-feather-bottom-value">0px</span>
+                                    </div>
+                                    <div class="tuning-control">
+                                        <label for="edge-feather-left">左</label>
+                                        <input type="range" id="edge-feather-left" min="0" max="100" step="1" value="0">
+                                        <span class="range-value" id="edge-feather-left-value">0px</span>
+                                    </div>
+                                </div>
+                                <div class="tuning-row">
+                                    <div class="tuning-control">
+                                        <label for="edge-feather-radial-enabled">角落徑向羽化</label>
+                                        <input type="checkbox" id="edge-feather-radial-enabled">
+                                    </div>
+                                    <div class="tuning-control">
+                                        <label for="edge-feather-radial-size">徑向羽化大小</label>
+                                        <input type="range" id="edge-feather-radial-size" min="0" max="100" step="1" value="20" disabled>
+                                        <span class="range-value" id="edge-feather-radial-size-value">20px</span>
+                                    </div>
+                                </div>
+                                <div class="tuning-row">
+                                    <div class="tuning-control">
+                                        <label for="edge-feather-linear-enabled">方向性線性羽化</label>
+                                        <input type="checkbox" id="edge-feather-linear-enabled">
+                                    </div>
+                                    <div class="tuning-control">
+                                        <label for="edge-feather-linear-angle">角度</label>
+                                        <input type="range" id="edge-feather-linear-angle" min="0" max="359" step="1" value="90" disabled>
+                                        <span class="range-value" id="edge-feather-linear-angle-value">90°</span>
+                                    </div>
+                                </div>
+                                <div class="tuning-row" id="linear-feather-controls" style="display: none;">
+                                    <div class="tuning-control">
+                                        <label for="edge-feather-linear-size">線性羽化大小</label>
+                                        <input type="range" id="edge-feather-linear-size" min="0" max="100" step="1" value="50">
+                                        <span class="range-value" id="edge-feather-linear-size-value">50px</span>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="tuning-row" id="stroke-controls" style="display: none;">
                                 <div class="tuning-control">
                                     <label for="image-stroke-width">外框寬度</label>
@@ -463,6 +520,13 @@
                 <!-- 類別專屬選項 -->
                 <div class="controls-section">
                     <h3>選項設定</h3>
+                    <!-- Title Field Selector (synced with text field selector) -->
+                    <div id="title-field-selector" class="field-selector">
+                        <label for="title-field-select">標題欄位：</label>
+                        <select id="title-field-select">
+                            <option value="">請選擇欄位</option>
+                        </select>
+                    </div>
                     <div id="category-options" class="category-options">
                         <!-- Category-specific options will be populated by JavaScript -->
                     </div>
