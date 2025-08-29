@@ -16,6 +16,21 @@ let loadedFonts = [];
 let selectedTextField = null;
 let textStyles = {};
 
+// Guide and safe area state
+let guidesEnabled = false;
+let safeAreaEnabled = false;
+let snapEnabled = false;
+let safeAreaPadding = 0.08;
+
+// Export settings state
+let exportSettings = {
+  preset: 'current',
+  format: 'png',
+  quality: 0.9,
+  customWidth: 1200,
+  customHeight: 1680
+};
+
 // Canvas dimensions - will be adjusted based on aspect ratio
 let CANVAS_WIDTH = 1200;
 let CANVAS_HEIGHT = 1680; // 5:7 aspect ratio
@@ -197,6 +212,12 @@ function setupEventListeners() {
   
   // Text tuning controls
   setupTextTuningControls();
+  
+  // Guides and safe area controls
+  setupGuidesControls();
+  
+  // Export controls
+  setupExportControls();
 }
 
 // Render category dropdown
@@ -724,8 +745,16 @@ function createTextBox(textLayer, field, value, styles) {
         const deltaX = e.clientX - startX;
         const deltaY = e.clientY - startY;
         
-        const newLeft = Math.max(0, Math.min(1, (startLeft + deltaX) / rect.width));
-        const newTop = Math.max(0, Math.min(1, (startTop + deltaY) / rect.height));
+        let newX = startLeft + deltaX;
+        let newY = startTop + deltaY;
+        
+        // Apply snapping if enabled
+        const snapped = snapToGuides(newX, newY);
+        newX = snapped.x;
+        newY = snapped.y;
+        
+        const newLeft = Math.max(0, Math.min(1, newX / rect.width));
+        const newTop = Math.max(0, Math.min(1, newY / rect.height));
         
         textBox.style.left = `${newLeft * 100}%`;
         textBox.style.top = `${newTop * 100}%`;
@@ -1094,6 +1123,136 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
+// Safe area and guides functionality
+function updateSafeAreaOverlay() {
+  const overlay = document.getElementById('safe-area-overlay');
+  const border = overlay.querySelector('.safe-area-border');
+  
+  if (!safeAreaEnabled) {
+    overlay.style.display = 'none';
+    return;
+  }
+  
+  overlay.style.display = 'block';
+  
+  const container = document.querySelector('.canvas-container');
+  const rect = container.getBoundingClientRect();
+  const padding = safeAreaPadding;
+  
+  const left = rect.width * padding;
+  const top = rect.height * padding;
+  const width = rect.width * (1 - padding * 2);
+  const height = rect.height * (1 - padding * 2);
+  
+  border.style.left = `${left}px`;
+  border.style.top = `${top}px`;
+  border.style.width = `${width}px`;
+  border.style.height = `${height}px`;
+}
+
+function updateGuidesOverlay() {
+  const overlay = document.getElementById('guides-overlay');
+  
+  if (!guidesEnabled) {
+    overlay.style.display = 'none';
+    return;
+  }
+  
+  overlay.style.display = 'block';
+}
+
+function snapToGuides(x, y, threshold = 10) {
+  if (!snapEnabled) return { x, y };
+  
+  const container = document.querySelector('.canvas-container');
+  const rect = container.getBoundingClientRect();
+  
+  // Center lines
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  
+  // Third lines
+  const thirdX1 = rect.width / 3;
+  const thirdX2 = (rect.width * 2) / 3;
+  const thirdY1 = rect.height / 3;
+  const thirdY2 = (rect.height * 2) / 3;
+  
+  // Safe area boundaries
+  const safeLeft = rect.width * safeAreaPadding;
+  const safeRight = rect.width * (1 - safeAreaPadding);
+  const safeTop = rect.height * safeAreaPadding;
+  const safeBottom = rect.height * (1 - safeAreaPadding);
+  
+  let snappedX = x;
+  let snappedY = y;
+  
+  // Snap to vertical guides
+  const verticalGuides = [0, safeLeft, thirdX1, centerX, thirdX2, safeRight, rect.width];
+  for (const guide of verticalGuides) {
+    if (Math.abs(x - guide) < threshold) {
+      snappedX = guide;
+      break;
+    }
+  }
+  
+  // Snap to horizontal guides
+  const horizontalGuides = [0, safeTop, thirdY1, centerY, thirdY2, safeBottom, rect.height];
+  for (const guide of horizontalGuides) {
+    if (Math.abs(y - guide) < threshold) {
+      snappedY = guide;
+      break;
+    }
+  }
+  
+  return { x: snappedX, y: snappedY };
+}
+
+// Export presets functionality
+function getExportDimensions() {
+  const preset = exportSettings.preset;
+  
+  switch (preset) {
+    case 'ig-post':
+      return { width: 1080, height: 1350 };
+    case 'ig-story':
+    case 'ig-reel':
+      return { width: 1080, height: 1920 };
+    case 'facebook':
+      return { width: 1200, height: 630 };
+    case 'twitter':
+      return { width: 1200, height: 675 };
+    case 'linkedin':
+      return { width: 1200, height: 627 };
+    case 'custom':
+      return { width: exportSettings.customWidth, height: exportSettings.customHeight };
+    case 'current':
+    default:
+      return { width: CANVAS_WIDTH, height: CANVAS_HEIGHT };
+  }
+}
+
+function updateExportControls() {
+  const preset = document.getElementById('export-preset').value;
+  const customControls = document.getElementById('custom-size-controls');
+  const format = document.getElementById('export-format').value;
+  const qualityControl = document.getElementById('quality-control');
+  
+  // Show/hide custom size controls
+  customControls.style.display = preset === 'custom' ? 'flex' : 'none';
+  
+  // Show/hide quality control for lossy formats
+  qualityControl.style.display = (format === 'jpeg' || format === 'webp') ? 'flex' : 'none';
+  
+  // Update export settings
+  exportSettings.preset = preset;
+  exportSettings.format = format;
+  
+  if (preset === 'custom') {
+    exportSettings.customWidth = parseInt(document.getElementById('export-width').value) || 1200;
+    exportSettings.customHeight = parseInt(document.getElementById('export-height').value) || 1680;
+  }
+}
+
 // Download current canvas as PNG with proper export sizing
 function downloadImage() {
   if (!canvas) {
@@ -1102,13 +1261,10 @@ function downloadImage() {
   }
   
   try {
-    // Create export canvas with proper portrait dimensions
-    const aspectRatio = categoryStorage.getAspectRatio(currentCategory, '5:7');
-    const [w, h] = aspectRatio.split(':').map(Number);
-    
-    // Export at high resolution (1500px width, height computed by ratio)
-    const exportWidth = 1500;
-    const exportHeight = Math.round(exportWidth * h / w);
+    // Get export dimensions from settings
+    const dimensions = getExportDimensions();
+    const exportWidth = dimensions.width;
+    const exportHeight = dimensions.height;
     
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = exportWidth;
@@ -1145,10 +1301,36 @@ function downloadImage() {
     // Draw text content at export scale
     drawTextContentForExport(exportCtx, exportWidth, exportHeight);
     
+    // Convert to appropriate format
+    let mimeType, quality, extension;
+    
+    switch (exportSettings.format) {
+      case 'jpeg':
+        mimeType = 'image/jpeg';
+        quality = exportSettings.quality;
+        extension = 'jpg';
+        break;
+      case 'webp':
+        mimeType = 'image/webp';
+        quality = exportSettings.quality;
+        extension = 'webp';
+        break;
+      case 'png':
+      default:
+        mimeType = 'image/png';
+        quality = undefined;
+        extension = 'png';
+        break;
+    }
+    
     // Download
     const link = document.createElement('a');
-    link.download = `${currentCategory}-template-${currentTemplate + 1}.png`;
-    link.href = exportCanvas.toDataURL('image/png');
+    const preset = exportSettings.preset === 'current' ? 'custom' : exportSettings.preset;
+    link.download = `${currentCategory}-${preset}-${exportWidth}x${exportHeight}.${extension}`;
+    link.href = exportCanvas.toDataURL(mimeType, quality);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1636,6 +1818,94 @@ function loadTemplateImages() {
       updateCanvas();
     }
   );
+}
+
+// Setup guides and safe area controls
+function setupGuidesControls() {
+  const safeAreaToggle = document.getElementById('safe-area-toggle');
+  const guidesToggle = document.getElementById('guides-toggle');
+  const snapToggle = document.getElementById('snap-toggle');
+  const safeAreaPreset = document.getElementById('safe-area-preset');
+  
+  if (safeAreaToggle) {
+    safeAreaToggle.addEventListener('change', (e) => {
+      safeAreaEnabled = e.target.checked;
+      updateSafeAreaOverlay();
+    });
+  }
+  
+  if (guidesToggle) {
+    guidesToggle.addEventListener('change', (e) => {
+      guidesEnabled = e.target.checked;
+      updateGuidesOverlay();
+    });
+  }
+  
+  if (snapToggle) {
+    snapToggle.addEventListener('change', (e) => {
+      snapEnabled = e.target.checked;
+    });
+  }
+  
+  if (safeAreaPreset) {
+    safeAreaPreset.addEventListener('change', (e) => {
+      const value = e.target.value;
+      if (value !== 'custom') {
+        safeAreaPadding = parseFloat(value);
+        updateSafeAreaOverlay();
+      }
+    });
+  }
+  
+  // Window resize handler to update overlays
+  window.addEventListener('resize', () => {
+    setTimeout(() => {
+      updateSafeAreaOverlay();
+      updateGuidesOverlay();
+    }, 100);
+  });
+}
+
+// Setup export controls
+function setupExportControls() {
+  const exportPreset = document.getElementById('export-preset');
+  const exportFormat = document.getElementById('export-format');
+  const exportQuality = document.getElementById('export-quality');
+  const exportWidth = document.getElementById('export-width');
+  const exportHeight = document.getElementById('export-height');
+  
+  if (exportPreset) {
+    exportPreset.addEventListener('change', updateExportControls);
+  }
+  
+  if (exportFormat) {
+    exportFormat.addEventListener('change', updateExportControls);
+  }
+  
+  if (exportQuality) {
+    exportQuality.addEventListener('input', (e) => {
+      exportSettings.quality = parseFloat(e.target.value);
+      const valueSpan = document.getElementById('export-quality-value');
+      if (valueSpan) {
+        valueSpan.textContent = Math.round(exportSettings.quality * 100) + '%';
+      }
+    });
+  }
+  
+  if (exportWidth) {
+    exportWidth.addEventListener('input', (e) => {
+      exportSettings.customWidth = parseInt(e.target.value) || 1200;
+    });
+  }
+  
+  if (exportHeight) {
+    exportHeight.addEventListener('input', (e) => {
+      exportSettings.customHeight = parseInt(e.target.value) || 1680;
+    });
+  }
+  
+  // Update controls on initialization
+  updateExportControls();
 }
 
 // Helper function to load images with multiple extension fallbacks
