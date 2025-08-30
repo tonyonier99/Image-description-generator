@@ -394,6 +394,7 @@ class LayerManager {
       
       const icon = this.getLayerIcon(layer);
       const lockIcon = layer.locked ? '🔒' : '';
+      const visibilityIcon = layer.visible ? '👁' : '👁‍🗨';
       
       item.innerHTML = `
         <div class="layer-info">
@@ -401,7 +402,8 @@ class LayerManager {
           <div class="layer-name">${layer.name}</div>
         </div>
         <div class="layer-controls">
-          ${layer.type === 'background' ? `<button class="layer-control-btn" title="鎖定/解鎖">${lockIcon}</button>` : ''}
+          <button class="layer-visibility-btn" title="顯示/隱藏">${visibilityIcon}</button>
+          ${layer.type === 'background' ? `<button class="layer-lock-btn" title="鎖定/解鎖">${lockIcon}</button>` : ''}
         </div>
       `;
       
@@ -409,8 +411,17 @@ class LayerManager {
         item.addEventListener('click', () => this.selectLayer(layer));
       }
       
-      // Handle lock/unlock for background
-      const lockBtn = item.querySelector('.layer-control-btn');
+      // Handle visibility toggle for all layers
+      const visibilityBtn = item.querySelector('.layer-visibility-btn');
+      if (visibilityBtn) {
+        visibilityBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleLayerVisibility(layer);
+        });
+      }
+      
+      // Handle lock/unlock for background layers
+      const lockBtn = item.querySelector('.layer-lock-btn');
       if (lockBtn && layer.type === 'background') {
         lockBtn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -441,6 +452,16 @@ class LayerManager {
     layer.locked = !layer.locked;
     this.updateLayersList();
     console.log(`Layer ${layer.name} ${layer.locked ? 'locked' : 'unlocked'}`);
+  }
+  
+  /**
+   * Toggle layer visibility
+   */
+  toggleLayerVisibility(layer) {
+    layer.visible = !layer.visible;
+    this.updateLayersList();
+    this.updateCanvas();
+    console.log(`Layer ${layer.name} ${layer.visible ? 'shown' : 'hidden'}`);
   }
   
   /**
@@ -489,11 +510,11 @@ class LayerManager {
     // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
-    // Draw background layer with full-cover
-    if (this.backgroundLayer && this.backgroundLayer.image) {
+    // Draw background layer with full-cover (only if visible)
+    if (this.backgroundLayer && this.backgroundLayer.image && this.backgroundLayer.visible) {
       this.drawBackgroundLayer(this.backgroundLayer);
     } else {
-      // Default white background
+      // Default white background when no background image or when hidden
       this.ctx.fillStyle = '#ffffff';
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
