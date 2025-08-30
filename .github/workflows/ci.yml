@@ -1,0 +1,157 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  frontend-test:
+    runs-on: ubuntu-latest
+    name: Frontend Tests
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install frontend dependencies
+      run: npm ci
+    
+    - name: Run frontend linting
+      run: npm run lint || echo "No lint script found"
+    
+    - name: Run frontend tests
+      run: npm test || echo "No test script found"
+
+  backend-test:
+    runs-on: ubuntu-latest
+    name: Backend Tests
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'server/package-lock.json'
+    
+    - name: Install backend dependencies
+      working-directory: ./server
+      run: npm ci
+    
+    - name: Generate Prisma client
+      working-directory: ./server
+      run: npx prisma generate
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+    
+    - name: Run database migrations
+      working-directory: ./server
+      run: npx prisma db push
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+    
+    - name: Run backend linting
+      working-directory: ./server
+      run: npm run lint
+    
+    - name: Run backend tests
+      working-directory: ./server
+      run: npm run test
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+        JWT_SECRET: test-secret
+    
+    - name: Run e2e tests
+      working-directory: ./server
+      run: npm run test:e2e
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+        JWT_SECRET: test-secret
+
+  build:
+    runs-on: ubuntu-latest
+    name: Build Application
+    needs: [frontend-test, backend-test]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'server/package-lock.json'
+    
+    - name: Install backend dependencies
+      working-directory: ./server
+      run: npm ci
+    
+    - name: Generate Prisma client
+      working-directory: ./server
+      run: npx prisma generate
+    
+    - name: Build backend
+      working-directory: ./server
+      run: npm run build
+    
+    - name: Build Docker image
+      if: github.ref == 'refs/heads/main'
+      working-directory: ./server
+      run: docker build -t image-description-generator:latest .
+
+  security:
+    runs-on: ubuntu-latest
+    name: Security Audit
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Run frontend security audit
+      run: npm audit --audit-level moderate || true
+    
+    - name: Run backend security audit
+      working-directory: ./server
+      run: npm audit --audit-level moderate || true

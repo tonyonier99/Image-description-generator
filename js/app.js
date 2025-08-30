@@ -4,6 +4,7 @@ import { CanvasTransform } from './modules/CanvasTransform.js';
 import { TemplateStateStore } from './modules/TemplateStateStore.js';
 import { LayerManager } from './modules/LayerManager.js';
 import { TemplateThumbs } from './modules/TemplateThumbs.js';
+import { GuidesOverlay } from './modules/GuidesOverlay.js';
 
 // Global state
 let currentCategory = 'classic';
@@ -20,11 +21,17 @@ let loadedFonts = [];
 let selectedTextField = null;
 let textStyles = {};
 
+// Backend integration (optional)
+let backendUrl = null;
+let authToken = null;
+let backendEnabled = false;
+
 // New module instances
 let canvasTransform = null;
 let templateStateStore = null;
 let layerManager = null;
 let templateThumbs = null;
+let guidesOverlay = null;
 
 // Multi-image layer system
 let imageLayers = [];
@@ -621,6 +628,9 @@ document.addEventListener('DOMContentLoaded', async function() {
   updateCanvas();
   setupUndoRedoSystem();
   checkAdminUnlock(); // Check if admin should be unlocked
+  
+  // Initialize backend (optional)
+  await initializeBackend();
 });
 
 // Load category configurations
@@ -756,6 +766,9 @@ function initializeModules() {
   // Initialize canvas transform controls
   canvasTransform = new CanvasTransform(canvas, layerManager);
   
+  // Initialize guides overlay
+  guidesOverlay = new GuidesOverlay(canvas);
+  
   console.log('✅ All modules initialized');
 }
 
@@ -817,6 +830,9 @@ function setupEventListeners() {
   
   // Settings controls
   setupSettingsControls();
+  
+  // View menu controls
+  setupViewMenuControls();
 }
 
 // Render category dropdown
@@ -2233,11 +2249,13 @@ function setupTextTuningControls() {
     applyBtn.addEventListener('click', applyAsDefault);
   }
   
-  // Keyboard navigation for text boxes
+  // Enhanced keyboard navigation for all layers and text
   document.addEventListener('keydown', (e) => {
-    if (selectedTextField && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    // Arrow key nudging (avoid interference with text input)
+    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') && 
+        !e.target.matches('input, textarea, select')) {
       e.preventDefault();
-      nudgeTextField(e.key, e.shiftKey);
+      nudgeSelectedLayer(e.key, e.shiftKey, e.altKey);
     }
   });
 }
@@ -2807,6 +2825,383 @@ function setupSettingsControls() {
     });
   }
 }
+
+// Setup view menu controls
+function setupViewMenuControls() {
+  const menuToggle = document.getElementById('viewMenuToggle');
+  const menuDropdown = document.getElementById('viewMenuDropdown');
+  
+  // Toggle dropdown
+  if (menuToggle && menuDropdown) {
+    menuToggle.addEventListener('click', () => {
+      const isActive = menuDropdown.classList.toggle('active');
+      menuToggle.setAttribute('aria-expanded', isActive);
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!menuToggle.contains(e.target) && !menuDropdown.contains(e.target)) {
+        menuDropdown.classList.remove('active');
+        menuToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+  
+  // Snap controls
+  const snapToggle = document.getElementById('snapToggle');
+  const snapThreshold = document.getElementById('snapThreshold');
+  const snapThresholdValue = document.getElementById('snapThresholdValue');
+  
+  if (snapToggle && guidesOverlay) {
+    snapToggle.addEventListener('change', (e) => {
+      guidesOverlay.setSnapEnabled(e.target.checked);
+    });
+    // Load saved preference
+    snapToggle.checked = guidesOverlay.snapEnabled;
+  }
+  
+  if (snapThreshold && snapThresholdValue && guidesOverlay) {
+    snapThreshold.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value);
+      guidesOverlay.setSnapThreshold(value);
+      snapThresholdValue.textContent = value;
+    });
+    // Load saved preference
+    snapThreshold.value = guidesOverlay.snapThreshold;
+    snapThresholdValue.textContent = guidesOverlay.snapThreshold;
+  }
+  
+  // Rulers control
+  const rulersToggle = document.getElementById('rulersToggle');
+  if (rulersToggle && guidesOverlay) {
+    rulersToggle.addEventListener('change', (e) => {
+      guidesOverlay.setRulersEnabled(e.target.checked);
+    });
+    // Load saved preference
+    rulersToggle.checked = guidesOverlay.rulersEnabled;
+  }
+  
+  // Grid controls
+  const gridToggle = document.getElementById('gridToggle');
+  const gridSpacing = document.getElementById('gridSpacing');
+  const gridSpacingValue = document.getElementById('gridSpacingValue');
+  const gridOpacity = document.getElementById('gridOpacity');
+  const gridOpacityValue = document.getElementById('gridOpacityValue');
+  
+  if (gridToggle && guidesOverlay) {
+    gridToggle.addEventListener('change', (e) => {
+      guidesOverlay.setGridEnabled(e.target.checked);
+    });
+    // Load saved preference
+    gridToggle.checked = guidesOverlay.gridEnabled;
+  }
+  
+  if (gridSpacing && gridSpacingValue && guidesOverlay) {
+    gridSpacing.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value);
+      guidesOverlay.setGridSpacing(value);
+      gridSpacingValue.textContent = value;
+    });
+    // Load saved preference
+    gridSpacing.value = guidesOverlay.gridSpacing;
+    gridSpacingValue.textContent = guidesOverlay.gridSpacing;
+  }
+  
+  if (gridOpacity && gridOpacityValue && guidesOverlay) {
+    gridOpacity.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value);
+      const opacity = value / 100;
+      guidesOverlay.setGridOpacity(opacity);
+      gridOpacityValue.textContent = value;
+    });
+    // Load saved preference
+    const currentOpacity = Math.round(guidesOverlay.gridOpacity * 100);
+    gridOpacity.value = currentOpacity;
+    gridOpacityValue.textContent = currentOpacity;
+  }
+}
+
+// Enhanced keyboard nudging for layers
+function nudgeSelectedLayer(direction, shiftKey, altKey) {
+  // Determine movement distance
+  let stepSize = 1; // Default: 1px
+  if (shiftKey) stepSize = 10; // Shift: 10px
+  if (altKey && !shiftKey) stepSize = 0.5; // Alt: 0.5px (subpixel when scale allows)
+  
+  // For text fields, use the existing nudgeTextField function
+  if (selectedTextField) {
+    nudgeTextField(direction, shiftKey);
+    return;
+  }
+  
+  // For image layers (if we have a selected layer)
+  if (layerManager && layerManager.selectedLayer) {
+    const layer = layerManager.selectedLayer;
+    let newX = layer.x;
+    let newY = layer.y;
+    
+    switch (direction) {
+      case 'ArrowUp':
+        newY = Math.max(0, newY - stepSize);
+        break;
+      case 'ArrowDown':
+        newY = Math.min(CANVAS_HEIGHT - layer.height, newY + stepSize);
+        break;
+      case 'ArrowLeft':
+        newX = Math.max(0, newX - stepSize);
+        break;
+      case 'ArrowRight':
+        newX = Math.min(CANVAS_WIDTH - layer.width, newX + stepSize);
+        break;
+    }
+    
+    // Apply snapping if enabled
+    if (guidesOverlay && guidesOverlay.snapEnabled) {
+      const allLayers = layerManager.getAllLayers ? layerManager.getAllLayers() : [];
+      const snapResult = guidesOverlay.findSnapPoints(newX, newY, layer.width, layer.height, allLayers);
+      newX = snapResult.x;
+      newY = snapResult.y;
+      
+      // Show guides briefly
+      if (snapResult.guides.length > 0) {
+        guidesOverlay.showGuides(snapResult.guides);
+        setTimeout(() => guidesOverlay.clearGuides(), 1000);
+      }
+    }
+    
+    // Update layer position
+    layer.x = newX;
+    layer.y = newY;
+    
+    // Update display
+    updateCanvas();
+    if (canvasTransform) {
+      canvasTransform.updateTransformControl();
+    }
+    
+    // Save history
+    saveHistoryState(`Layer nudged ${direction} by ${stepSize}px`);
+    return;
+  }
+  
+  // For slot-based layers (current system)
+  const selectedSlot = slotLayerManager?.getSelectedSlot();
+  if (selectedSlot && selectedSlot.image) {
+    const currentOffsetX = selectedSlot.offsetX || 0;
+    const currentOffsetY = selectedSlot.offsetY || 0;
+    
+    let newOffsetX = currentOffsetX;
+    let newOffsetY = currentOffsetY;
+    
+    switch (direction) {
+      case 'ArrowUp':
+        newOffsetY = currentOffsetY - stepSize;
+        break;
+      case 'ArrowDown':
+        newOffsetY = currentOffsetY + stepSize;
+        break;
+      case 'ArrowLeft':
+        newOffsetX = currentOffsetX - stepSize;
+        break;
+      case 'ArrowRight':
+        newOffsetX = currentOffsetX + stepSize;
+        break;
+    }
+    
+    // Apply constraints
+    newOffsetX = Math.max(-200, Math.min(200, newOffsetX));
+    newOffsetY = Math.max(-200, Math.min(200, newOffsetY));
+    
+    // Update slot
+    slotLayerManager.updateSlotProperty(selectedSlot.id, 'offsetX', newOffsetX);
+    slotLayerManager.updateSlotProperty(selectedSlot.id, 'offsetY', newOffsetY);
+    
+    // Update UI
+    updateCanvas();
+    slotLayerManager.updateImageAdjustmentPanel();
+    
+    // Save history
+    saveHistoryState(`Slot "${selectedSlot.name}" nudged ${direction} by ${stepSize}px`);
+  }
+}
+
+// Backend Integration Functions
+async function initializeBackend() {
+  // Try to detect backend URL
+  const possibleUrls = [
+    'http://localhost:3000/api',
+    `${window.location.origin}/api`,
+    // Add more potential backend URLs
+  ];
+  
+  for (const url of possibleUrls) {
+    try {
+      const response = await fetch(`${url}/health`, { method: 'GET' });
+      if (response.ok) {
+        backendUrl = url;
+        backendEnabled = true;
+        console.log(`✅ Backend detected at ${backendUrl}`);
+        await loadUserPreferencesFromBackend();
+        break;
+      }
+    } catch (error) {
+      // Backend not available at this URL
+    }
+  }
+  
+  if (!backendEnabled) {
+    console.log('ℹ️ Running in frontend-only mode');
+  }
+}
+
+async function loadUserPreferencesFromBackend() {
+  if (!backendEnabled || !authToken) return;
+  
+  try {
+    const response = await fetch(`${backendUrl}/prefs`, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (response.ok) {
+      const prefs = await response.json();
+      
+      // Apply backend preferences to guides overlay
+      if (guidesOverlay) {
+        guidesOverlay.setSnapEnabled(prefs.snapEnabled);
+        guidesOverlay.setSnapThreshold(prefs.snapThreshold);
+        guidesOverlay.setRulersEnabled(prefs.rulersEnabled);
+        guidesOverlay.setGridEnabled(prefs.gridEnabled);
+        guidesOverlay.setGridSpacing(prefs.gridSpacing);
+        guidesOverlay.setGridOpacity(prefs.gridOpacity);
+      }
+      
+      console.log('✅ User preferences loaded from backend');
+    }
+  } catch (error) {
+    console.warn('Failed to load user preferences from backend:', error);
+  }
+}
+
+async function saveUserPreferencesToBackend() {
+  if (!backendEnabled || !authToken || !guidesOverlay) return;
+  
+  try {
+    const prefs = {
+      snapEnabled: guidesOverlay.snapEnabled,
+      snapThreshold: guidesOverlay.snapThreshold,
+      rulersEnabled: guidesOverlay.rulersEnabled,
+      gridEnabled: guidesOverlay.gridEnabled,
+      gridSpacing: guidesOverlay.gridSpacing,
+      gridOpacity: guidesOverlay.gridOpacity,
+    };
+    
+    const response = await fetch(`${backendUrl}/prefs`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(prefs),
+    });
+    
+    if (response.ok) {
+      console.log('✅ User preferences saved to backend');
+    }
+  } catch (error) {
+    console.warn('Failed to save user preferences to backend:', error);
+  }
+}
+
+async function createExportJob(projectData, options = {}) {
+  if (!backendEnabled || !authToken) {
+    // Fallback to frontend export
+    console.log('Using frontend export fallback');
+    downloadImage();
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${backendUrl}/exports`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        projectData,
+        format: options.format || 'png',
+        width: options.width || CANVAS_WIDTH,
+        height: options.height || CANVAS_HEIGHT,
+        quality: options.quality || 0.9,
+      }),
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log('✅ Export job created:', result.jobId);
+      
+      // Poll for completion
+      pollExportJob(result.jobId);
+    } else {
+      throw new Error('Failed to create export job');
+    }
+  } catch (error) {
+    console.warn('Backend export failed, using frontend fallback:', error);
+    downloadImage();
+  }
+}
+
+async function pollExportJob(jobId) {
+  const pollInterval = 2000; // 2 seconds
+  const maxAttempts = 30; // 1 minute total
+  let attempts = 0;
+  
+  const poll = async () => {
+    if (attempts >= maxAttempts) {
+      console.error('Export job timeout');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${backendUrl}/jobs/${jobId}`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      
+      if (response.ok) {
+        const job = await response.json();
+        
+        if (job.status === 'completed') {
+          console.log('✅ Export completed:', job.fileUrl);
+          // Download the file
+          const link = document.createElement('a');
+          link.href = job.fileUrl;
+          link.download = `export-${new Date().toISOString().split('T')[0]}.${job.format}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else if (job.status === 'failed') {
+          console.error('Export job failed:', job.errorMessage);
+        } else {
+          // Still processing, poll again
+          attempts++;
+          setTimeout(poll, pollInterval);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to poll export job:', error);
+    }
+  };
+  
+  poll();
+}
+
+// Make functions available globally for GuidesOverlay
+window.saveUserPreferencesToBackend = saveUserPreferencesToBackend;
 
 // Helper function to load images with multiple extension fallbacks
 function loadImageWithFallback(basePath, extensions, onSuccess, onFailure) {

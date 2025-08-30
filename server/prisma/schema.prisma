@@ -1,0 +1,262 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Auth & User Management
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String?   @unique
+  displayName   String?
+  avatarUrl     String?
+  githubId      String?   @unique
+  isAdmin       Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+
+  // Relations
+  sessions      Session[]
+  projects      Project[]
+  exports       Export[]
+  auditLogs     AuditLog[]
+  userPrefs     UserPreference?
+
+  @@map("users")
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  userId      String
+  token       String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  ipAddress   String?
+  userAgent   String?
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions String[] // JSON array of permission strings
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("roles")
+}
+
+// Project & Layer Management
+model Project {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  baseWidth    Int      @default(1200)
+  baseHeight   Int      @default(1680)
+  background   String?  // Background color or image URL
+  zoom         Float    @default(1.0)
+  isPublic     Boolean  @default(false)
+  isTemplate   Boolean  @default(false)
+  categoryId   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  createdBy    String
+
+  // Relations
+  user         User     @relation(fields: [createdBy], references: [id])
+  category     Category? @relation(fields: [categoryId], references: [id])
+  layers       Layer[]
+  exports      Export[]
+
+  @@map("projects")
+}
+
+model Layer {
+  id          String    @id @default(cuid())
+  projectId   String
+  type        LayerType
+  name        String
+  x           Float     @default(0)
+  y           Float     @default(0)
+  width       Float     @default(100)
+  height      Float     @default(100)
+  rotation    Float     @default(0)
+  scaleX      Float     @default(1)
+  scaleY      Float     @default(1)
+  opacity     Float     @default(1)
+  visible     Boolean   @default(true)
+  locked      Boolean   @default(false)
+  zIndex      Int       @default(0)
+  
+  // Style properties (JSON)
+  styles      Json?     // Font, color, effects, etc.
+  
+  // Content
+  content     String?   // Text content or image URL
+  
+  // Transform properties
+  transforms  Json?     // Additional transform data
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("layers")
+}
+
+enum LayerType {
+  TEXT
+  IMAGE
+  SHAPE
+  GROUP
+}
+
+// Template System
+model Template {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  thumbnail   String?  // Preview image URL
+  categoryId  String?
+  isPublic    Boolean  @default(true)
+  isOfficial  Boolean  @default(false)
+  data        Json     // Template structure (layers, etc.)
+  tags        String[] // Search tags
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?
+
+  // Relations
+  category    Category? @relation(fields: [categoryId], references: [id])
+
+  @@map("templates")
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  key         String     @unique
+  label       String
+  description String?
+  icon        String?
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  fields      Json?      // Field definitions for this category
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  templates   Template[]
+  projects    Project[]
+
+  @@map("categories")
+}
+
+// Font Management
+model Font {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  displayName String
+  fileUrl     String     // Storage URL
+  license     String?
+  weight      String?    // normal, bold, etc.
+  style       String?    // normal, italic, etc.
+  format      String?    // woff2, ttf, etc.
+  isActive    Boolean    @default(true)
+  isSystem    Boolean    @default(false)
+  uploadedBy  String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("fonts")
+}
+
+// Export & Job Management
+model Export {
+  id          String      @id @default(cuid())
+  projectId   String
+  presetId    String?     // Export preset used
+  status      ExportStatus @default(PENDING)
+  format      String      @default("png")
+  width       Int?
+  height      Int?
+  quality     Float?
+  fileUrl     String?     // Result file URL
+  fileSize    Int?        // File size in bytes
+  jobId       String?     // BullMQ job ID
+  errorMessage String?
+  createdAt   DateTime    @default(now())
+  completedAt DateTime?
+  createdBy   String
+
+  // Relations
+  project     Project     @relation(fields: [projectId], references: [id])
+  user        User        @relation(fields: [createdBy], references: [id])
+
+  @@map("exports")
+}
+
+enum ExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// User Preferences
+model UserPreference {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  snapEnabled       Boolean  @default(false)
+  snapThreshold     Int      @default(10)
+  rulersEnabled     Boolean  @default(false)
+  gridEnabled       Boolean  @default(false)
+  gridSpacing       Int      @default(20)
+  gridOpacity       Float    @default(0.3)
+  autoSave          Boolean  @default(true)
+  autoSaveInterval  Int      @default(30) // seconds
+  theme             String   @default("dark")
+  language          String   @default("zh-Hant")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+// Audit & Logging
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String   // CREATE, UPDATE, DELETE, etc.
+  resource    String   // projects, layers, etc.
+  resourceId  String?
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user        User?    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
