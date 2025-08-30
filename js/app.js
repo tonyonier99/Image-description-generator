@@ -1,5 +1,9 @@
 // Main application logic for Image Description Generator
 import { categoryStorage } from './storage.js';
+import { CanvasTransform } from './modules/CanvasTransform.js';
+import { TemplateStateStore } from './modules/TemplateStateStore.js';
+import { LayerManager } from './modules/LayerManager.js';
+import { TemplateThumbs } from './modules/TemplateThumbs.js';
 
 // Global state
 let currentCategory = 'classic';
@@ -15,6 +19,12 @@ let foregroundImage = null;
 let loadedFonts = [];
 let selectedTextField = null;
 let textStyles = {};
+
+// New module instances
+let canvasTransform = null;
+let templateStateStore = null;
+let layerManager = null;
+let templateThumbs = null;
 
 // Multi-image layer system
 let imageLayers = [];
@@ -353,7 +363,7 @@ class SlotLayerManager {
         </div>
         <div class="slot-info">
           <div class="slot-name">${slot.name}</div>
-          <div class="slot-status">${hasImage ? (slot.imageName || 'Image loaded') : (isTemplate ? 'Template' : 'Empty')}</div>
+          <div class="slot-status">${hasImage ? (slot.imageName || 'Image loaded') : (isTemplate ? '底圖' : 'Empty')}</div>
         </div>
         <div class="slot-controls">
           <button class="slot-visibility" title="顯示/隱藏" data-slot-id="${slot.id}">
@@ -603,6 +613,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   console.log('All fonts loaded and ready');
   
   initializeCanvas();
+  initializeModules();
   loadSavedState();
   setupEventListeners();
   renderCategoryDropdown();
@@ -731,6 +742,23 @@ function initializeCanvas() {
   applyAspectRatio(currentCategory);
 }
 
+// Initialize modules
+function initializeModules() {
+  // Initialize template state store
+  templateStateStore = new TemplateStateStore();
+  
+  // Initialize template thumbs
+  templateThumbs = new TemplateThumbs();
+  
+  // Initialize layer manager
+  layerManager = new LayerManager(canvas, ctx, templateStateStore);
+  
+  // Initialize canvas transform controls
+  canvasTransform = new CanvasTransform(canvas, layerManager);
+  
+  console.log('✅ All modules initialized');
+}
+
 // Load saved state from localStorage
 function loadSavedState() {
   currentCategory = categoryStorage.getSelectedCategory('classic');
@@ -821,81 +849,79 @@ function handleCategoryChange(event) {
 
 // Update UI for current category
 function updateUIForCategory() {
-  // Initialize slot system for the current category
   const categoryConfig = getCurrentCategoryConfig();
-  slotLayerManager.initializeCategory(categoryConfig);
+  
+  // Initialize layer manager for the current category
+  if (layerManager) {
+    layerManager.initializeCategory(categoryConfig);
+  }
+  
+  // Initialize slot system for the current category (legacy support)
+  if (typeof slotLayerManager !== 'undefined') {
+    slotLayerManager.initializeCategory(categoryConfig);
+  }
   
   renderTemplatesGrid();
   renderCategoryOptions();
   updateTextTuningPanel();
   loadTemplateImages();
-  // updateAddImageButton(); // No longer needed with slot-based system
 }
 
 // Render templates grid for current category
 function renderTemplatesGrid() {
   const templateGrid = document.getElementById('template-grid');
-  if (!templateGrid) return;
+  if (!templateGrid || !templateThumbs) return;
 
   const category = getCurrentCategoryConfig();
   if (!category) return;
 
-  const templates = Array.from({ length: category.count }, (_, index) => {
-    const templateNumber = index + 1;
-    const templatePath = `assets/templates/${category.folder}/${category.folder}_${templateNumber}.${category.ext}`;
-    
-    // Use Card_N naming convention for thumbnails
-    const thumbnailPath = `assets/templates/${category.folder}/Card_${templateNumber}`;
-    
-    return {
-      index,
-      name: `${category.label}${templateNumber}`,
-      path: templatePath,
-      thumbnailPath: thumbnailPath
-    };
-  });
-
-  templateGrid.innerHTML = templates.map((template, index) => 
-    `<label class="template-card">
-      <input type="radio" name="template" value="${template.index}" 
-             ${template.index === currentTemplate ? 'checked' : ''}
-             onchange="handleTemplateChange(${template.index})">
-      <div class="template-preview">
-        <img src="${template.thumbnailPath}.jpg" alt="${template.name}" class="template-image" 
-             onerror="this.src='${template.thumbnailPath}.png'; this.onerror=function(){this.src='${template.thumbnailPath}.svg'; this.onerror=function(){this.style.display='none'; this.nextElementSibling.style.display='flex';}};">
-        <div class="template-fallback" style="display: none;">
-          <div class="demo-title">${template.name}</div>
-        </div>
-      </div>
-      <span class="template-name">${template.name}</span>
-    </label>`
-  ).join('');
+  // Use the new TemplateThumbs module to generate the grid
+  templateGrid.innerHTML = templateThumbs.generateTemplateGrid(
+    category, 
+    currentTemplate, 
+    window.handleTemplateChange
+  );
 }
 
 // Handle template change
 window.handleTemplateChange = function(templateIndex) {
+  // Save current template state before switching
+  if (layerManager && templateStateStore) {
+    layerManager.saveState(currentCategory, currentTemplate);
+  }
+  
   currentTemplate = templateIndex;
   categoryStorage.setSelectedTemplate(currentCategory, templateIndex);
   
-  // Reload foreground image for new template
-  const category = getCurrentCategoryConfig();
-  if (category) {
-    loadImageWithFallback(
-      `assets/templates/${category.folder}/${category.folder}_${currentTemplate + 1}`,
-      ['jpg', 'svg', 'png'],
-      (img) => {
-        foregroundImage = img;
-        updateCanvas();
-      },
-      () => {
-        console.warn('Foreground image not found for template', currentTemplate + 1);
-        foregroundImage = null;
-        updateCanvas();
-      }
-    );
-  } else {
-    updateCanvas();
+  // Try to load saved state for the new template
+  let stateLoaded = false;
+  if (layerManager && templateStateStore) {
+    stateLoaded = layerManager.loadState(currentCategory, currentTemplate);
   }
+  
+  // If no saved state, load template images normally
+  if (!stateLoaded) {
+    const category = getCurrentCategoryConfig();
+    if (category) {
+      loadImageWithFallback(
+        `assets/templates/${category.folder}/${category.folder}_${currentTemplate + 1}`,
+        ['jpg', 'svg', 'png'],
+        (img) => {
+          foregroundImage = img;
+          updateCanvas();
+        },
+        () => {
+          console.warn('Foreground image not found for template', currentTemplate + 1);
+          foregroundImage = null;
+          updateCanvas();
+        }
+      );
+    } else {
+      updateCanvas();
+    }
+  }
+  
+  console.log(`🔄 Switched to template ${currentTemplate + 1}, state loaded: ${stateLoaded}`);
 };
 
 // Render category-specific options
@@ -999,6 +1025,13 @@ function handleImageUpload(event) {
 function updateCanvas() {
   if (!ctx) return;
 
+  // Use new layer manager if available
+  if (layerManager) {
+    layerManager.updateCanvas();
+    return;
+  }
+
+  // Fallback to legacy canvas rendering
   // Clear canvas
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -1018,11 +1051,13 @@ function updateCanvas() {
       drawTemplate();
   }
 
-  // Draw slot layers
-  slotLayerManager.renderOnCanvas(ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
+  // Draw slot layers (legacy support)
+  if (typeof slotLayerManager !== 'undefined') {
+    slotLayerManager.renderOnCanvas(ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
+  }
 
   // Draw uploaded image (legacy support)
-  if (uploadedImage && slotLayerManager.slots.size === 0) {
+  if (uploadedImage && (typeof slotLayerManager === 'undefined' || slotLayerManager.slots.size === 0)) {
     drawUploadedImage();
   }
 
@@ -1396,7 +1431,6 @@ function selectTextField(fieldKey) {
 // Update text tuning panel
 function updateTextTuningPanel() {
   const fieldSelect = document.getElementById('text-field-select');
-  const titleFieldSelect = document.getElementById('title-field-select'); // Add reference to title field selector
   const tuningControls = document.getElementById('text-tuning-controls');
   
   if (!fieldSelect) return;
@@ -1411,11 +1445,6 @@ function updateTextTuningPanel() {
         .join('');
     
     fieldSelect.innerHTML = optionsHTML;
-    
-    // Sync with title field selector
-    if (titleFieldSelect) {
-      titleFieldSelect.innerHTML = optionsHTML;
-    }
   }
   
   // Show/hide controls based on selection
@@ -2104,26 +2133,6 @@ function setupTextTuningControls() {
     fieldSelect.addEventListener('change', (e) => {
       selectedTextField = e.target.value;
       updateTextTuningPanel();
-      
-      // Sync with title field selector
-      const titleFieldSelect = document.getElementById('title-field-select');
-      if (titleFieldSelect && titleFieldSelect.value !== e.target.value) {
-        titleFieldSelect.value = e.target.value;
-      }
-    });
-  }
-  
-  // Title field selector (sync with main field selector)
-  const titleFieldSelect = document.getElementById('title-field-select');
-  if (titleFieldSelect) {
-    titleFieldSelect.addEventListener('change', (e) => {
-      selectedTextField = e.target.value;
-      updateTextTuningPanel();
-      
-      // Sync with main field selector
-      if (fieldSelect && fieldSelect.value !== e.target.value) {
-        fieldSelect.value = e.target.value;
-      }
     });
   }
   
@@ -2403,27 +2412,58 @@ function loadTemplateImages() {
   const category = getCurrentCategoryConfig();
   if (!category) return;
 
-  // Load background image (Empty template) - try png first for Empty templates
-  loadImageWithFallback(
-    `assets/templates/${category.folder}/${category.folder}_Empty_1`,
-    ['png', 'jpg', 'svg'],
-    (img) => {
-      backgroundImage = img;
-      // Also set as template in slot system
-      slotLayerManager.setTemplate(img);
-      updateCanvas();
-    },
-    () => {
-      console.warn('Background image not found');
-      backgroundImage = null;
-      updateCanvas();
-    }
-  );
+  // Load background image using the new TemplateThumbs module
+  if (templateThumbs && layerManager) {
+    templateThumbs.getBackgroundForCanvas(category.folder)
+      .then(img => {
+        if (img) {
+          backgroundImage = img;
+          layerManager.setBackgroundImage(img);
+          console.log('✅ Background image loaded via TemplateThumbs');
+        } else {
+          console.warn('⚠️ Background image not found');
+          backgroundImage = null;
+        }
+        
+        // Also set in legacy slot system if it exists
+        if (typeof slotLayerManager !== 'undefined') {
+          slotLayerManager.setTemplate(img);
+        }
+        
+        updateCanvas();
+      })
+      .catch(error => {
+        console.warn('Failed to load background image:', error);
+        backgroundImage = null;
+        updateCanvas();
+      });
+  } else {
+    // Fallback to legacy loading
+    loadImageWithFallback(
+      `assets/templates/${category.folder}/${category.folder}_Empty_1`,
+      ['png', 'jpg'],
+      (img) => {
+        backgroundImage = img;
+        if (layerManager) {
+          layerManager.setBackgroundImage(img);
+        }
+        if (typeof slotLayerManager !== 'undefined') {
+          slotLayerManager.setTemplate(img);
+        }
+        updateCanvas();
+      },
+      () => {
+        console.warn('Background image not found');
+        backgroundImage = null;
+        updateCanvas();
+      }
+    );
+  }
 
-  // Load foreground image (current template)
+  // Load foreground image (current template) - removed SVG support
   loadImageWithFallback(
     `assets/templates/${category.folder}/${category.folder}_${currentTemplate + 1}`,
-    ['jpg', 'svg', 'png'],
+    ['jpg', 'png'],
     (img) => {
       foregroundImage = img;
       updateCanvas();

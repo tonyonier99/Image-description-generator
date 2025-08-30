@@ -4,12 +4,12 @@
       "key": "classic",
       "label": "經典",
       "folder": "Classic",
-      "ext": "svg",
+      "ext": "jpg",
       "count": 2,
       "slots": [
         {
           "id": "template",
-          "name": "範本",
+          "name": "底圖",
           "type": "template",
           "fixed": true,
           "defaultSelected": true
@@ -46,12 +46,12 @@
       "key": "menu",
       "label": "菜單", 
       "folder": "Menu",
-      "ext": "svg",
+      "ext": "jpg",
       "count": 4,
       "slots": [
         {
           "id": "template",
-          "name": "範本",
+          "name": "底圖",
           "type": "template",
           "fixed": true,
           "defaultSelected": true
@@ -90,12 +90,12 @@
       "key": "room",
       "label": "房型",
       "folder": "Room", 
-      "ext": "svg",
+      "ext": "jpg",
       "count": 4,
       "slots": [
         {
           "id": "template",
-          "name": "範本",
+          "name": "底圖",
           "type": "template",
           "fixed": true,
           "defaultSelected": true
@@ -151,12 +151,12 @@
       "key": "card",
       "label": "名片",
       "folder": "Card",
-      "ext": "svg", 
+      "ext": "jpg", 
       "count": 3,
       "slots": [
         {
           "id": "template",
-          "name": "範本",
+          "name": "底圖",
           "type": "template",
           "fixed": true,
           "defaultSelected": true
