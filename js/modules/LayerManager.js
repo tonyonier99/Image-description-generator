@@ -483,6 +483,15 @@ class LayerManager {
         this.drawLayer(item);
       }
     });
+    
+    // Also render legacy text content from currentOptions (for compatibility)
+    if (typeof window.drawTextContent === 'function') {
+      try {
+        window.drawTextContent();
+      } catch (error) {
+        console.warn('Failed to render legacy text content:', error);
+      }
+    }
   }
   
   /**

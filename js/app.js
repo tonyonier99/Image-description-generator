@@ -1028,6 +1028,11 @@ function renderOptionField(option, value) {
   }
 }
 
+// Expose functions to global scope for LayerManager compatibility
+window.drawTextContent = drawTextContent;
+window.getCurrentCategoryConfig = getCurrentCategoryConfig;
+window.getCurrentOptions = () => currentOptions;
+
 // Handle option value change
 window.handleOptionChange = function(key, value) {
   const oldValue = currentOptions[key];
@@ -1073,11 +1078,14 @@ function updateCanvas() {
   if (!ctx) return;
 
   // Use new layer manager if available
-  if (layerManager) {
+  if (layerManager && layerManager.updateCanvas) {
+    console.log('🎨 Using LayerManager for canvas update');
     layerManager.updateCanvas();
     return;
   }
 
+  console.log('🎨 Using legacy canvas rendering');
+  
   // Fallback to legacy canvas rendering
   // Clear canvas
   ctx.fillStyle = '#ffffff';
@@ -1109,6 +1117,7 @@ function updateCanvas() {
   }
 
   // Draw text content
+  console.log('🎨 About to call drawTextContent');
   drawTextContent();
 }
 
@@ -1195,7 +1204,14 @@ function drawUploadedImage() {
 function drawTextContent() {
   // Get category config for text fields
   const category = getCurrentCategoryConfig();
-  if (!category || !category.options) return;
+  if (!category || !category.options) {
+    console.log('❌ No category config found for text rendering');
+    return;
+  }
+  
+  // Get current options (use global accessor for compatibility)
+  const options = typeof window.getCurrentOptions === 'function' ? window.getCurrentOptions() : currentOptions;
+  console.log('🎨 Drawing text content, options:', options);
   
   // Clear existing text layer
   const textLayer = document.getElementById('text-layer');
@@ -1214,7 +1230,9 @@ function drawTextContent() {
   // Render text for each field
   category.options.forEach((field, index) => {
     if (field.type === 'text' || field.type === 'textarea') {
-      const value = currentOptions[field.key] || '';
+      const value = options[field.key] || '';
+      console.log(`🔤 Rendering field ${field.key}: "${value}"`);
+      
       if (value) {
         // Get field-specific styles, admin defaults, or fallback defaults
         const adminDefaults = getAdminTextDefaults(currentCategory, field.key);
