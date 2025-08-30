@@ -1051,13 +1051,37 @@ window.handleOptionChange = function(key, value) {
 
 // Throttled rendering using requestAnimationFrame
 let renderScheduled = false;
+let renderTimeoutId = null;
+
 function scheduleRender() {
   if (!renderScheduled) {
     renderScheduled = true;
+    
+    // Cancel any pending timeout
+    if (renderTimeoutId) {
+      clearTimeout(renderTimeoutId);
+    }
+    
+    // Use requestAnimationFrame for smooth rendering
     requestAnimationFrame(() => {
-      updateCanvas();
-      renderScheduled = false;
+      // Additional check to prevent multiple renders in same frame
+      if (renderScheduled) {
+        console.log('🎨 Executing scheduled render');
+        updateCanvas();
+        renderScheduled = false;
+      }
     });
+    
+    // Fallback timeout to ensure render happens even if RAF fails
+    renderTimeoutId = setTimeout(() => {
+      if (renderScheduled) {
+        console.log('🎨 Executing fallback render');
+        updateCanvas();
+        renderScheduled = false;
+      }
+    }, 16); // ~60fps
+  } else {
+    console.log('🎨 Render already scheduled, skipping');
   }
 }
 
@@ -1077,6 +1101,10 @@ function handleImageUpload(event) {
 function updateCanvas() {
   if (!ctx) return;
 
+  // Clear canvas and reset transforms to prevent rendering artifacts
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
   // Use new layer manager if available
   if (layerManager && layerManager.updateCanvas) {
     console.log('🎨 Using LayerManager for canvas update');
@@ -1087,7 +1115,7 @@ function updateCanvas() {
   console.log('🎨 Using legacy canvas rendering');
   
   // Fallback to legacy canvas rendering
-  // Clear canvas
+  // Fill with background color
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -1927,14 +1955,67 @@ function updateExportControls() {
   }
 }
 
+// Ensure all assets are loaded before export
+async function ensureAllAssetsLoaded() {
+  console.log('🔄 Ensuring all assets are loaded...');
+  
+  // Wait for background image to load if needed
+  if (!backgroundImage && templateThumbs) {
+    const category = getCurrentCategoryConfig();
+    if (category) {
+      try {
+        backgroundImage = await templateThumbs.getBackgroundForCanvas(category.folder, currentTemplate);
+        if (layerManager) {
+          layerManager.setBackgroundImage(backgroundImage);
+        }
+      } catch (error) {
+        console.warn('Could not load background for export:', error);
+      }
+    }
+  }
+  
+  // Wait for any pending image uploads in the multi-image system
+  if (typeof uploadedImages !== 'undefined' && uploadedImages.length > 0) {
+    await new Promise(resolve => {
+      // Check if images are still loading
+      const checkLoading = () => {
+        const allLoaded = uploadedImages.every(img => img.complete);
+        if (allLoaded) {
+          resolve();
+        } else {
+          setTimeout(checkLoading, 50);
+        }
+      };
+      checkLoading();
+    });
+  }
+  
+  console.log('✅ All assets loaded for export');
+}
+
 // Download current canvas as PNG with proper export sizing
-function downloadImage() {
+async function downloadImage() {
   if (!canvas) {
     alert('Canvas not ready');
     return;
   }
   
   try {
+    console.log('📥 Starting download process...');
+    
+    // Ensure all assets are loaded first
+    await ensureAllAssetsLoaded();
+    
+    // Trigger a final compose to ensure canvas is up to date
+    if (layerManager && layerManager.updateCanvas) {
+      layerManager.updateCanvas();
+    } else {
+      updateCanvas();
+    }
+    
+    // Wait for render to complete
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    
     // Get export dimensions from settings
     const dimensions = getExportDimensions();
     const exportWidth = dimensions.width;
@@ -1944,6 +2025,10 @@ function downloadImage() {
     exportCanvas.width = exportWidth;
     exportCanvas.height = exportHeight;
     const exportCtx = exportCanvas.getContext('2d');
+    
+    // Clear and reset export canvas
+    exportCtx.setTransform(1, 0, 0, 1, 0, 0);
+    exportCtx.clearRect(0, 0, exportWidth, exportHeight);
     
     // Use the same rendering pipeline as preview for consistency
     if (layerManager) {
@@ -2020,20 +2105,32 @@ function downloadImage() {
         break;
     }
     
-    // Download
+    // Create download link
     const link = document.createElement('a');
     const preset = exportSettings.preset === 'current' ? 'custom' : exportSettings.preset;
     link.download = `${currentCategory}-${preset}-${exportWidth}x${exportHeight}.${extension}`;
-    link.href = exportCanvas.toDataURL(mimeType, quality);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    
+    // Export canvas to blob for better performance and reliability
+    exportCanvas.toBlob((blob) => {
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up object URL
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+        console.log('✅ Download completed successfully');
+      } else {
+        console.error('❌ Failed to create blob for download');
+        alert('Download failed - could not create image data');
+      }
+    }, mimeType, quality);
+    
   } catch (e) {
-    console.error(e);
-    alert('Download failed');
+    console.error('❌ Download error:', e);
+    alert('Download failed: ' + e.message);
   }
 }
 
