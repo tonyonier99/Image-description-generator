@@ -828,7 +828,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     initializeCanvas();
     setupBasicEvents();
-    setupDragSystem();
+    // setupDragSystem(); // 🔧 暫時停用：與 CanvasTransform 系統衝突
     setupMultiImageControls();
     setupTextStyleControls();
     addControlButtons();
