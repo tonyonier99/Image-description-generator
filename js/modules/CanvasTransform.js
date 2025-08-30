@@ -60,11 +60,87 @@ class CanvasTransform {
     container.addEventListener('mousemove', this.onMouseMove.bind(this));
     container.addEventListener('mouseup', this.onMouseUp.bind(this));
     
+    // Wheel event for scaling
+    this.canvas.addEventListener('wheel', this.onWheel.bind(this));
+    
     // Handle clicks on transform handles
     this.transformControl.addEventListener('mousedown', this.onHandleMouseDown.bind(this));
+    
+    // Keyboard events for delete and nudging
+    document.addEventListener('keydown', this.onKeyDown.bind(this));
+  }
+  
+  onWheel(e) {
+    if (!this.selectedLayer) return;
+    
+    // Check if we're over the selected layer
+    const rect = this.canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const canvasX = (x / rect.width) * this.canvas.width;
+    const canvasY = (y / rect.height) * this.canvas.height;
+    
+    if (this.isPointInLayer(canvasX, canvasY, this.selectedLayer)) {
+      e.preventDefault();
+      
+      const scaleFactor = e.deltaY > 0 ? 0.95 : 1.05;
+      const newWidth = Math.max(20, this.selectedLayer.width * scaleFactor);
+      const newHeight = Math.max(20, this.selectedLayer.height * scaleFactor);
+      
+      // Scale from center
+      const centerX = this.selectedLayer.x + this.selectedLayer.width / 2;
+      const centerY = this.selectedLayer.y + this.selectedLayer.height / 2;
+      
+      this.selectedLayer.width = newWidth;
+      this.selectedLayer.height = newHeight;
+      this.selectedLayer.x = centerX - newWidth / 2;
+      this.selectedLayer.y = centerY - newHeight / 2;
+      
+      this.updateTransformControl();
+      this.layerManager.updateCanvas();
+    }
+  }
+  
+  onKeyDown(e) {
+    if (!this.selectedLayer) return;
+    
+    // Handle delete key
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (this.selectedLayer.type !== 'background') {
+        this.deleteSelectedLayer();
+        e.preventDefault();
+      }
+      return;
+    }
+    
+    // Handle arrow keys for nudging
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      const step = e.shiftKey ? 10 : 1; // Shift for larger steps
+      const layer = this.selectedLayer;
+      
+      switch (e.key) {
+        case 'ArrowUp':
+          layer.y = Math.max(0, layer.y - step);
+          break;
+        case 'ArrowDown':
+          layer.y = Math.min(this.canvas.height - layer.height, layer.y + step);
+          break;
+        case 'ArrowLeft':
+          layer.x = Math.max(0, layer.x - step);
+          break;
+        case 'ArrowRight':
+          layer.x = Math.min(this.canvas.width - layer.width, layer.x + step);
+          break;
+      }
+      
+      this.updateTransformControl();
+      this.layerManager.updateCanvas();
+      e.preventDefault();
+    }
   }
   
   onMouseDown(e) {
+    // Prevent conflicts with other event handlers by checking if this should be handled
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -77,12 +153,17 @@ class CanvasTransform {
     const layer = this.getLayerAtPoint(canvasX, canvasY);
     
     if (layer && !layer.locked) {
+      // This is a valid layer interaction, handle it and prevent other handlers
       this.selectLayer(layer);
       this.isDragging = true;
       this.dragStart = { x: canvasX, y: canvasY };
       e.preventDefault();
+      e.stopPropagation(); // Prevent other event handlers from interfering
+      return true; // Indicate this was handled
     } else {
       this.deselectLayer();
+      // Don't prevent propagation - let other handlers try
+      return false; // Indicate this was not handled
     }
   }
   

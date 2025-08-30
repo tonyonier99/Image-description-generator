@@ -3940,20 +3940,47 @@ function setupMultiImageControls() {
     });
   }
   
-  // Z-order controls - Note: these may need different logic for reorderable slots
+  // Z-order controls
   const moveUpBtn = document.getElementById('layer-move-up');
   const moveDownBtn = document.getElementById('layer-move-down');
   const moveTopBtn = document.getElementById('layer-move-top');
   const moveBottomBtn = document.getElementById('layer-move-bottom');
   
-  // For now, these buttons are disabled since slot ordering is different
-  [moveUpBtn, moveDownBtn, moveTopBtn, moveBottomBtn].forEach(btn => {
-    if (btn) {
-      btn.addEventListener('click', () => {
-        console.log('Z-order controls not yet implemented for slot system');
-      });
-    }
-  });
+  if (moveUpBtn) {
+    moveUpBtn.addEventListener('click', () => {
+      const selectedLayer = getSelectedLayerForAdjustment();
+      if (selectedLayer && layerManager) {
+        layerManager.moveLayerUp(selectedLayer);
+      }
+    });
+  }
+  
+  if (moveDownBtn) {
+    moveDownBtn.addEventListener('click', () => {
+      const selectedLayer = getSelectedLayerForAdjustment();
+      if (selectedLayer && layerManager) {
+        layerManager.moveLayerDown(selectedLayer);
+      }
+    });
+  }
+  
+  if (moveTopBtn) {
+    moveTopBtn.addEventListener('click', () => {
+      const selectedLayer = getSelectedLayerForAdjustment();
+      if (selectedLayer && layerManager) {
+        layerManager.moveLayerToTop(selectedLayer);
+      }
+    });
+  }
+  
+  if (moveBottomBtn) {
+    moveBottomBtn.addEventListener('click', () => {
+      const selectedLayer = getSelectedLayerForAdjustment();
+      if (selectedLayer && layerManager) {
+        layerManager.moveLayerToBottom(selectedLayer);
+      }
+    });
+  }
   
   // Reset and delete buttons
   const resetBtn = document.getElementById('reset-image-adjustments');
@@ -4016,6 +4043,24 @@ function updateImageAdjustmentInfo(message) {
   }
 }
 
+// Get the currently selected layer for adjustment operations
+function getSelectedLayerForAdjustment() {
+  // Check slot manager first
+  if (typeof slotLayerManager !== 'undefined') {
+    const selectedSlot = slotLayerManager.getSelectedSlot();
+    if (selectedSlot && selectedSlot.type !== 'template') {
+      return selectedSlot;
+    }
+  }
+  
+  // Check layer manager
+  if (layerManager && layerManager.selectedLayer) {
+    return layerManager.selectedLayer;
+  }
+  
+  return null;
+}
+
 // Enable/disable image adjustment controls based on selection
 function updateImageAdjustmentControls() {
   let selectedLayer = null;
@@ -4053,6 +4098,9 @@ function updateImageAdjustmentControls() {
     'image-blend-mode', 'image-brightness', 'image-contrast', 'image-saturation', 'image-blur'
   ];
   
+  // Enable/disable layer order controls
+  const orderControlIds = ['layer-move-up', 'layer-move-down', 'layer-move-top', 'layer-move-bottom'];
+  
   controlIds.forEach(id => {
     const control = document.getElementById(id);
     if (control) {
@@ -4061,6 +4109,14 @@ function updateImageAdjustmentControls() {
         // Update control values from layer properties
         updateControlValue(control, selectedLayer, id);
       }
+    }
+  });
+  
+  // Enable layer order controls for any layer (except background)
+  orderControlIds.forEach(id => {
+    const control = document.getElementById(id);
+    if (control) {
+      control.disabled = !selectedLayer || selectedLayer.type === 'background';
     }
   });
 }

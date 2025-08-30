@@ -560,6 +560,81 @@ class LayerManager {
   }
   
   /**
+   * Move layer up in z-index order
+   */
+  moveLayerUp(layer) {
+    if (!layer || layer.type === 'background') return;
+    
+    const allLayers = this.getAllLayers().filter(l => l.type !== 'background');
+    const sortedLayers = allLayers.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+    const currentIndex = sortedLayers.findIndex(l => l.id === layer.id);
+    
+    if (currentIndex < sortedLayers.length - 1) {
+      // Swap z-index with the layer above
+      const upperLayer = sortedLayers[currentIndex + 1];
+      const tempZ = layer.zIndex;
+      layer.zIndex = upperLayer.zIndex;
+      upperLayer.zIndex = tempZ;
+      
+      this.updateLayersList();
+      this.updateCanvas();
+      console.log(`Moved layer ${layer.name} up`);
+    }
+  }
+  
+  /**
+   * Move layer down in z-index order
+   */
+  moveLayerDown(layer) {
+    if (!layer || layer.type === 'background') return;
+    
+    const allLayers = this.getAllLayers().filter(l => l.type !== 'background');
+    const sortedLayers = allLayers.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+    const currentIndex = sortedLayers.findIndex(l => l.id === layer.id);
+    
+    if (currentIndex > 0) {
+      // Swap z-index with the layer below
+      const lowerLayer = sortedLayers[currentIndex - 1];
+      const tempZ = layer.zIndex;
+      layer.zIndex = lowerLayer.zIndex;
+      lowerLayer.zIndex = tempZ;
+      
+      this.updateLayersList();
+      this.updateCanvas();
+      console.log(`Moved layer ${layer.name} down`);
+    }
+  }
+  
+  /**
+   * Move layer to top
+   */
+  moveLayerToTop(layer) {
+    if (!layer || layer.type === 'background') return;
+    
+    const maxZ = this.getNextZIndex();
+    layer.zIndex = maxZ;
+    
+    this.updateLayersList();
+    this.updateCanvas();
+    console.log(`Moved layer ${layer.name} to top`);
+  }
+  
+  /**
+   * Move layer to bottom
+   */
+  moveLayerToBottom(layer) {
+    if (!layer || layer.type === 'background') return;
+    
+    const allLayers = this.getAllLayers().filter(l => l.type !== 'background');
+    const minZ = Math.min(...allLayers.map(l => l.zIndex || 0));
+    layer.zIndex = minZ - 1;
+    
+    this.updateLayersList();
+    this.updateCanvas();
+    console.log(`Moved layer ${layer.name} to bottom`);
+  }
+  
+  /**
    * Update canvas with all layers
    */
   updateCanvas() {
