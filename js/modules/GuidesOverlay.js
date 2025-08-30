@@ -493,11 +493,17 @@ class GuidesOverlay {
   setSnapEnabled(enabled) {
     this.snapEnabled = enabled;
     this.savePreference('snapEnabled', enabled);
+    if (window.saveUserPreferencesToBackend) {
+      window.saveUserPreferencesToBackend();
+    }
   }
   
   setSnapThreshold(threshold) {
     this.snapThreshold = Math.max(1, Math.min(50, threshold));
     this.savePreference('snapThreshold', this.snapThreshold);
+    if (window.saveUserPreferencesToBackend) {
+      window.saveUserPreferencesToBackend();
+    }
   }
   
   setRulersEnabled(enabled) {
@@ -505,24 +511,36 @@ class GuidesOverlay {
     this.horizontalRuler.style.display = enabled ? 'block' : 'none';
     this.verticalRuler.style.display = enabled ? 'block' : 'none';
     this.savePreference('rulersEnabled', enabled);
+    if (window.saveUserPreferencesToBackend) {
+      window.saveUserPreferencesToBackend();
+    }
   }
   
   setGridEnabled(enabled) {
     this.gridEnabled = enabled;
     this.updateGrid();
     this.savePreference('gridEnabled', enabled);
+    if (window.saveUserPreferencesToBackend) {
+      window.saveUserPreferencesToBackend();
+    }
   }
   
   setGridSpacing(spacing) {
     this.gridSpacing = Math.max(10, Math.min(100, spacing));
     this.updateGrid();
     this.savePreference('gridSpacing', this.gridSpacing);
+    if (window.saveUserPreferencesToBackend) {
+      window.saveUserPreferencesToBackend();
+    }
   }
   
   setGridOpacity(opacity) {
     this.gridOpacity = Math.max(0.1, Math.min(1, opacity));
     this.gridOverlay.style.opacity = this.gridOpacity;
     this.savePreference('gridOpacity', this.gridOpacity);
+    if (window.saveUserPreferencesToBackend) {
+      window.saveUserPreferencesToBackend();
+    }
   }
   
   // Preferences persistence

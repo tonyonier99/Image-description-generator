@@ -21,6 +21,11 @@ let loadedFonts = [];
 let selectedTextField = null;
 let textStyles = {};
 
+// Backend integration (optional)
+let backendUrl = null;
+let authToken = null;
+let backendEnabled = false;
+
 // New module instances
 let canvasTransform = null;
 let templateStateStore = null;
@@ -623,6 +628,9 @@ document.addEventListener('DOMContentLoaded', async function() {
   updateCanvas();
   setupUndoRedoSystem();
   checkAdminUnlock(); // Check if admin should be unlocked
+  
+  // Initialize backend (optional)
+  await initializeBackend();
 });
 
 // Load category configurations
@@ -3016,6 +3024,184 @@ function nudgeSelectedLayer(direction, shiftKey, altKey) {
     saveHistoryState(`Slot "${selectedSlot.name}" nudged ${direction} by ${stepSize}px`);
   }
 }
+
+// Backend Integration Functions
+async function initializeBackend() {
+  // Try to detect backend URL
+  const possibleUrls = [
+    'http://localhost:3000/api',
+    `${window.location.origin}/api`,
+    // Add more potential backend URLs
+  ];
+  
+  for (const url of possibleUrls) {
+    try {
+      const response = await fetch(`${url}/health`, { method: 'GET' });
+      if (response.ok) {
+        backendUrl = url;
+        backendEnabled = true;
+        console.log(`✅ Backend detected at ${backendUrl}`);
+        await loadUserPreferencesFromBackend();
+        break;
+      }
+    } catch (error) {
+      // Backend not available at this URL
+    }
+  }
+  
+  if (!backendEnabled) {
+    console.log('ℹ️ Running in frontend-only mode');
+  }
+}
+
+async function loadUserPreferencesFromBackend() {
+  if (!backendEnabled || !authToken) return;
+  
+  try {
+    const response = await fetch(`${backendUrl}/prefs`, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (response.ok) {
+      const prefs = await response.json();
+      
+      // Apply backend preferences to guides overlay
+      if (guidesOverlay) {
+        guidesOverlay.setSnapEnabled(prefs.snapEnabled);
+        guidesOverlay.setSnapThreshold(prefs.snapThreshold);
+        guidesOverlay.setRulersEnabled(prefs.rulersEnabled);
+        guidesOverlay.setGridEnabled(prefs.gridEnabled);
+        guidesOverlay.setGridSpacing(prefs.gridSpacing);
+        guidesOverlay.setGridOpacity(prefs.gridOpacity);
+      }
+      
+      console.log('✅ User preferences loaded from backend');
+    }
+  } catch (error) {
+    console.warn('Failed to load user preferences from backend:', error);
+  }
+}
+
+async function saveUserPreferencesToBackend() {
+  if (!backendEnabled || !authToken || !guidesOverlay) return;
+  
+  try {
+    const prefs = {
+      snapEnabled: guidesOverlay.snapEnabled,
+      snapThreshold: guidesOverlay.snapThreshold,
+      rulersEnabled: guidesOverlay.rulersEnabled,
+      gridEnabled: guidesOverlay.gridEnabled,
+      gridSpacing: guidesOverlay.gridSpacing,
+      gridOpacity: guidesOverlay.gridOpacity,
+    };
+    
+    const response = await fetch(`${backendUrl}/prefs`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(prefs),
+    });
+    
+    if (response.ok) {
+      console.log('✅ User preferences saved to backend');
+    }
+  } catch (error) {
+    console.warn('Failed to save user preferences to backend:', error);
+  }
+}
+
+async function createExportJob(projectData, options = {}) {
+  if (!backendEnabled || !authToken) {
+    // Fallback to frontend export
+    console.log('Using frontend export fallback');
+    downloadImage();
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${backendUrl}/exports`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        projectData,
+        format: options.format || 'png',
+        width: options.width || CANVAS_WIDTH,
+        height: options.height || CANVAS_HEIGHT,
+        quality: options.quality || 0.9,
+      }),
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log('✅ Export job created:', result.jobId);
+      
+      // Poll for completion
+      pollExportJob(result.jobId);
+    } else {
+      throw new Error('Failed to create export job');
+    }
+  } catch (error) {
+    console.warn('Backend export failed, using frontend fallback:', error);
+    downloadImage();
+  }
+}
+
+async function pollExportJob(jobId) {
+  const pollInterval = 2000; // 2 seconds
+  const maxAttempts = 30; // 1 minute total
+  let attempts = 0;
+  
+  const poll = async () => {
+    if (attempts >= maxAttempts) {
+      console.error('Export job timeout');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${backendUrl}/jobs/${jobId}`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      
+      if (response.ok) {
+        const job = await response.json();
+        
+        if (job.status === 'completed') {
+          console.log('✅ Export completed:', job.fileUrl);
+          // Download the file
+          const link = document.createElement('a');
+          link.href = job.fileUrl;
+          link.download = `export-${new Date().toISOString().split('T')[0]}.${job.format}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else if (job.status === 'failed') {
+          console.error('Export job failed:', job.errorMessage);
+        } else {
+          // Still processing, poll again
+          attempts++;
+          setTimeout(poll, pollInterval);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to poll export job:', error);
+    }
+  };
+  
+  poll();
+}
+
+// Make functions available globally for GuidesOverlay
+window.saveUserPreferencesToBackend = saveUserPreferencesToBackend;
 
 // Helper function to load images with multiple extension fallbacks
 function loadImageWithFallback(basePath, extensions, onSuccess, onFailure) {
