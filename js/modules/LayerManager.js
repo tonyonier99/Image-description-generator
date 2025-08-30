@@ -181,7 +181,10 @@ class LayerManager {
     };
     
     this.textBoxes.push(textBox);
-    this.selectTextBox(textBox);
+    // 🔧 FIX: Don't auto-select text box to keep creation simple
+    // Advanced editing should be done via "Text Adjustment" panel
+    // this.selectTextBox(textBox);
+    
     this.updateTextBoxesList();
     this.refreshTextFieldSelect();
     this.updateCanvas();
@@ -335,12 +338,67 @@ class LayerManager {
     this.textBoxes.forEach(textBox => {
       const item = document.createElement('div');
       item.className = `text-box-item ${this.selectedTextBox === textBox ? 'selected' : ''}`;
+      
+      // Create simplified interface with inline editing
       item.innerHTML = `
-        <div class="text-box-item-name">${textBox.name}</div>
-        <div class="text-box-item-preview">${textBox.content}</div>
+        <div class="text-box-item-header">
+          <div class="text-box-item-name">${textBox.name}</div>
+          <div class="text-box-item-actions">
+            <button class="text-box-edit-btn" title="使用「文字調整」編輯">✏️</button>
+            <button class="text-box-duplicate-btn" title="複製">📋</button>
+            <button class="text-box-delete-btn" title="刪除">🗑️</button>
+          </div>
+        </div>
+        <input type="text" class="text-box-content-input" value="${textBox.content}" placeholder="輸入文字內容">
       `;
       
-      item.addEventListener('click', () => this.selectTextBox(textBox));
+      // Add event listeners for simple operations
+      const contentInput = item.querySelector('.text-box-content-input');
+      const editBtn = item.querySelector('.text-box-edit-btn');
+      const duplicateBtn = item.querySelector('.text-box-duplicate-btn');
+      const deleteBtn = item.querySelector('.text-box-delete-btn');
+      
+      // Content editing
+      contentInput.addEventListener('input', (e) => {
+        textBox.content = e.target.value;
+        this.updateCanvas();
+        this.refreshTextFieldSelect();
+      });
+      
+      // Edit via Text Adjustment panel
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Select this text box in the text adjustment panel
+        const fieldSelect = document.getElementById('text-field-select');
+        if (fieldSelect) {
+          fieldSelect.value = textBox.id;
+          fieldSelect.dispatchEvent(new Event('change'));
+        }
+        // Expand text adjustment panel if collapsed
+        const textTuningToggle = document.getElementById('text-tuning-toggle');
+        const textTuningContent = document.getElementById('text-tuning-content');
+        if (textTuningToggle && textTuningContent) {
+          textTuningToggle.setAttribute('aria-expanded', 'true');
+          textTuningContent.style.display = 'block';
+          const icon = textTuningToggle.querySelector('.toggle-icon');
+          if (icon) icon.textContent = '▲';
+        }
+      });
+      
+      // Duplicate
+      duplicateBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.duplicateTextBox(textBox);
+      });
+      
+      // Delete
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm(`確定要刪除「${textBox.name}」嗎？`)) {
+          this.deleteTextBox(textBox);
+        }
+      });
+      
       listElement.appendChild(item);
     });
   }
