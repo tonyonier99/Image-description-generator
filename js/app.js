@@ -1290,10 +1290,18 @@ function drawUploadedImage() {
 
 // Draw text content based on current options
 function drawTextContent() {
+  // Prevent multiple calls in the same render cycle
+  if (drawTextContent._isRendering) {
+    console.log('🔤 Text rendering already in progress, skipping duplicate call');
+    return;
+  }
+  drawTextContent._isRendering = true;
+  
   // Get category config for text fields
   const category = getCurrentCategoryConfig();
   if (!category || !category.options) {
     console.log('❌ No category config found for text rendering');
+    drawTextContent._isRendering = false;
     return;
   }
   
@@ -2266,7 +2274,10 @@ function drawTextContentForExport(ctx, exportWidth, exportHeight) {
         ctx.fillText(value, x, y);
       }
     }
-  });
+    });
+    
+    // Reset the rendering flag
+    drawTextContent._isRendering = false;
 }
 
 // Preview mode and tuning functions
