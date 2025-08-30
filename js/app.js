@@ -1107,6 +1107,11 @@ window.handleOptionChange = function(key, value) {
   
   console.log('✅ Text updated:', key, '=', value, 'currentOptions:', currentOptions);
   
+  // 🔄 NEW: If this field is currently selected in text tuning panel, sync back
+  if (selectedTextField === key) {
+    syncTextInputToTuningPanel(key, value);
+  }
+  
   // Schedule render with requestAnimationFrame for smooth updates
   scheduleRender();
   
@@ -2612,6 +2617,10 @@ function updateTextFieldStyle() {
   
   // Save and update
   categoryStorage.setTextStyles(currentCategory, textStyles);
+  
+  // 🔄 NEW: Sync text styles back to category text inputs for bidirectional sync
+  syncTextStylesToTextInputs();
+  
   updateCanvas();
   
   // Save history state for significant changes
@@ -2619,6 +2628,30 @@ function updateTextFieldStyle() {
       fontFamily !== undefined || align !== undefined || color !== undefined ||
       autoFit !== undefined || strokeEnabled !== undefined || bgEnabled !== undefined) {
     saveHistoryState(`Text field "${selectedTextField}" updated`);
+  }
+}
+
+// 🔄 NEW: Sync text styles back to category text inputs for bidirectional synchronization
+function syncTextStylesToTextInputs() {
+  if (!selectedTextField) return;
+  
+  // Find the corresponding input field in the "文字設定" panel
+  const inputElement = document.getElementById(`option-${selectedTextField}`);
+  if (inputElement && currentOptions[selectedTextField] !== undefined) {
+    // The text content itself doesn't change in the adjustment panel
+    // This function is mainly for future extensions like font style sync
+    console.log(`🔄 Text sync: "${selectedTextField}" content preserved`);
+  }
+}
+
+// 🔄 NEW: Sync text input changes to tuning panel
+function syncTextInputToTuningPanel(key, value) {
+  // When text content changes, ensure the tuning panel reflects any existing styles
+  // This helps maintain consistency when switching between fields
+  if (selectedTextField === key) {
+    // Refresh the tuning panel to ensure all controls are in sync
+    updateTextControlValues();
+    console.log(`🔄 Text input synced to tuning panel: "${key}"`);
   }
 }
 
