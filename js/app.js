@@ -138,7 +138,36 @@ class GuidesOverlay {
       candidates.horizontal.push(safeTop, safeBottom);
     }
     
-    // Other visible layer edges/centers (TODO: implement when layer selection is available)
+    // Other visible, unlocked layer edges/centers
+    if (slotLayerManager) {
+      slotLayerManager.slots.forEach((slot, slotId) => {
+        // Only consider visible and unlocked layers
+        if (slot.visible && !slot.locked && slot.image && slotId !== selectedLayer) {
+          // Note: This would require calculating actual layer positions
+          // For now, we focus on the basic guides which are the most important
+        }
+      });
+    }
+    
+    // Other visible, unlocked text field edges/centers
+    const textBoxes = document.querySelectorAll('.text-box:not(.locked)');
+    textBoxes.forEach(textBox => {
+      if (textBox.dataset.field !== selectedTextField) {
+        const boxRect = textBox.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        // Convert to container-relative coordinates
+        const left = boxRect.left - containerRect.left;
+        const right = boxRect.right - containerRect.left;
+        const top = boxRect.top - containerRect.top;
+        const bottom = boxRect.bottom - containerRect.top;
+        const centerX = left + (boxRect.width / 2);
+        const centerY = top + (boxRect.height / 2);
+        
+        candidates.vertical.push(left, centerX, right);
+        candidates.horizontal.push(top, centerY, bottom);
+      }
+    });
     
     return candidates;
   }
@@ -2642,6 +2671,12 @@ function setupKeyboardMovement() {
 function nudgeTextField(direction, shiftKey, altKey = false) {
   if (!selectedTextField) return;
   
+  // Check if the text field is locked
+  if (textStyles[selectedTextField] && textStyles[selectedTextField].locked) {
+    console.log(`Text field "${selectedTextField}" is locked and cannot be moved`);
+    return;
+  }
+  
   let step;
   if (altKey) {
     step = 0.0005; // Ultra-fine adjustment
@@ -2686,7 +2721,13 @@ function nudgeLayer(direction, step) {
   if (!selectedLayer || !slotLayerManager) return;
   
   const slot = slotLayerManager.slots.get(selectedLayer);
-  if (!slot || slot.locked) return; // Ignore locked layers
+  if (!slot) return;
+  
+  // Ignore locked or hidden layers
+  if (slot.locked || !slot.visible) {
+    console.log(`Layer "${slot.name}" is ${slot.locked ? 'locked' : 'hidden'} and cannot be moved`);
+    return;
+  }
   
   // Convert step to offset units (assuming pixel-based)
   switch (direction) {
