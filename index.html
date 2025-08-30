@@ -533,6 +533,11 @@
                         </div>
                     </div>
                     <div id="text-box-properties" class="text-box-properties" style="display: none;">
+                        <!-- 
+                        Legacy text box properties panel - hidden in favor of unified Text Adjustment panel.
+                        All text box editing should be done via the "文字調整" panel above.
+                        -->
+                        <div style="display: none;">
                         <h4>文字框屬性</h4>
                         <div class="property-group">
                             <label for="text-box-content">內容：</label>
@@ -580,6 +585,7 @@
                         <div class="property-buttons">
                             <button id="delete-text-box-btn" class="danger">刪除文字框</button>
                             <button id="duplicate-text-box-btn" class="secondary">複製文字框</button>
+                        </div>
                         </div>
                     </div>
                     <div id="category-options" class="category-options">
