@@ -2000,7 +2000,12 @@ function updateSafeAreaOverlay() {
   
   const container = document.querySelector('.canvas-container');
   const rect = container.getBoundingClientRect();
-  const padding = safeAreaPadding;
+  
+  // Use the new padding value if available, otherwise fall back to global safeAreaPadding
+  const safeAreaPaddingSlider = document.getElementById('safeAreaPadding');
+  const padding = safeAreaPaddingSlider ? 
+    parseFloat(safeAreaPaddingSlider.value) / 100 : 
+    safeAreaPadding;
   
   const left = rect.width * padding;
   const top = rect.height * padding;
@@ -2011,6 +2016,12 @@ function updateSafeAreaOverlay() {
   border.style.top = `${top}px`;
   border.style.width = `${width}px`;
   border.style.height = `${height}px`;
+  
+  // Apply the color from the color picker if available
+  const safeAreaColorPicker = document.getElementById('safeAreaColor');
+  if (safeAreaColorPicker) {
+    border.style.borderColor = safeAreaColorPicker.value;
+  }
 }
 
 function updateGuidesOverlay() {
@@ -2893,14 +2904,44 @@ function loadTemplateImages() {
 
 // Setup guides and safe area controls
 function setupGuidesControls() {
-  const safeAreaToggle = document.getElementById('safe-area-toggle');
+  const safeAreaToggle = document.getElementById('safe-area-toggle') || document.getElementById('safeAreaToggle');
   const guidesToggle = document.getElementById('guides-toggle');
   const snapToggle = document.getElementById('snap-toggle');
   const safeAreaPreset = document.getElementById('safe-area-preset');
   
+  // New safe area controls
+  const safeAreaPadding = document.getElementById('safeAreaPadding');
+  const safeAreaPaddingValue = document.getElementById('safeAreaPaddingValue');
+  const safeAreaColor = document.getElementById('safeAreaColor');
+  const safeAreaLockAspect = document.getElementById('safeAreaLockAspect');
+  
   if (safeAreaToggle) {
     safeAreaToggle.addEventListener('change', (e) => {
       safeAreaEnabled = e.target.checked;
+      updateSafeAreaOverlay();
+    });
+  }
+  
+  if (safeAreaPadding && safeAreaPaddingValue) {
+    safeAreaPadding.addEventListener('input', (e) => {
+      const value = e.target.value;
+      safeAreaPaddingValue.textContent = value;
+      // Convert percentage to decimal for internal use
+      window.safeAreaPadding = parseFloat(value) / 100;
+      updateSafeAreaOverlay();
+    });
+  }
+  
+  if (safeAreaColor) {
+    safeAreaColor.addEventListener('change', (e) => {
+      updateSafeAreaOverlay();
+    });
+  }
+  
+  if (safeAreaLockAspect) {
+    safeAreaLockAspect.addEventListener('change', (e) => {
+      // Store the lock aspect setting
+      window.safeAreaLockAspect = e.target.checked;
       updateSafeAreaOverlay();
     });
   }
@@ -2922,7 +2963,7 @@ function setupGuidesControls() {
     safeAreaPreset.addEventListener('change', (e) => {
       const value = e.target.value;
       if (value !== 'custom') {
-        safeAreaPadding = parseFloat(value);
+        window.safeAreaPadding = parseFloat(value);
         updateSafeAreaOverlay();
       }
     });
