@@ -982,7 +982,7 @@ function renderOptionField(option, value) {
         <div class="input-group">
           <label for="option-${key}">${label}</label>
           <input type="text" id="option-${key}" value="${value}" 
-                 onchange="handleOptionChange('${key}', this.value)"
+                 oninput="handleOptionChange('${key}', this.value)"
                  ${option.maxLength ? `maxlength="${option.maxLength}"` : ''}>
         </div>`;
 
@@ -991,7 +991,7 @@ function renderOptionField(option, value) {
         <div class="input-group">
           <label for="option-${key}">${label}</label>
           <textarea id="option-${key}" rows="3" 
-                    onchange="handleOptionChange('${key}', this.value)">${value}</textarea>
+                    oninput="handleOptionChange('${key}', this.value)">${value}</textarea>
         </div>`;
 
     case 'color':
@@ -1032,13 +1032,29 @@ function renderOptionField(option, value) {
 window.handleOptionChange = function(key, value) {
   const oldValue = currentOptions[key];
   currentOptions[key] = value;
-  updateCanvas();
+  
+  console.log('✅ Text updated:', key, '=', value, 'currentOptions:', currentOptions);
+  
+  // Schedule render with requestAnimationFrame for smooth updates
+  scheduleRender();
   
   // Save history state for text content changes
   if (oldValue !== value) {
     saveHistoryState(`Text content "${key}" changed`);
   }
 };
+
+// Throttled rendering using requestAnimationFrame
+let renderScheduled = false;
+function scheduleRender() {
+  if (!renderScheduled) {
+    renderScheduled = true;
+    requestAnimationFrame(() => {
+      updateCanvas();
+      renderScheduled = false;
+    });
+  }
+}
 
 // Get current category configuration
 function getCurrentCategoryConfig() {
