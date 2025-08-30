@@ -1098,6 +1098,7 @@ function renderOptionField(option, value) {
 window.drawTextContent = drawTextContent;
 window.getCurrentCategoryConfig = getCurrentCategoryConfig;
 window.getCurrentOptions = () => currentOptions;
+window.updateTextTuningPanel = updateTextTuningPanel;
 
 // Handle option value change
 window.handleOptionChange = function(key, value) {
