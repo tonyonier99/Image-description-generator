@@ -179,32 +179,34 @@ class TemplateThumbs {
     // Convert templateIndex to 1-based for filename
     const templateNumber = templateIndex + 1;
     
-    // Try to load empty/background template for current template
-    try {
-      const emptyImage = await this.loadImageWithFallbacks(
-        categoryFolder, 
-        templateNumber, 
-        ['png', 'jpg'],
-        `${categoryFolder}_Empty_`
-      );
-      return emptyImage;
-    } catch (error) {
-      console.warn(`Failed to load background ${categoryFolder}_Empty_${templateNumber}, falling back to Empty_1`, error);
-      
-      // Fallback to Empty_1 if specific template background doesn't exist
+    // Try multiple naming patterns for background images
+    const backgroundPaths = [
+      // Primary: Category_Empty_N.jpg
+      `assets/templates/${categoryFolder}/${categoryFolder}_Empty_${templateNumber}.jpg`,
+      `assets/templates/${categoryFolder}/${categoryFolder}_Empty_${templateNumber}.png`,
+      // Fallback for Room category: Room_EmptyN without underscore
+      ...(categoryFolder === 'Room' ? [
+        `assets/templates/${categoryFolder}/${categoryFolder}_Empty${templateNumber}.jpg`,
+        `assets/templates/${categoryFolder}/${categoryFolder}_Empty${templateNumber}.png`
+      ] : []),
+      // Final fallback: Empty_1
+      `assets/templates/${categoryFolder}/${categoryFolder}_Empty_1.jpg`,
+      `assets/templates/${categoryFolder}/${categoryFolder}_Empty_1.png`
+    ];
+    
+    for (const path of backgroundPaths) {
       try {
-        const fallbackImage = await this.loadImageWithFallbacks(
-          categoryFolder, 
-          1, 
-          ['png', 'jpg'],
-          `${categoryFolder}_Empty_`
-        );
-        return fallbackImage;
-      } catch (fallbackError) {
-        console.warn(`Failed to load fallback background for canvas: ${categoryFolder}`, fallbackError);
-        return null;
+        const image = await this.loadImage(path);
+        console.log(`✅ Loaded background image: ${path}`);
+        return image;
+      } catch (error) {
+        console.log(`⚠️ Failed to load background: ${path}`);
+        continue;
       }
     }
+    
+    console.warn(`❌ No background found for ${categoryFolder}_${templateNumber}, using default`);
+    return null;
   }
   
   /**

@@ -1519,21 +1519,34 @@ function setupAdditionalImageUpload() {
 function handleMultiImageUpload(file) {
     console.log('📁 開始處理多圖片上傳...', file.name);
     
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        alert('請選擇有效的圖片檔案！');
+        return;
+    }
+    
     const reader = new FileReader();
     
     reader.onload = function(e) {
         const img = new Image();
         
+        // Set crossOrigin to avoid canvas taint issues
+        img.crossOrigin = 'anonymous';
+        
         img.onload = function() {
+            console.log(`✅ 圖片載入成功: ${img.width} × ${img.height}`);
+            
             const imageIndex = addNewImage(img, file.name);
             
             // 如果是第一張圖片，啟用生成按鈕
             if (uploadedImages.length === 1) {
-                document.getElementById('generate-btn').disabled = false;
+                const generateBtn = document.getElementById('generate-btn');
+                if (generateBtn) {
+                    generateBtn.disabled = false;
+                }
             }
             
-            console.log(`✅ 圖片${imageIndex}載入成功: ${img.width} × ${img.height}`);
-            
+            // Update UI
             updateImageGallery();
             updateMultiImageControls();
             updateImageCountInfo();
@@ -1541,15 +1554,26 @@ function handleMultiImageUpload(file) {
             // 如果已經有生成過，自動重新生成
             if (isGenerated) {
                 generateImage();
+            } else {
+                // Schedule a render to show the uploaded image immediately
+                if (typeof scheduleRender === 'function') {
+                    scheduleRender();
+                }
             }
         };
         
         img.onerror = function() {
             console.error('❌ 圖片載入失敗:', file.name);
-            alert(`圖片載入失敗：${file.name}`);
+            alert(`圖片載入失敗：${file.name}\n請確認圖片檔案沒有損壞。`);
         };
         
+        // Use result from FileReader for local files
         img.src = e.target.result;
+    };
+    
+    reader.onerror = function() {
+        console.error('❌ 檔案讀取失敗:', file.name);
+        alert(`檔案讀取失敗：${file.name}`);
     };
     
     reader.readAsDataURL(file);
@@ -1989,7 +2013,12 @@ function handleImageUpload(event) {
     reader.onload = function(e) {
         const img = new Image();
         
+        // Set crossOrigin to avoid canvas taint issues
+        img.crossOrigin = 'anonymous';
+        
         img.onload = function() {
+            console.log(`✅ 圖片載入成功: ${img.width} × ${img.height}`);
+            
             // 清空現有圖片，只保留新上傳的
             uploadedImages = [];
             multiImageSettings.template1 = [];
@@ -2000,21 +2029,32 @@ function handleImageUpload(event) {
             const imageIndex = addNewImage(img, file.name);
             
             showImagePreview(e.target.result);
-            document.getElementById('generate-btn').disabled = false;
+            const generateBtn = document.getElementById('generate-btn');
+            if (generateBtn) {
+                generateBtn.disabled = false;
+            }
             
             updateImageGallery();
             updateMultiImageControls();
             updateImageCountInfo();
             
-            console.log(`✅ 圖片載入成功: ${img.width} × ${img.height}`);
+            // Schedule a render to show the uploaded image immediately
+            if (typeof scheduleRender === 'function') {
+                scheduleRender();
+            }
         };
         
         img.onerror = function() {
-            console.error('❌ 圖片載入失敗');
-            alert('圖片載入失敗！');
+            console.error('❌ 圖片載入失敗:', file.name);
+            alert(`圖片載入失敗：${file.name}\n請確認圖片檔案沒有損壞。`);
         };
         
         img.src = e.target.result;
+    };
+    
+    reader.onerror = function() {
+        console.error('❌ 檔案讀取失敗:', file.name);
+        alert(`檔案讀取失敗：${file.name}`);
     };
     
     reader.readAsDataURL(file);
