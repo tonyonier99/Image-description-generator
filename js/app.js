@@ -5,6 +5,7 @@ import { TemplateStateStore } from './modules/TemplateStateStore.js';
 import { LayerManager } from './modules/LayerManager.js';
 import { TemplateThumbs } from './modules/TemplateThumbs.js';
 import { GuidesOverlay } from './modules/GuidesOverlay.js';
+import { DiagnosticSystem } from './modules/DiagnosticSystem.js';
 
 // Global state
 let currentCategory = 'classic';
@@ -32,6 +33,7 @@ let templateStateStore = null;
 let layerManager = null;
 let templateThumbs = null;
 let guidesOverlay = null;
+let diagnosticSystem = null;
 
 // Multi-image layer system
 let imageLayers = [];
@@ -450,15 +452,60 @@ class SlotLayerManager {
     input.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
+        // 🔍 診斷：追蹤圖片上傳 - 檔案選擇
+        if (diagnosticSystem) {
+          diagnosticSystem.trackImageUpload('file_selected', { 
+            fileName: file.name, 
+            fileSize: file.size, 
+            fileType: file.type 
+          });
+        }
+        
         const reader = new FileReader();
         reader.onload = (event) => {
+          // 🔍 診斷：追蹤圖片上傳 - FileReader 完成
+          if (diagnosticSystem) {
+            diagnosticSystem.trackImageUpload('filereader_complete', { 
+              dataURLLength: event.target.result.length 
+            });
+          }
+          
           const img = new Image();
           img.onload = () => {
+            // 🔍 診斷：追蹤圖片上傳 - 圖片載入完成
+            if (diagnosticSystem) {
+              diagnosticSystem.trackImageUpload('image_loaded', { 
+                width: img.width, 
+                height: img.height 
+              });
+            }
+            
             this.setSlotImage(slotId, img, file.name);
             updateCanvas();
+            
+            // 🔍 診斷：追蹤圖片上傳 - 設置到圖層完成
+            if (diagnosticSystem) {
+              diagnosticSystem.trackImageUpload('layer_set_complete', { slotId });
+            }
           };
+          
+          img.onerror = (error) => {
+            // 🔍 診斷：追蹤圖片上傳 - 圖片載入失敗
+            if (diagnosticSystem) {
+              diagnosticSystem.trackImageUpload('image_load_error', { error: error.message || 'Unknown error' });
+            }
+          };
+          
           img.src = event.target.result;
         };
+        
+        reader.onerror = (error) => {
+          // 🔍 診斷：追蹤圖片上傳 - FileReader 錯誤
+          if (diagnosticSystem) {
+            diagnosticSystem.trackImageUpload('filereader_error', { error: error.message || 'Unknown error' });
+          }
+        };
+        
         reader.readAsDataURL(file);
       }
     });
@@ -769,6 +816,9 @@ function initializeModules() {
   // Initialize guides overlay
   guidesOverlay = new GuidesOverlay(canvas);
   
+  // Initialize diagnostic system
+  diagnosticSystem = new DiagnosticSystem();
+  
   console.log('✅ All modules initialized');
 }
 
@@ -1062,6 +1112,11 @@ function scheduleRender() {
       clearTimeout(renderTimeoutId);
     }
     
+    // 🔍 診斷：記錄渲染調度
+    if (diagnosticSystem) {
+      diagnosticSystem.logEvent('render_scheduled', { timestamp: performance.now() });
+    }
+    
     // Use requestAnimationFrame for smooth rendering
     requestAnimationFrame(() => {
       // Additional check to prevent multiple renders in same frame
@@ -1082,6 +1137,11 @@ function scheduleRender() {
     }, 16); // ~60fps
   } else {
     console.log('🎨 Render already scheduled, skipping');
+    
+    // 🔍 診斷：記錄跳過的渲染
+    if (diagnosticSystem) {
+      diagnosticSystem.logEvent('render_skipped', { timestamp: performance.now() });
+    }
   }
 }
 
@@ -1261,6 +1321,10 @@ function drawTextContent() {
       const value = options[field.key] || '';
       console.log(`🔤 Rendering field ${field.key}: "${value}"`);
       
+      // 🔍 診斷：記錄文字渲染開始
+      if (diagnosticSystem) {
+        diagnosticSystem.onTextRenderStart(field.key);
+      }
       if (value) {
         // Get field-specific styles, admin defaults, or fallback defaults
         const adminDefaults = getAdminTextDefaults(currentCategory, field.key);
@@ -2111,8 +2175,13 @@ async function downloadImage() {
     link.download = `${currentCategory}-${preset}-${exportWidth}x${exportHeight}.${extension}`;
     
     // Export canvas to blob for better performance and reliability
-    exportCanvas.toBlob((blob) => {
+    exportCanvas.toBlob(async (blob) => {
       if (blob) {
+        // 🔍 診斷：檢查下載一致性
+        if (diagnosticSystem) {
+          await diagnosticSystem.checkDownloadConsistency(canvas);
+        }
+        
         const url = URL.createObjectURL(blob);
         link.href = url;
         document.body.appendChild(link);
@@ -2599,17 +2668,32 @@ function loadTemplateImages() {
   const category = getCurrentCategoryConfig();
   if (!category) return;
 
+  const loadStartTime = performance.now();
+
   // Load background image using the new TemplateThumbs module
   if (templateThumbs && layerManager) {
     templateThumbs.getBackgroundForCanvas(category.folder, currentTemplate)
       .then(img => {
+        const loadTime = performance.now() - loadStartTime;
+        
         if (img) {
           backgroundImage = img;
           layerManager.setBackgroundImage(img);
           console.log('✅ Background image loaded via TemplateThumbs');
+          
+          // 🔍 診斷：檢查底圖對應
+          if (diagnosticSystem) {
+            const actualPath = img.src || 'unknown';
+            diagnosticSystem.checkBackgroundMapping(category.folder, currentTemplate, actualPath, loadTime);
+          }
         } else {
           console.warn('⚠️ Background image not found');
           backgroundImage = null;
+          
+          // 🔍 診斷：記錄載入失敗
+          if (diagnosticSystem) {
+            diagnosticSystem.checkBackgroundMapping(category.folder, currentTemplate, null, loadTime);
+          }
         }
         
         // Also set in legacy slot system if it exists
@@ -2620,8 +2704,15 @@ function loadTemplateImages() {
         updateCanvas();
       })
       .catch(error => {
+        const loadTime = performance.now() - loadStartTime;
         console.warn('Failed to load background image:', error);
         backgroundImage = null;
+        
+        // 🔍 診斷：記錄載入錯誤
+        if (diagnosticSystem) {
+          diagnosticSystem.checkBackgroundMapping(category.folder, currentTemplate, null, loadTime);
+        }
+        
         updateCanvas();
       });
   } else {
