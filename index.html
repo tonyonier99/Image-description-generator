@@ -33,10 +33,31 @@
 
                 
                 <div class="canvas-container">
+                    <!-- Rulers -->
+                    <div class="ruler-overlay" id="rulers-overlay" style="display: none;">
+                        <div class="ruler ruler-horizontal" id="ruler-horizontal">
+                            <div class="ruler-marks"></div>
+                            <div class="ruler-cursor" id="ruler-cursor-h"></div>
+                        </div>
+                        <div class="ruler ruler-vertical" id="ruler-vertical">
+                            <div class="ruler-marks"></div>
+                            <div class="ruler-cursor" id="ruler-cursor-v"></div>
+                        </div>
+                        <div class="ruler-corner"></div>
+                    </div>
+                    
                     <canvas id="canvas" width="1200" height="1680"></canvas>
                     <div class="text-layer" id="text-layer">
                         <!-- Text boxes will be rendered here -->
                     </div>
+                    
+                    <!-- Grid overlay -->
+                    <div class="grid-overlay" id="grid-overlay" style="display: none;">
+                        <svg class="grid-svg" id="grid-svg">
+                            <!-- Grid lines will be generated here -->
+                        </svg>
+                    </div>
+                    
                     <!-- Safe area overlay -->
                     <div class="safe-area-overlay" id="safe-area-overlay" style="display: none;">
                         <div class="safe-area-border"></div>
@@ -49,6 +70,8 @@
                         <div class="guide-line guide-third-x-2"></div>
                         <div class="guide-line guide-third-y-1"></div>
                         <div class="guide-line guide-third-y-2"></div>
+                        <!-- Smart guides (will be added dynamically) -->
+                        <div class="smart-guides" id="smart-guides"></div>
                     </div>
                 </div>
                 
@@ -529,6 +552,61 @@
                     </div>
                     <div id="category-options" class="category-options">
                         <!-- Category-specific options will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- 視圖設定 -->
+                <div class="controls-section">
+                    <h3>視圖</h3>
+                    <div class="view-controls">
+                        <!-- Guides and Snapping -->
+                        <div class="view-group">
+                            <h4>對齊與貼齊</h4>
+                            <div class="guides-controls">
+                                <label>
+                                    <input type="checkbox" id="guides-toggle">
+                                    輔助線
+                                </label>
+                                <label>
+                                    <input type="checkbox" id="snap-toggle">
+                                    自動貼齊
+                                </label>
+                                <label>
+                                    <input type="checkbox" id="safe-area-toggle">
+                                    安全區域
+                                </label>
+                            </div>
+                            <div class="snap-settings">
+                                <label for="snap-threshold">貼齊範圍：</label>
+                                <input type="range" id="snap-threshold" min="5" max="50" step="5" value="10">
+                                <span id="snap-threshold-value">10px</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Rulers and Grid -->
+                        <div class="view-group">
+                            <h4>尺規與網格</h4>
+                            <div class="guides-controls">
+                                <label>
+                                    <input type="checkbox" id="rulers-toggle">
+                                    尺規
+                                </label>
+                                <label>
+                                    <input type="checkbox" id="grid-toggle">
+                                    網格
+                                </label>
+                            </div>
+                            <div class="grid-settings">
+                                <label for="grid-spacing">網格間距：</label>
+                                <input type="range" id="grid-spacing" min="10" max="100" step="10" value="20">
+                                <span id="grid-spacing-value">20px</span>
+                            </div>
+                            <div class="grid-settings">
+                                <label for="grid-opacity">網格透明度：</label>
+                                <input type="range" id="grid-opacity" min="0.1" max="1" step="0.1" value="0.3">
+                                <span id="grid-opacity-value">30%</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 

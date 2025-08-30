@@ -30,7 +30,12 @@ let maxImageSlots = {
 let guidesEnabled = false;
 let safeAreaEnabled = false;
 let snapEnabled = false;
+let rulersEnabled = false;
+let gridEnabled = false;
 let safeAreaPadding = 0.08;
+let snapThreshold = 10;
+let gridSpacing = 20;
+let gridOpacity = 0.3;
 
 // Export settings state
 let exportSettings = {
@@ -50,7 +55,157 @@ const MAX_HISTORY = 50;
 let CANVAS_WIDTH = 1200;
 let CANVAS_HEIGHT = 1680; // 5:7 aspect ratio
 
-// Image Layer Management System
+// Guides Overlay Module
+class GuidesOverlay {
+  constructor() {
+    this.activeSmartGuides = [];
+    this.mousePosition = { x: 0, y: 0 };
+    this.setupMouseTracking();
+  }
+  
+  setupMouseTracking() {
+    const canvasContainer = document.querySelector('.canvas-container');
+    if (canvasContainer) {
+      canvasContainer.addEventListener('mousemove', (e) => {
+        const rect = canvasContainer.getBoundingClientRect();
+        this.mousePosition = {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        };
+        this.updateRulerCursors();
+      });
+      
+      canvasContainer.addEventListener('mouseleave', () => {
+        this.hideRulerCursors();
+      });
+    }
+  }
+  
+  updateRulerCursors() {
+    if (!rulersEnabled) return;
+    
+    const cursorH = document.getElementById('ruler-cursor-h');
+    const cursorV = document.getElementById('ruler-cursor-v');
+    
+    if (cursorH) {
+      cursorH.style.left = `${this.mousePosition.x}px`;
+      cursorH.style.opacity = '0.7';
+    }
+    
+    if (cursorV) {
+      cursorV.style.top = `${this.mousePosition.y}px`;
+      cursorV.style.opacity = '0.7';
+    }
+  }
+  
+  hideRulerCursors() {
+    const cursorH = document.getElementById('ruler-cursor-h');
+    const cursorV = document.getElementById('ruler-cursor-v');
+    
+    if (cursorH) cursorH.style.opacity = '0';
+    if (cursorV) cursorV.style.opacity = '0';
+  }
+  
+  getSnapCandidates() {
+    const container = document.querySelector('.canvas-container');
+    const rect = container.getBoundingClientRect();
+    
+    const candidates = {
+      vertical: [],
+      horizontal: []
+    };
+    
+    // Canvas edges
+    candidates.vertical.push(0, rect.width);
+    candidates.horizontal.push(0, rect.height);
+    
+    // Center lines
+    candidates.vertical.push(rect.width / 2);
+    candidates.horizontal.push(rect.height / 2);
+    
+    // Third lines
+    candidates.vertical.push(rect.width / 3, (rect.width * 2) / 3);
+    candidates.horizontal.push(rect.height / 3, (rect.height * 2) / 3);
+    
+    // Safe area boundaries
+    if (safeAreaEnabled) {
+      const safeLeft = rect.width * safeAreaPadding;
+      const safeRight = rect.width * (1 - safeAreaPadding);
+      const safeTop = rect.height * safeAreaPadding;
+      const safeBottom = rect.height * (1 - safeAreaPadding);
+      
+      candidates.vertical.push(safeLeft, safeRight);
+      candidates.horizontal.push(safeTop, safeBottom);
+    }
+    
+    // Other visible layer edges/centers (TODO: implement when layer selection is available)
+    
+    return candidates;
+  }
+  
+  snapToGuides(x, y) {
+    if (!snapEnabled) return { x, y, guides: [] };
+    
+    const candidates = this.getSnapCandidates();
+    const snappedGuides = [];
+    let snappedX = x;
+    let snappedY = y;
+    
+    // Snap to vertical guides
+    for (const guide of candidates.vertical) {
+      if (Math.abs(x - guide) < snapThreshold) {
+        snappedX = guide;
+        snappedGuides.push({ type: 'vertical', position: guide });
+        break;
+      }
+    }
+    
+    // Snap to horizontal guides
+    for (const guide of candidates.horizontal) {
+      if (Math.abs(y - guide) < snapThreshold) {
+        snappedY = guide;
+        snappedGuides.push({ type: 'horizontal', position: guide });
+        break;
+      }
+    }
+    
+    return { x: snappedX, y: snappedY, guides: snappedGuides };
+  }
+  
+  showSmartGuides(guides) {
+    this.clearSmartGuides();
+    
+    const smartGuidesContainer = document.getElementById('smart-guides');
+    if (!smartGuidesContainer) return;
+    
+    guides.forEach(guide => {
+      const guideElement = document.createElement('div');
+      guideElement.className = `smart-guide smart-guide-${guide.type === 'vertical' ? 'v' : 'h'}`;
+      
+      if (guide.type === 'vertical') {
+        guideElement.style.left = `${guide.position}px`;
+        guideElement.style.top = '0';
+      } else {
+        guideElement.style.top = `${guide.position}px`;
+        guideElement.style.left = '0';
+      }
+      
+      smartGuidesContainer.appendChild(guideElement);
+      this.activeSmartGuides.push(guideElement);
+    });
+    
+    // Auto-hide smart guides after a delay
+    setTimeout(() => this.clearSmartGuides(), 1500);
+  }
+  
+  clearSmartGuides() {
+    this.activeSmartGuides.forEach(guide => guide.remove());
+    this.activeSmartGuides = [];
+  }
+}
+
+// Initialize guides overlay
+const guidesOverlay = new GuidesOverlay();
 // Slot-based Image Layer Management System
 class SlotLayerManager {
   constructor() {
@@ -775,8 +930,11 @@ function setupEventListeners() {
   // Transform controls
   setupTransformControls();
   
-  // Text tuning controls
+  // Text tuning controls (legacy)
   setupTextTuningControls();
+  
+  // Enhanced keyboard movement
+  setupKeyboardMovement();
   
   // Multi-image controls
   setupMultiImageControls();
@@ -1741,50 +1899,145 @@ function updateGuidesOverlay() {
   overlay.style.display = 'block';
 }
 
-function snapToGuides(x, y, threshold = 10) {
-  if (!snapEnabled) return { x, y };
+function updateRulersOverlay() {
+  const overlay = document.getElementById('rulers-overlay');
+  
+  if (!rulersEnabled) {
+    overlay.style.display = 'none';
+    return;
+  }
+  
+  overlay.style.display = 'block';
+  
+  // Generate ruler marks
+  generateRulerMarks();
+}
+
+function generateRulerMarks() {
+  const container = document.querySelector('.canvas-container');
+  const rect = container.getBoundingClientRect();
+  
+  // Generate horizontal ruler marks
+  const horizontalMarks = document.querySelector('.ruler-horizontal .ruler-marks');
+  if (horizontalMarks) {
+    horizontalMarks.innerHTML = '';
+    
+    for (let i = 0; i <= rect.width; i += 20) {
+      const mark = document.createElement('div');
+      mark.style.position = 'absolute';
+      mark.style.left = `${i}px`;
+      mark.style.top = '15px';
+      mark.style.width = '1px';
+      mark.style.height = '5px';
+      mark.style.background = 'var(--border-primary)';
+      
+      if (i % 100 === 0) {
+        mark.style.height = '8px';
+        mark.style.top = '12px';
+        
+        // Add number label
+        const label = document.createElement('span');
+        label.style.position = 'absolute';
+        label.style.left = `${i + 2}px`;
+        label.style.top = '2px';
+        label.style.fontSize = '9px';
+        label.style.color = 'var(--text-secondary)';
+        label.textContent = i.toString();
+        horizontalMarks.appendChild(label);
+      }
+      
+      horizontalMarks.appendChild(mark);
+    }
+  }
+  
+  // Generate vertical ruler marks
+  const verticalMarks = document.querySelector('.ruler-vertical .ruler-marks');
+  if (verticalMarks) {
+    verticalMarks.innerHTML = '';
+    
+    for (let i = 0; i <= rect.height; i += 20) {
+      const mark = document.createElement('div');
+      mark.style.position = 'absolute';
+      mark.style.top = `${i}px`;
+      mark.style.left = '15px';
+      mark.style.height = '1px';
+      mark.style.width = '5px';
+      mark.style.background = 'var(--border-primary)';
+      
+      if (i % 100 === 0) {
+        mark.style.width = '8px';
+        mark.style.left = '12px';
+        
+        // Add number label
+        const label = document.createElement('span');
+        label.style.position = 'absolute';
+        label.style.top = `${i + 2}px`;
+        label.style.left = '2px';
+        label.style.fontSize = '9px';
+        label.style.color = 'var(--text-secondary)';
+        label.style.transform = 'rotate(-90deg)';
+        label.style.transformOrigin = 'left center';
+        label.textContent = i.toString();
+        verticalMarks.appendChild(label);
+      }
+      
+      verticalMarks.appendChild(mark);
+    }
+  }
+}
+
+function updateGridOverlay() {
+  const overlay = document.getElementById('grid-overlay');
+  const svg = document.getElementById('grid-svg');
+  
+  if (!gridEnabled || !svg) {
+    overlay.style.display = 'none';
+    return;
+  }
+  
+  overlay.style.display = 'block';
   
   const container = document.querySelector('.canvas-container');
   const rect = container.getBoundingClientRect();
   
-  // Center lines
-  const centerX = rect.width / 2;
-  const centerY = rect.height / 2;
+  // Clear existing grid
+  svg.innerHTML = '';
   
-  // Third lines
-  const thirdX1 = rect.width / 3;
-  const thirdX2 = (rect.width * 2) / 3;
-  const thirdY1 = rect.height / 3;
-  const thirdY2 = (rect.height * 2) / 3;
-  
-  // Safe area boundaries
-  const safeLeft = rect.width * safeAreaPadding;
-  const safeRight = rect.width * (1 - safeAreaPadding);
-  const safeTop = rect.height * safeAreaPadding;
-  const safeBottom = rect.height * (1 - safeAreaPadding);
-  
-  let snappedX = x;
-  let snappedY = y;
-  
-  // Snap to vertical guides
-  const verticalGuides = [0, safeLeft, thirdX1, centerX, thirdX2, safeRight, rect.width];
-  for (const guide of verticalGuides) {
-    if (Math.abs(x - guide) < threshold) {
-      snappedX = guide;
-      break;
-    }
+  // Generate vertical lines
+  for (let x = gridSpacing; x < rect.width; x += gridSpacing) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x);
+    line.setAttribute('y1', 0);
+    line.setAttribute('x2', x);
+    line.setAttribute('y2', rect.height);
+    line.setAttribute('class', 'grid-line');
+    line.setAttribute('opacity', gridOpacity);
+    svg.appendChild(line);
   }
   
-  // Snap to horizontal guides
-  const horizontalGuides = [0, safeTop, thirdY1, centerY, thirdY2, safeBottom, rect.height];
-  for (const guide of horizontalGuides) {
-    if (Math.abs(y - guide) < threshold) {
-      snappedY = guide;
-      break;
-    }
+  // Generate horizontal lines
+  for (let y = gridSpacing; y < rect.height; y += gridSpacing) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', 0);
+    line.setAttribute('y1', y);
+    line.setAttribute('x2', rect.width);
+    line.setAttribute('y2', y);
+    line.setAttribute('class', 'grid-line');
+    line.setAttribute('opacity', gridOpacity);
+    svg.appendChild(line);
+  }
+}
+
+function snapToGuides(x, y, threshold = null) {
+  const actualThreshold = threshold || snapThreshold;
+  const result = guidesOverlay.snapToGuides(x, y);
+  
+  // Show smart guides if snapping occurred
+  if (result.guides.length > 0) {
+    guidesOverlay.showSmartGuides(result.guides);
   }
   
-  return { x: snappedX, y: snappedY };
+  return { x: result.x, y: result.y };
 }
 
 // Export presets functionality
@@ -2224,13 +2477,7 @@ function setupTextTuningControls() {
     applyBtn.addEventListener('click', applyAsDefault);
   }
   
-  // Keyboard navigation for text boxes
-  document.addEventListener('keydown', (e) => {
-    if (selectedTextField && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-      e.preventDefault();
-      nudgeTextField(e.key, e.shiftKey);
-    }
-  });
+  // Note: Keyboard navigation moved to setupKeyboardMovement() for enhanced functionality
 }
 
 // Update text field style from controls
@@ -2351,11 +2598,58 @@ function applyAsDefault() {
   alert('功能開發中：將在管理面板中實現設為預設功能');
 }
 
-// Nudge text field with keyboard
-function nudgeTextField(direction, shiftKey) {
+// Enhanced keyboard movement system
+function setupKeyboardMovement() {
+  document.addEventListener('keydown', (e) => {
+    // Only handle movement if no input field is focused
+    if (document.activeElement.tagName === 'INPUT' || 
+        document.activeElement.tagName === 'TEXTAREA' || 
+        document.activeElement.tagName === 'SELECT') {
+      return;
+    }
+    
+    const isArrowKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
+    if (!isArrowKey) return;
+    
+    e.preventDefault();
+    
+    // Determine step size
+    let step = 1; // Default 1px
+    if (e.shiftKey) {
+      step = 10; // Shift = 10px
+    } else if (e.altKey) {
+      step = 0.5; // Alt = 0.5px (subpixel when scale allows)
+    }
+    
+    // Check if a text field is selected
+    if (selectedTextField) {
+      nudgeTextField(e.key, e.shiftKey, e.altKey);
+      return;
+    }
+    
+    // Check if a layer is selected
+    if (selectedLayer) {
+      nudgeLayer(e.key, step);
+      return;
+    }
+    
+    // If nothing is selected, show a hint
+    console.log('Select a text field or layer to use keyboard movement');
+  });
+}
+
+// Enhanced text field nudging with alt key support
+function nudgeTextField(direction, shiftKey, altKey = false) {
   if (!selectedTextField) return;
   
-  const step = shiftKey ? 0.01 : 0.001; // Shift = 10x larger step
+  let step;
+  if (altKey) {
+    step = 0.0005; // Ultra-fine adjustment
+  } else if (shiftKey) {
+    step = 0.01; // 10x larger step  
+  } else {
+    step = 0.001; // Default step
+  }
   
   if (!textStyles[selectedTextField]) {
     textStyles[selectedTextField] = { x: 0.5, y: 0.5 };
@@ -2383,7 +2677,39 @@ function nudgeTextField(direction, shiftKey) {
   updateCanvas();
   
   // Save history state
-  saveHistoryState(`Text field "${selectedTextField}" nudged ${direction}`);
+  const stepDescription = altKey ? '0.5px' : shiftKey ? '10px' : '1px';
+  saveHistoryState(`Text field "${selectedTextField}" nudged ${direction} by ${stepDescription}`);
+}
+
+// Layer nudging function
+function nudgeLayer(direction, step) {
+  if (!selectedLayer || !slotLayerManager) return;
+  
+  const slot = slotLayerManager.slots.get(selectedLayer);
+  if (!slot || slot.locked) return; // Ignore locked layers
+  
+  // Convert step to offset units (assuming pixel-based)
+  switch (direction) {
+    case 'ArrowUp':
+      slot.offsetY = Math.max(-500, slot.offsetY - step);
+      break;
+    case 'ArrowDown':
+      slot.offsetY = Math.min(500, slot.offsetY + step);
+      break;
+    case 'ArrowLeft':
+      slot.offsetX = Math.max(-500, slot.offsetX - step);
+      break;
+    case 'ArrowRight':
+      slot.offsetX = Math.min(500, slot.offsetX + step);
+      break;
+  }
+  
+  // Update UI controls
+  updateImageAdjustmentControls();
+  updateCanvas();
+  
+  // Save history state
+  saveHistoryState(`Layer "${slot.name}" nudged ${direction} by ${step}px`);
 }
 
 function toggleTuningPanel() {
@@ -2441,12 +2767,28 @@ function setupGuidesControls() {
   const safeAreaToggle = document.getElementById('safe-area-toggle');
   const guidesToggle = document.getElementById('guides-toggle');
   const snapToggle = document.getElementById('snap-toggle');
+  const rulersToggle = document.getElementById('rulers-toggle');
+  const gridToggle = document.getElementById('grid-toggle');
   const safeAreaPreset = document.getElementById('safe-area-preset');
+  
+  // Snap threshold control
+  const snapThresholdRange = document.getElementById('snap-threshold');
+  const snapThresholdValue = document.getElementById('snap-threshold-value');
+  
+  // Grid controls
+  const gridSpacingRange = document.getElementById('grid-spacing');
+  const gridSpacingValue = document.getElementById('grid-spacing-value');
+  const gridOpacityRange = document.getElementById('grid-opacity');
+  const gridOpacityValue = document.getElementById('grid-opacity-value');
+  
+  // Load persisted settings
+  loadViewSettings();
   
   if (safeAreaToggle) {
     safeAreaToggle.addEventListener('change', (e) => {
       safeAreaEnabled = e.target.checked;
       updateSafeAreaOverlay();
+      saveViewSettings();
     });
   }
   
@@ -2454,12 +2796,56 @@ function setupGuidesControls() {
     guidesToggle.addEventListener('change', (e) => {
       guidesEnabled = e.target.checked;
       updateGuidesOverlay();
+      saveViewSettings();
     });
   }
   
   if (snapToggle) {
     snapToggle.addEventListener('change', (e) => {
       snapEnabled = e.target.checked;
+      saveViewSettings();
+    });
+  }
+  
+  if (rulersToggle) {
+    rulersToggle.addEventListener('change', (e) => {
+      rulersEnabled = e.target.checked;
+      updateRulersOverlay();
+      saveViewSettings();
+    });
+  }
+  
+  if (gridToggle) {
+    gridToggle.addEventListener('change', (e) => {
+      gridEnabled = e.target.checked;
+      updateGridOverlay();
+      saveViewSettings();
+    });
+  }
+  
+  if (snapThresholdRange && snapThresholdValue) {
+    snapThresholdRange.addEventListener('input', (e) => {
+      snapThreshold = parseInt(e.target.value);
+      snapThresholdValue.textContent = `${snapThreshold}px`;
+      saveViewSettings();
+    });
+  }
+  
+  if (gridSpacingRange && gridSpacingValue) {
+    gridSpacingRange.addEventListener('input', (e) => {
+      gridSpacing = parseInt(e.target.value);
+      gridSpacingValue.textContent = `${gridSpacing}px`;
+      updateGridOverlay();
+      saveViewSettings();
+    });
+  }
+  
+  if (gridOpacityRange && gridOpacityValue) {
+    gridOpacityRange.addEventListener('input', (e) => {
+      gridOpacity = parseFloat(e.target.value);
+      gridOpacityValue.textContent = `${Math.round(gridOpacity * 100)}%`;
+      updateGridOverlay();
+      saveViewSettings();
     });
   }
   
@@ -2469,6 +2855,7 @@ function setupGuidesControls() {
       if (value !== 'custom') {
         safeAreaPadding = parseFloat(value);
         updateSafeAreaOverlay();
+        saveViewSettings();
       }
     });
   }
@@ -2478,8 +2865,74 @@ function setupGuidesControls() {
     setTimeout(() => {
       updateSafeAreaOverlay();
       updateGuidesOverlay();
+      updateRulersOverlay();
+      updateGridOverlay();
     }, 100);
   });
+}
+
+// Load view settings from localStorage
+function loadViewSettings() {
+  const settings = JSON.parse(localStorage.getItem('idg:view-settings') || '{}');
+  
+  guidesEnabled = settings.guidesEnabled || false;
+  safeAreaEnabled = settings.safeAreaEnabled || false;
+  snapEnabled = settings.snapEnabled || false;
+  rulersEnabled = settings.rulersEnabled || false;
+  gridEnabled = settings.gridEnabled || false;
+  snapThreshold = settings.snapThreshold || 10;
+  gridSpacing = settings.gridSpacing || 20;
+  gridOpacity = settings.gridOpacity || 0.3;
+  
+  // Update UI controls
+  const guidesToggle = document.getElementById('guides-toggle');
+  const safeAreaToggle = document.getElementById('safe-area-toggle');
+  const snapToggle = document.getElementById('snap-toggle');
+  const rulersToggle = document.getElementById('rulers-toggle');
+  const gridToggle = document.getElementById('grid-toggle');
+  const snapThresholdRange = document.getElementById('snap-threshold');
+  const snapThresholdValue = document.getElementById('snap-threshold-value');
+  const gridSpacingRange = document.getElementById('grid-spacing');
+  const gridSpacingValue = document.getElementById('grid-spacing-value');
+  const gridOpacityRange = document.getElementById('grid-opacity');
+  const gridOpacityValue = document.getElementById('grid-opacity-value');
+  
+  if (guidesToggle) guidesToggle.checked = guidesEnabled;
+  if (safeAreaToggle) safeAreaToggle.checked = safeAreaEnabled;
+  if (snapToggle) snapToggle.checked = snapEnabled;
+  if (rulersToggle) rulersToggle.checked = rulersEnabled;
+  if (gridToggle) gridToggle.checked = gridEnabled;
+  
+  if (snapThresholdRange) {
+    snapThresholdRange.value = snapThreshold;
+    if (snapThresholdValue) snapThresholdValue.textContent = `${snapThreshold}px`;
+  }
+  
+  if (gridSpacingRange) {
+    gridSpacingRange.value = gridSpacing;
+    if (gridSpacingValue) gridSpacingValue.textContent = `${gridSpacing}px`;
+  }
+  
+  if (gridOpacityRange) {
+    gridOpacityRange.value = gridOpacity;
+    if (gridOpacityValue) gridOpacityValue.textContent = `${Math.round(gridOpacity * 100)}%`;
+  }
+}
+
+// Save view settings to localStorage
+function saveViewSettings() {
+  const settings = {
+    guidesEnabled,
+    safeAreaEnabled,
+    snapEnabled,
+    rulersEnabled,
+    gridEnabled,
+    snapThreshold,
+    gridSpacing,
+    gridOpacity
+  };
+  
+  localStorage.setItem('idg:view-settings', JSON.stringify(settings));
 }
 
 // Setup export controls
