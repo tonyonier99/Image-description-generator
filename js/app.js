@@ -3308,8 +3308,26 @@ function setupMultiImageControls() {
     const input = document.getElementById(id);
     if (input) {
       input.addEventListener('input', (e) => {
-        const selectedSlot = slotLayerManager.getSelectedSlot();
-        if (!selectedSlot) return;
+        // Check both slot and layer managers for selected layers
+        let selectedLayer = null;
+        let useSlotManager = false;
+        
+        if (typeof slotLayerManager !== 'undefined') {
+          const selectedSlot = slotLayerManager.getSelectedSlot();
+          if (selectedSlot && selectedSlot.type !== 'template') {
+            selectedLayer = selectedSlot;
+            useSlotManager = true;
+          }
+        }
+        
+        if (!selectedLayer && layerManager) {
+          selectedLayer = layerManager.selectedLayer;
+        }
+        
+        if (!selectedLayer || selectedLayer.type === 'text') {
+          updateImageAdjustmentInfo('請選擇一個圖層進行調整');
+          return;
+        }
         
         let property = id.replace('image-', '');
         if (property.startsWith('crop-')) {
@@ -3323,7 +3341,13 @@ function setupMultiImageControls() {
         }
         
         const value = parseFloat(e.target.value);
-        slotLayerManager.updateSlotProperty(selectedSlot.id, property, value);
+        
+        if (useSlotManager) {
+          slotLayerManager.updateSlotProperty(selectedLayer.id, property, value);
+        } else {
+          // Update layer property directly for LayerManager
+          updateLayerProperty(selectedLayer, property, value);
+        }
         
         // Update display value
         const display = document.getElementById(id + '-value');
@@ -3345,9 +3369,28 @@ function setupMultiImageControls() {
   
   if (flipH) {
     flipH.addEventListener('change', (e) => {
-      const selectedSlot = slotLayerManager.getSelectedSlot();
-      if (selectedSlot) {
-        slotLayerManager.updateSlotProperty(selectedSlot.id, 'flipH', e.target.checked);
+      // Check both managers for selected layer
+      let selectedLayer = null;
+      let useSlotManager = false;
+      
+      if (typeof slotLayerManager !== 'undefined') {
+        const selectedSlot = slotLayerManager.getSelectedSlot();
+        if (selectedSlot && selectedSlot.type !== 'template') {
+          selectedLayer = selectedSlot;
+          useSlotManager = true;
+        }
+      }
+      
+      if (!selectedLayer && layerManager) {
+        selectedLayer = layerManager.selectedLayer;
+      }
+      
+      if (selectedLayer) {
+        if (useSlotManager) {
+          slotLayerManager.updateSlotProperty(selectedLayer.id, 'flipH', e.target.checked);
+        } else {
+          updateLayerProperty(selectedLayer, 'flipH', e.target.checked);
+        }
         updateCanvas();
       }
     });
@@ -3355,9 +3398,28 @@ function setupMultiImageControls() {
   
   if (flipV) {
     flipV.addEventListener('change', (e) => {
-      const selectedSlot = slotLayerManager.getSelectedSlot();
-      if (selectedSlot) {
-        slotLayerManager.updateSlotProperty(selectedSlot.id, 'flipV', e.target.checked);
+      // Check both managers for selected layer
+      let selectedLayer = null;
+      let useSlotManager = false;
+      
+      if (typeof slotLayerManager !== 'undefined') {
+        const selectedSlot = slotLayerManager.getSelectedSlot();
+        if (selectedSlot && selectedSlot.type !== 'template') {
+          selectedLayer = selectedSlot;
+          useSlotManager = true;
+        }
+      }
+      
+      if (!selectedLayer && layerManager) {
+        selectedLayer = layerManager.selectedLayer;
+      }
+      
+      if (selectedLayer) {
+        if (useSlotManager) {
+          slotLayerManager.updateSlotProperty(selectedLayer.id, 'flipV', e.target.checked);
+        } else {
+          updateLayerProperty(selectedLayer, 'flipV', e.target.checked);
+        }
         updateCanvas();
       }
     });
@@ -3367,9 +3429,28 @@ function setupMultiImageControls() {
   const blendMode = document.getElementById('image-blend-mode');
   if (blendMode) {
     blendMode.addEventListener('change', (e) => {
-      const selectedSlot = slotLayerManager.getSelectedSlot();
-      if (selectedSlot) {
-        slotLayerManager.updateSlotProperty(selectedSlot.id, 'blendMode', e.target.value);
+      // Check both managers for selected layer
+      let selectedLayer = null;
+      let useSlotManager = false;
+      
+      if (typeof slotLayerManager !== 'undefined') {
+        const selectedSlot = slotLayerManager.getSelectedSlot();
+        if (selectedSlot && selectedSlot.type !== 'template') {
+          selectedLayer = selectedSlot;
+          useSlotManager = true;
+        }
+      }
+      
+      if (!selectedLayer && layerManager) {
+        selectedLayer = layerManager.selectedLayer;
+      }
+      
+      if (selectedLayer) {
+        if (useSlotManager) {
+          slotLayerManager.updateSlotProperty(selectedLayer.id, 'blendMode', e.target.value);
+        } else {
+          updateLayerProperty(selectedLayer, 'blendMode', e.target.value);
+        }
         updateCanvas();
       }
     });
@@ -3524,6 +3605,121 @@ function setupMultiImageControls() {
         updateCanvas();
       }
     });
+  }
+}
+
+// Update layer property for LayerManager
+function updateLayerProperty(layer, property, value) {
+  if (!layer) return;
+  
+  if (property.includes('.')) {
+    const [parentProp, childProp] = property.split('.');
+    if (!layer[parentProp]) layer[parentProp] = {};
+    layer[parentProp][childProp] = value;
+  } else {
+    layer[property] = value;
+  }
+  
+  // Update layer in manager
+  if (layerManager) {
+    layerManager.updateCanvas();
+  }
+}
+
+// Update image adjustment info display
+function updateImageAdjustmentInfo(message) {
+  const infoElement = document.getElementById('selected-layer-info');
+  if (infoElement) {
+    infoElement.textContent = message;
+  }
+}
+
+// Enable/disable image adjustment controls based on selection
+function updateImageAdjustmentControls() {
+  let selectedLayer = null;
+  let isImageLayer = false;
+  
+  // Check slot manager first
+  if (typeof slotLayerManager !== 'undefined') {
+    const selectedSlot = slotLayerManager.getSelectedSlot();
+    if (selectedSlot && selectedSlot.type !== 'template') {
+      selectedLayer = selectedSlot;
+      isImageLayer = selectedSlot.image !== null;
+    }
+  }
+  
+  // Check layer manager
+  if (!selectedLayer && layerManager) {
+    selectedLayer = layerManager.selectedLayer;
+    isImageLayer = selectedLayer && selectedLayer.type !== 'text' && selectedLayer.type !== 'background';
+  }
+  
+  // Update info display
+  if (selectedLayer && isImageLayer) {
+    updateImageAdjustmentInfo(`已選擇: ${selectedLayer.name || '圖層'}`);
+  } else if (selectedLayer) {
+    updateImageAdjustmentInfo(`已選擇: ${selectedLayer.name || '圖層'} (非圖片圖層)`);
+  } else {
+    updateImageAdjustmentInfo('請選擇一個圖層進行調整');
+  }
+  
+  // Enable/disable controls
+  const controlIds = [
+    'image-scale', 'image-offset-x', 'image-offset-y', 'image-rotation',
+    'image-opacity', 'image-crop-top', 'image-crop-right', 
+    'image-crop-bottom', 'image-crop-left', 'image-flip-h', 'image-flip-v',
+    'image-blend-mode', 'image-brightness', 'image-contrast', 'image-saturation', 'image-blur'
+  ];
+  
+  controlIds.forEach(id => {
+    const control = document.getElementById(id);
+    if (control) {
+      control.disabled = !isImageLayer;
+      if (isImageLayer && selectedLayer) {
+        // Update control values from layer properties
+        updateControlValue(control, selectedLayer, id);
+      }
+    }
+  });
+}
+
+// Update control value from layer property
+function updateControlValue(control, layer, controlId) {
+  if (!layer || !control) return;
+  
+  let property = controlId.replace('image-', '');
+  let value = null;
+  
+  if (property.startsWith('crop-')) {
+    const cropProp = property.replace('crop-', '');
+    value = layer.crop?.[cropProp] || 0;
+  } else if (property.includes('-')) {
+    property = property.replace('-', '');
+    if (property === 'offsetx') property = 'offsetX';
+    if (property === 'offsety') property = 'offsetY';
+    if (property === 'fliph') property = 'flipH';
+    if (property === 'flipv') property = 'flipV';
+    if (property === 'blendmode') property = 'blendMode';
+    value = layer[property];
+  } else {
+    value = layer[property];
+  }
+  
+  if (value !== null && value !== undefined) {
+    if (control.type === 'checkbox') {
+      control.checked = Boolean(value);
+    } else {
+      control.value = value;
+    }
+    
+    // Update display value if exists
+    const display = document.getElementById(controlId + '-value');
+    if (display && control.type !== 'checkbox') {
+      let unit = '';
+      if (controlId.includes('rotation') || controlId.includes('angle')) unit = '°';
+      else if (controlId.includes('crop') || controlId.includes('offset')) unit = 'px';
+      display.textContent = value + unit;
+    }
   }
 }
 

@@ -416,6 +416,11 @@ class LayerManager {
   selectLayer(layer) {
     this.selectedLayer = layer;
     this.updateLayersList();
+    
+    // Update image adjustment controls when layer is selected
+    if (typeof updateImageAdjustmentControls === 'function') {
+      updateImageAdjustmentControls();
+    }
   }
   
   /**
