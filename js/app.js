@@ -244,64 +244,120 @@ class SlotLayerManager {
       
       ctx.save();
       
-      // Set blend mode and opacity
-      ctx.globalCompositeOperation = slot.blendMode;
-      ctx.globalAlpha = slot.opacity;
-      
-      // Calculate position and size
-      const centerX = width / 2 + slot.offsetX;
-      const centerY = height / 2 + slot.offsetY;
-      
-      // Apply transformations
-      ctx.translate(centerX, centerY);
-      if (slot.rotation) ctx.rotate((slot.rotation * Math.PI) / 180);
-      if (slot.flipH || slot.flipV) ctx.scale(slot.flipH ? -1 : 1, slot.flipV ? -1 : 1);
-      
-      // Calculate dimensions with crop and scale
-      const { crop } = slot;
-      const sourceX = crop.left;
-      const sourceY = crop.top;
-      const sourceWidth = slot.image.width - crop.left - crop.right;
-      const sourceHeight = slot.image.height - crop.top - crop.bottom;
-      
-      const scaledWidth = sourceWidth * slot.scale;
-      const scaledHeight = sourceHeight * slot.scale;
-      
-      // Apply mask if specified
-      if (slot.mask && slot.mask !== 'none') {
-        this.applyMask(ctx, slot.mask, slot.maskParams, scaledWidth, scaledHeight);
-      }
-      
-      // Apply filters
-      if (slot.brightness || slot.contrast || slot.saturation || slot.blur) {
-        const filterString = [
-          slot.brightness !== 0 ? `brightness(${100 + slot.brightness}%)` : '',
-          slot.contrast !== 0 ? `contrast(${100 + slot.contrast}%)` : '',
-          slot.saturation !== 0 ? `saturate(${100 + slot.saturation}%)` : '',
-          slot.blur > 0 ? `blur(${slot.blur}px)` : ''
-        ].filter(f => f).join(' ');
-        
-        if (filterString) {
-          ctx.filter = filterString;
-        }
-      }
-      
-      // Draw image
-      ctx.drawImage(
-        slot.image,
-        sourceX, sourceY, sourceWidth, sourceHeight,
-        -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight
-      );
-      
-      // Apply stroke if specified
-      if (slot.stroke && slot.stroke.enabled) {
-        ctx.strokeStyle = slot.stroke.color;
-        ctx.lineWidth = slot.stroke.width;
-        ctx.strokeRect(-scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+      // 🔧 NEW: Special handling for template/background slots with full-cover
+      if (slot.type === 'template') {
+        this.renderBackgroundSlot(ctx, slot, width, height);
+      } else {
+        this.renderRegularSlot(ctx, slot, width, height);
       }
       
       ctx.restore();
     });
+  }
+  
+  // 🔧 NEW: Render background slot with full-cover behavior
+  renderBackgroundSlot(ctx, slot, width, height) {
+    const img = slot.image;
+    
+    // Calculate cover fit dimensions (like CSS background-size: cover)
+    const canvasRatio = width / height;
+    const imageRatio = img.width / img.height;
+    
+    let drawWidth, drawHeight, drawX, drawY;
+    
+    if (imageRatio > canvasRatio) {
+      // Image is wider, fit height and crop width
+      drawHeight = height;
+      drawWidth = height * imageRatio;
+      drawX = (width - drawWidth) / 2;
+      drawY = 0;
+    } else {
+      // Image is taller, fit width and crop height
+      drawWidth = width;
+      drawHeight = width / imageRatio;
+      drawX = 0;
+      drawY = (height - drawHeight) / 2;
+    }
+    
+    // Set blend mode and opacity
+    ctx.globalCompositeOperation = slot.blendMode;
+    ctx.globalAlpha = slot.opacity;
+    
+    // Apply filters if specified
+    if (slot.brightness || slot.contrast || slot.saturation || slot.blur) {
+      const filterString = [
+        slot.brightness !== 0 ? `brightness(${100 + slot.brightness}%)` : '',
+        slot.contrast !== 0 ? `contrast(${100 + slot.contrast}%)` : '',
+        slot.saturation !== 0 ? `saturate(${100 + slot.saturation}%)` : '',
+        slot.blur > 0 ? `blur(${slot.blur}px)` : ''
+      ].filter(f => f).join(' ');
+      
+      if (filterString) {
+        ctx.filter = filterString;
+      }
+    }
+    
+    // Draw image with cover behavior
+    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+  }
+  
+  // 🔧 NEW: Render regular slot with existing behavior  
+  renderRegularSlot(ctx, slot, width, height) {
+    // Set blend mode and opacity
+    ctx.globalCompositeOperation = slot.blendMode;
+    ctx.globalAlpha = slot.opacity;
+    
+    // Calculate position and size
+    const centerX = width / 2 + slot.offsetX;
+    const centerY = height / 2 + slot.offsetY;
+    
+    // Apply transformations
+    ctx.translate(centerX, centerY);
+    if (slot.rotation) ctx.rotate((slot.rotation * Math.PI) / 180);
+    if (slot.flipH || slot.flipV) ctx.scale(slot.flipH ? -1 : 1, slot.flipV ? -1 : 1);
+    
+    // Calculate dimensions with crop and scale
+    const { crop } = slot;
+    const sourceX = crop.left;
+    const sourceY = crop.top;
+    const sourceWidth = slot.image.width - crop.left - crop.right;
+    const sourceHeight = slot.image.height - crop.top - crop.bottom;
+    
+    const scaledWidth = sourceWidth * slot.scale;
+    const scaledHeight = sourceHeight * slot.scale;
+    
+    // Apply mask if specified
+    if (slot.mask && slot.mask !== 'none') {
+      this.applyMask(ctx, slot.mask, slot.maskParams, scaledWidth, scaledHeight);
+    }
+    
+    // Apply filters
+    if (slot.brightness || slot.contrast || slot.saturation || slot.blur) {
+      const filterString = [
+        slot.brightness !== 0 ? `brightness(${100 + slot.brightness}%)` : '',
+        slot.contrast !== 0 ? `contrast(${100 + slot.contrast}%)` : '',
+        slot.saturation !== 0 ? `saturate(${100 + slot.saturation}%)` : '',
+        slot.blur > 0 ? `blur(${slot.blur}px)` : ''
+      ].filter(f => f).join(' ');
+      
+      if (filterString) {
+        ctx.filter = filterString;
+      }
+    }
+    
+    // Draw image
+    ctx.drawImage(
+      slot.image,
+      sourceX, sourceY, sourceWidth, sourceHeight,
+      -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight
+    );
+    
+    // Apply stroke if specified
+    if (slot.stroke && slot.stroke.enabled) {
+      ctx.strokeStyle = slot.stroke.color;
+      ctx.lineWidth = slot.stroke.width;
+      ctx.strokeRect(-scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+    }
   }
   
   // Apply mask to the current context
