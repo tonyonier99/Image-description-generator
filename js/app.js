@@ -658,6 +658,9 @@ function applyFilterPreset(slotId, preset) {
 // Initialize the slot-based layer manager
 const slotLayerManager = new SlotLayerManager();
 
+// Make slotLayerManager globally accessible for modules
+window.slotLayerManager = slotLayerManager;
+
 // Initialize application
 document.addEventListener('DOMContentLoaded', async function() {
   await loadConfigs();
@@ -765,6 +768,19 @@ async function loadFonts() {
     }
     
     console.log(`Loaded ${loadedFonts.length} fonts`);
+    
+    // Make loadedFonts available globally for LayerManager
+    window.loadedFonts = loadedFonts;
+    
+    // Update font dropdowns in LayerManager if it exists
+    if (layerManager && layerManager.populateFontDropdown) {
+      layerManager.populateFontDropdown();
+    }
+    
+    // Refresh text field selector to include text boxes
+    if (layerManager && layerManager.refreshTextFieldSelect) {
+      layerManager.refreshTextFieldSelect();
+    }
   } catch (error) {
     console.warn('Failed to load fonts:', error);
   }
@@ -1600,17 +1616,28 @@ function updateTextTuningPanel() {
   
   if (!fieldSelect) return;
   
-  // Populate field selector
+  // Populate field selector with both category fields and text boxes
+  let optionsHTML = '<option value="">請選擇文字欄位</option>';
+  
+  // Add category fields
   const category = getCurrentCategoryConfig();
   if (category && category.options) {
-    const optionsHTML = '<option value="">請選擇欄位</option>' + 
-      category.options
-        .filter(field => field.type === 'text' || field.type === 'textarea')
-        .map(field => `<option value="${field.key}" ${field.key === selectedTextField ? 'selected' : ''}>${field.label}</option>`)
-        .join('');
-    
-    fieldSelect.innerHTML = optionsHTML;
+    const categoryFields = category.options
+      .filter(field => field.type === 'text' || field.type === 'textarea')
+      .map(field => `<option value="${field.key}" ${field.key === selectedTextField ? 'selected' : ''}>${field.label}</option>`)
+      .join('');
+    optionsHTML += categoryFields;
   }
+  
+  // Add LayerManager text boxes
+  if (layerManager && layerManager.textBoxes && layerManager.textBoxes.length > 0) {
+    const textBoxOptions = layerManager.textBoxes
+      .map(textBox => `<option value="${textBox.id}" ${textBox.id === selectedTextField ? 'selected' : ''}>${textBox.name}</option>`)
+      .join('');
+    optionsHTML += textBoxOptions;
+  }
+  
+  fieldSelect.innerHTML = optionsHTML;
   
   // Show/hide controls based on selection
   if (tuningControls) {
@@ -2397,6 +2424,15 @@ function setupTextTuningControls() {
   if (fieldSelect) {
     fieldSelect.addEventListener('change', (e) => {
       selectedTextField = e.target.value;
+      
+      // Also select the corresponding text box in LayerManager
+      if (layerManager && e.target.value) {
+        const textBox = layerManager.textBoxes.find(tb => tb.id === e.target.value);
+        if (textBox) {
+          layerManager.selectTextBox(textBox);
+        }
+      }
+      
       updateTextTuningPanel();
     });
   }

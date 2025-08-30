@@ -50,6 +50,9 @@ class LayerManager {
   }
   
   setupTextBoxPropertyControls() {
+    // Populate font family dropdown first
+    this.populateFontDropdown();
+    
     const controls = [
       { id: 'text-box-content', property: 'content', type: 'textarea' },
       { id: 'text-box-font-family', property: 'fontFamily', type: 'select' },
@@ -73,6 +76,31 @@ class LayerManager {
         }
       }
     });
+  }
+  
+  /**
+   * Populate font family dropdown with loaded fonts
+   */
+  populateFontDropdown() {
+    const fontFamilySelect = document.getElementById('text-box-font-family');
+    if (fontFamilySelect) {
+      // Add system fonts
+      fontFamilySelect.innerHTML = `
+        <option value="Inter, sans-serif">Inter</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="'Microsoft JhengHei', sans-serif">微軟正黑體</option>
+      `;
+      
+      // Add loaded custom fonts from global loadedFonts array
+      if (typeof window.loadedFonts !== 'undefined' && window.loadedFonts.length > 0) {
+        window.loadedFonts.forEach(font => {
+          const option = document.createElement('option');
+          option.value = font.family;
+          option.textContent = font.display;
+          fontFamilySelect.appendChild(option);
+        });
+      }
+    }
   }
   
   /**
@@ -327,15 +355,20 @@ class LayerManager {
     // Store current selection
     const currentValue = fieldSelect.value;
     
-    // Clear and rebuild options
-    fieldSelect.innerHTML = '<option value="">請選擇文字欄位</option>';
-    
-    this.textBoxes.forEach(textBox => {
-      const option = document.createElement('option');
-      option.value = textBox.id;
-      option.textContent = textBox.name;
-      fieldSelect.appendChild(option);
-    });
+    // Call the main updateTextTuningPanel function to handle both category and text box fields
+    if (typeof updateTextTuningPanel === 'function') {
+      updateTextTuningPanel();
+    } else {
+      // Fallback: Clear and rebuild options for text boxes only
+      fieldSelect.innerHTML = '<option value="">請選擇文字欄位</option>';
+      
+      this.textBoxes.forEach(textBox => {
+        const option = document.createElement('option');
+        option.value = textBox.id;
+        option.textContent = textBox.name;
+        fieldSelect.appendChild(option);
+      });
+    }
     
     // Restore selection if still valid
     if (currentValue && this.textBoxes.find(tb => tb.id === currentValue)) {
@@ -466,8 +499,8 @@ class LayerManager {
     }
     
     // Draw slot layers from SlotLayerManager (if available)
-    if (typeof slotLayerManager !== 'undefined') {
-      slotLayerManager.renderOnCanvas(this.ctx, this.canvas.width, this.canvas.height);
+    if (typeof window.slotLayerManager !== 'undefined') {
+      window.slotLayerManager.renderOnCanvas(this.ctx, this.canvas.width, this.canvas.height);
     }
     
     // Get all drawable items sorted by z-index
