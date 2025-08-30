@@ -4197,6 +4197,9 @@ function updateControlValue(control, layer, controlId) {
       let unit = '';
       if (controlId.includes('rotation') || controlId.includes('angle')) unit = '°';
       else if (controlId.includes('crop') || controlId.includes('offset')) unit = 'px';
+      else if (controlId.includes('brightness') || controlId.includes('contrast') || 
+               controlId.includes('saturation') || controlId.includes('opacity') ||
+               controlId.includes('filter-strength')) unit = '%';
       display.textContent = value + unit;
     }
   }
