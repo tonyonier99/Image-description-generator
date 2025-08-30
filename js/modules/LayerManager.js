@@ -356,8 +356,8 @@ class LayerManager {
     const currentValue = fieldSelect.value;
     
     // Call the main updateTextTuningPanel function to handle both category and text box fields
-    if (typeof updateTextTuningPanel === 'function') {
-      updateTextTuningPanel();
+    if (typeof window.updateTextTuningPanel === 'function') {
+      window.updateTextTuningPanel();
     } else {
       // Fallback: Clear and rebuild options for text boxes only
       fieldSelect.innerHTML = '<option value="">請選擇文字欄位</option>';
@@ -502,6 +502,9 @@ class LayerManager {
     if (typeof window.slotLayerManager !== 'undefined') {
       window.slotLayerManager.renderOnCanvas(this.ctx, this.canvas.width, this.canvas.height);
     }
+    
+    // Draw category text fields (integration with main app)
+    this.drawCategoryTextFields();
     
     // Get all drawable items sorted by z-index
     const allItems = [...this.layers, ...this.textBoxes]
@@ -715,6 +718,59 @@ class LayerManager {
     }
     
     return false;
+  }
+  
+  /**
+   * Draw category text fields from the main app
+   */
+  drawCategoryTextFields() {
+    // Get category configuration and current options from main app
+    const categoryConfig = typeof window.getCurrentCategoryConfig === 'function' ? 
+      window.getCurrentCategoryConfig() : null;
+    const currentOptions = typeof window.getCurrentOptions === 'function' ? 
+      window.getCurrentOptions() : {};
+    
+    if (!categoryConfig || !categoryConfig.options) return;
+    
+    const ctx = this.ctx;
+    ctx.font = '24px Inter, sans-serif';
+    ctx.fillStyle = '#333333';
+    
+    // Render text for each category field
+    categoryConfig.options.forEach((field, index) => {
+      if (field.type === 'text' || field.type === 'textarea') {
+        const value = currentOptions[field.key] || '';
+        console.log(`🔤 LayerManager rendering field ${field.key}: "${value}"`);
+        
+        if (value) {
+          // Calculate default positions for different field types
+          let x = this.canvas.width * 0.5; // Center horizontally
+          let y;
+          
+          switch (field.key) {
+            case 'title':
+              y = this.canvas.height * 0.3; // Top third
+              ctx.font = '36px Inter, sans-serif';
+              break;
+            case 'subtitle':
+              y = this.canvas.height * 0.45; // Middle-top
+              ctx.font = '28px Inter, sans-serif';
+              break;
+            case 'content':
+              y = this.canvas.height * 0.6; // Middle-bottom
+              ctx.font = '24px Inter, sans-serif';
+              break;
+            default:
+              y = this.canvas.height * 0.4 + (index * 50); // Stacked vertically
+              ctx.font = '24px Inter, sans-serif';
+          }
+          
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(value, x, y);
+        }
+      }
+    });
   }
 }
 
