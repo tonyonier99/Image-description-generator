@@ -21,8 +21,48 @@
                 </select>
             </div>
             
-            <!-- Admin link kept but hidden nav buttons removed -->
-            <nav class="top-nav" style="display: none;">
+            <!-- View menu for guides and visual aids -->
+            <nav class="top-nav">
+                <div class="view-menu">
+                    <button class="view-menu-toggle" id="viewMenuToggle">
+                        視圖 ▼
+                    </button>
+                    <div class="view-menu-dropdown" id="viewMenuDropdown">
+                        <div class="view-menu-section">
+                            <h4>對齊與吸附</h4>
+                            <label class="view-menu-item">
+                                <input type="checkbox" id="snapToggle">
+                                <span>啟用吸附</span>
+                            </label>
+                            <div class="view-menu-setting">
+                                <label>吸附距離: <span id="snapThresholdValue">10</span>px</label>
+                                <input type="range" id="snapThreshold" min="1" max="50" value="10">
+                            </div>
+                        </div>
+                        
+                        <div class="view-menu-section">
+                            <h4>標尺與網格</h4>
+                            <label class="view-menu-item">
+                                <input type="checkbox" id="rulersToggle">
+                                <span>顯示標尺</span>
+                            </label>
+                            <label class="view-menu-item">
+                                <input type="checkbox" id="gridToggle">
+                                <span>顯示網格</span>
+                            </label>
+                            <div class="view-menu-setting">
+                                <label>網格間距: <span id="gridSpacingValue">20</span>px</label>
+                                <input type="range" id="gridSpacing" min="10" max="100" value="20">
+                            </div>
+                            <div class="view-menu-setting">
+                                <label>網格透明度: <span id="gridOpacityValue">30</span>%</label>
+                                <input type="range" id="gridOpacity" min="10" max="100" value="30">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Admin link kept hidden -->
                 <a href="admin/" class="nav-item admin-link" id="adminLink" hidden>管理</a>
             </nav>
         </header>

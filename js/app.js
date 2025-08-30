@@ -4,6 +4,7 @@ import { CanvasTransform } from './modules/CanvasTransform.js';
 import { TemplateStateStore } from './modules/TemplateStateStore.js';
 import { LayerManager } from './modules/LayerManager.js';
 import { TemplateThumbs } from './modules/TemplateThumbs.js';
+import { GuidesOverlay } from './modules/GuidesOverlay.js';
 
 // Global state
 let currentCategory = 'classic';
@@ -25,6 +26,7 @@ let canvasTransform = null;
 let templateStateStore = null;
 let layerManager = null;
 let templateThumbs = null;
+let guidesOverlay = null;
 
 // Multi-image layer system
 let imageLayers = [];
@@ -756,6 +758,9 @@ function initializeModules() {
   // Initialize canvas transform controls
   canvasTransform = new CanvasTransform(canvas, layerManager);
   
+  // Initialize guides overlay
+  guidesOverlay = new GuidesOverlay(canvas);
+  
   console.log('✅ All modules initialized');
 }
 
@@ -817,6 +822,9 @@ function setupEventListeners() {
   
   // Settings controls
   setupSettingsControls();
+  
+  // View menu controls
+  setupViewMenuControls();
 }
 
 // Render category dropdown
@@ -2233,11 +2241,13 @@ function setupTextTuningControls() {
     applyBtn.addEventListener('click', applyAsDefault);
   }
   
-  // Keyboard navigation for text boxes
+  // Enhanced keyboard navigation for all layers and text
   document.addEventListener('keydown', (e) => {
-    if (selectedTextField && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    // Arrow key nudging (avoid interference with text input)
+    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') && 
+        !e.target.matches('input, textarea, select')) {
       e.preventDefault();
-      nudgeTextField(e.key, e.shiftKey);
+      nudgeSelectedLayer(e.key, e.shiftKey, e.altKey);
     }
   });
 }
@@ -2805,6 +2815,205 @@ function setupSettingsControls() {
         importSettings(file);
       }
     });
+  }
+}
+
+// Setup view menu controls
+function setupViewMenuControls() {
+  const menuToggle = document.getElementById('viewMenuToggle');
+  const menuDropdown = document.getElementById('viewMenuDropdown');
+  
+  // Toggle dropdown
+  if (menuToggle && menuDropdown) {
+    menuToggle.addEventListener('click', () => {
+      const isActive = menuDropdown.classList.toggle('active');
+      menuToggle.setAttribute('aria-expanded', isActive);
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!menuToggle.contains(e.target) && !menuDropdown.contains(e.target)) {
+        menuDropdown.classList.remove('active');
+        menuToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+  
+  // Snap controls
+  const snapToggle = document.getElementById('snapToggle');
+  const snapThreshold = document.getElementById('snapThreshold');
+  const snapThresholdValue = document.getElementById('snapThresholdValue');
+  
+  if (snapToggle && guidesOverlay) {
+    snapToggle.addEventListener('change', (e) => {
+      guidesOverlay.setSnapEnabled(e.target.checked);
+    });
+    // Load saved preference
+    snapToggle.checked = guidesOverlay.snapEnabled;
+  }
+  
+  if (snapThreshold && snapThresholdValue && guidesOverlay) {
+    snapThreshold.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value);
+      guidesOverlay.setSnapThreshold(value);
+      snapThresholdValue.textContent = value;
+    });
+    // Load saved preference
+    snapThreshold.value = guidesOverlay.snapThreshold;
+    snapThresholdValue.textContent = guidesOverlay.snapThreshold;
+  }
+  
+  // Rulers control
+  const rulersToggle = document.getElementById('rulersToggle');
+  if (rulersToggle && guidesOverlay) {
+    rulersToggle.addEventListener('change', (e) => {
+      guidesOverlay.setRulersEnabled(e.target.checked);
+    });
+    // Load saved preference
+    rulersToggle.checked = guidesOverlay.rulersEnabled;
+  }
+  
+  // Grid controls
+  const gridToggle = document.getElementById('gridToggle');
+  const gridSpacing = document.getElementById('gridSpacing');
+  const gridSpacingValue = document.getElementById('gridSpacingValue');
+  const gridOpacity = document.getElementById('gridOpacity');
+  const gridOpacityValue = document.getElementById('gridOpacityValue');
+  
+  if (gridToggle && guidesOverlay) {
+    gridToggle.addEventListener('change', (e) => {
+      guidesOverlay.setGridEnabled(e.target.checked);
+    });
+    // Load saved preference
+    gridToggle.checked = guidesOverlay.gridEnabled;
+  }
+  
+  if (gridSpacing && gridSpacingValue && guidesOverlay) {
+    gridSpacing.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value);
+      guidesOverlay.setGridSpacing(value);
+      gridSpacingValue.textContent = value;
+    });
+    // Load saved preference
+    gridSpacing.value = guidesOverlay.gridSpacing;
+    gridSpacingValue.textContent = guidesOverlay.gridSpacing;
+  }
+  
+  if (gridOpacity && gridOpacityValue && guidesOverlay) {
+    gridOpacity.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value);
+      const opacity = value / 100;
+      guidesOverlay.setGridOpacity(opacity);
+      gridOpacityValue.textContent = value;
+    });
+    // Load saved preference
+    const currentOpacity = Math.round(guidesOverlay.gridOpacity * 100);
+    gridOpacity.value = currentOpacity;
+    gridOpacityValue.textContent = currentOpacity;
+  }
+}
+
+// Enhanced keyboard nudging for layers
+function nudgeSelectedLayer(direction, shiftKey, altKey) {
+  // Determine movement distance
+  let stepSize = 1; // Default: 1px
+  if (shiftKey) stepSize = 10; // Shift: 10px
+  if (altKey && !shiftKey) stepSize = 0.5; // Alt: 0.5px (subpixel when scale allows)
+  
+  // For text fields, use the existing nudgeTextField function
+  if (selectedTextField) {
+    nudgeTextField(direction, shiftKey);
+    return;
+  }
+  
+  // For image layers (if we have a selected layer)
+  if (layerManager && layerManager.selectedLayer) {
+    const layer = layerManager.selectedLayer;
+    let newX = layer.x;
+    let newY = layer.y;
+    
+    switch (direction) {
+      case 'ArrowUp':
+        newY = Math.max(0, newY - stepSize);
+        break;
+      case 'ArrowDown':
+        newY = Math.min(CANVAS_HEIGHT - layer.height, newY + stepSize);
+        break;
+      case 'ArrowLeft':
+        newX = Math.max(0, newX - stepSize);
+        break;
+      case 'ArrowRight':
+        newX = Math.min(CANVAS_WIDTH - layer.width, newX + stepSize);
+        break;
+    }
+    
+    // Apply snapping if enabled
+    if (guidesOverlay && guidesOverlay.snapEnabled) {
+      const allLayers = layerManager.getAllLayers ? layerManager.getAllLayers() : [];
+      const snapResult = guidesOverlay.findSnapPoints(newX, newY, layer.width, layer.height, allLayers);
+      newX = snapResult.x;
+      newY = snapResult.y;
+      
+      // Show guides briefly
+      if (snapResult.guides.length > 0) {
+        guidesOverlay.showGuides(snapResult.guides);
+        setTimeout(() => guidesOverlay.clearGuides(), 1000);
+      }
+    }
+    
+    // Update layer position
+    layer.x = newX;
+    layer.y = newY;
+    
+    // Update display
+    updateCanvas();
+    if (canvasTransform) {
+      canvasTransform.updateTransformControl();
+    }
+    
+    // Save history
+    saveHistoryState(`Layer nudged ${direction} by ${stepSize}px`);
+    return;
+  }
+  
+  // For slot-based layers (current system)
+  const selectedSlot = slotLayerManager?.getSelectedSlot();
+  if (selectedSlot && selectedSlot.image) {
+    const currentOffsetX = selectedSlot.offsetX || 0;
+    const currentOffsetY = selectedSlot.offsetY || 0;
+    
+    let newOffsetX = currentOffsetX;
+    let newOffsetY = currentOffsetY;
+    
+    switch (direction) {
+      case 'ArrowUp':
+        newOffsetY = currentOffsetY - stepSize;
+        break;
+      case 'ArrowDown':
+        newOffsetY = currentOffsetY + stepSize;
+        break;
+      case 'ArrowLeft':
+        newOffsetX = currentOffsetX - stepSize;
+        break;
+      case 'ArrowRight':
+        newOffsetX = currentOffsetX + stepSize;
+        break;
+    }
+    
+    // Apply constraints
+    newOffsetX = Math.max(-200, Math.min(200, newOffsetX));
+    newOffsetY = Math.max(-200, Math.min(200, newOffsetY));
+    
+    // Update slot
+    slotLayerManager.updateSlotProperty(selectedSlot.id, 'offsetX', newOffsetX);
+    slotLayerManager.updateSlotProperty(selectedSlot.id, 'offsetY', newOffsetY);
+    
+    // Update UI
+    updateCanvas();
+    slotLayerManager.updateImageAdjustmentPanel();
+    
+    // Save history
+    saveHistoryState(`Slot "${selectedSlot.name}" nudged ${direction} by ${stepSize}px`);
   }
 }
 
