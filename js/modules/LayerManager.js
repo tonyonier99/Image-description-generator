@@ -499,8 +499,8 @@ class LayerManager {
     }
     
     // Draw slot layers from SlotLayerManager (if available)
-    if (typeof slotLayerManager !== 'undefined') {
-      slotLayerManager.renderOnCanvas(this.ctx, this.canvas.width, this.canvas.height);
+    if (typeof window.slotLayerManager !== 'undefined') {
+      window.slotLayerManager.renderOnCanvas(this.ctx, this.canvas.width, this.canvas.height);
     }
     
     // Get all drawable items sorted by z-index

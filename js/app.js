@@ -658,6 +658,9 @@ function applyFilterPreset(slotId, preset) {
 // Initialize the slot-based layer manager
 const slotLayerManager = new SlotLayerManager();
 
+// Make slotLayerManager globally accessible for modules
+window.slotLayerManager = slotLayerManager;
+
 // Initialize application
 document.addEventListener('DOMContentLoaded', async function() {
   await loadConfigs();
