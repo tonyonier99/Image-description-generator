@@ -363,7 +363,7 @@ class SlotLayerManager {
         </div>
         <div class="slot-info">
           <div class="slot-name">${slot.name}</div>
-          <div class="slot-status">${hasImage ? (slot.imageName || 'Image loaded') : (isTemplate ? 'Template' : 'Empty')}</div>
+          <div class="slot-status">${hasImage ? (slot.imageName || 'Image loaded') : (isTemplate ? '底圖' : 'Empty')}</div>
         </div>
         <div class="slot-controls">
           <button class="slot-visibility" title="顯示/隱藏" data-slot-id="${slot.id}">
