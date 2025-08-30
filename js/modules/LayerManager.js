@@ -355,15 +355,20 @@ class LayerManager {
     // Store current selection
     const currentValue = fieldSelect.value;
     
-    // Clear and rebuild options
-    fieldSelect.innerHTML = '<option value="">請選擇文字欄位</option>';
-    
-    this.textBoxes.forEach(textBox => {
-      const option = document.createElement('option');
-      option.value = textBox.id;
-      option.textContent = textBox.name;
-      fieldSelect.appendChild(option);
-    });
+    // Call the main updateTextTuningPanel function to handle both category and text box fields
+    if (typeof updateTextTuningPanel === 'function') {
+      updateTextTuningPanel();
+    } else {
+      // Fallback: Clear and rebuild options for text boxes only
+      fieldSelect.innerHTML = '<option value="">請選擇文字欄位</option>';
+      
+      this.textBoxes.forEach(textBox => {
+        const option = document.createElement('option');
+        option.value = textBox.id;
+        option.textContent = textBox.name;
+        fieldSelect.appendChild(option);
+      });
+    }
     
     // Restore selection if still valid
     if (currentValue && this.textBoxes.find(tb => tb.id === currentValue)) {

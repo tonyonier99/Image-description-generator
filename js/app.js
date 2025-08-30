@@ -1613,17 +1613,28 @@ function updateTextTuningPanel() {
   
   if (!fieldSelect) return;
   
-  // Populate field selector
+  // Populate field selector with both category fields and text boxes
+  let optionsHTML = '<option value="">請選擇文字欄位</option>';
+  
+  // Add category fields
   const category = getCurrentCategoryConfig();
   if (category && category.options) {
-    const optionsHTML = '<option value="">請選擇欄位</option>' + 
-      category.options
-        .filter(field => field.type === 'text' || field.type === 'textarea')
-        .map(field => `<option value="${field.key}" ${field.key === selectedTextField ? 'selected' : ''}>${field.label}</option>`)
-        .join('');
-    
-    fieldSelect.innerHTML = optionsHTML;
+    const categoryFields = category.options
+      .filter(field => field.type === 'text' || field.type === 'textarea')
+      .map(field => `<option value="${field.key}" ${field.key === selectedTextField ? 'selected' : ''}>${field.label}</option>`)
+      .join('');
+    optionsHTML += categoryFields;
   }
+  
+  // Add LayerManager text boxes
+  if (layerManager && layerManager.textBoxes && layerManager.textBoxes.length > 0) {
+    const textBoxOptions = layerManager.textBoxes
+      .map(textBox => `<option value="${textBox.id}" ${textBox.id === selectedTextField ? 'selected' : ''}>${textBox.name}</option>`)
+      .join('');
+    optionsHTML += textBoxOptions;
+  }
+  
+  fieldSelect.innerHTML = optionsHTML;
   
   // Show/hide controls based on selection
   if (tuningControls) {
