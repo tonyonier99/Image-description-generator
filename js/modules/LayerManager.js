@@ -2,6 +2,16 @@
  * LayerManager - Enhanced layer management with text boxes and background handling
  * Supports adding/deleting text boxes, background full-cover, and layer locking
  */
+
+// UUID generator utility
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 class LayerManager {
   constructor(canvas, ctx, stateStore) {
     this.canvas = canvas;
@@ -10,9 +20,8 @@ class LayerManager {
     this.layers = [];
     this.textBoxes = [];
     this.selectedLayer = null;
+    this.selectedTextBox = null;
     this.backgroundLayer = null;
-    this.nextLayerId = 1;
-    this.nextTextBoxId = 1;
     
     this.setupEventListeners();
   }
@@ -121,7 +130,7 @@ class LayerManager {
    */
   addTextBox(config = {}) {
     const textBox = {
-      id: `textbox-${this.nextTextBoxId++}`,
+      id: config.id || generateUUID(),
       type: 'text',
       name: config.name || `文字框 ${this.textBoxes.length + 1}`,
       content: config.content || '新增文字',
@@ -146,6 +155,7 @@ class LayerManager {
     this.textBoxes.push(textBox);
     this.selectTextBox(textBox);
     this.updateTextBoxesList();
+    this.refreshTextFieldSelect();
     this.updateCanvas();
     
     console.log('Added text box:', textBox);
@@ -165,6 +175,7 @@ class LayerManager {
       }
       
       this.updateTextBoxesList();
+      this.refreshTextFieldSelect();
       this.updateCanvas();
       
       console.log('Deleted text box:', textBox.id);
@@ -186,7 +197,7 @@ class LayerManager {
   duplicateTextBox(textBox) {
     const duplicate = {
       ...textBox,
-      id: `textbox-${this.nextTextBoxId++}`,
+      id: generateUUID(),
       name: `${textBox.name} (副本)`,
       x: textBox.x + 20,
       y: textBox.y + 20,
@@ -196,6 +207,7 @@ class LayerManager {
     this.textBoxes.push(duplicate);
     this.selectTextBox(duplicate);
     this.updateTextBoxesList();
+    this.refreshTextFieldSelect();
     this.updateCanvas();
     
     return duplicate;
@@ -303,6 +315,32 @@ class LayerManager {
       item.addEventListener('click', () => this.selectTextBox(textBox));
       listElement.appendChild(item);
     });
+  }
+  
+  /**
+   * Refresh text field select dropdown (Task 3)
+   */
+  refreshTextFieldSelect() {
+    const fieldSelect = document.getElementById('text-field-select');
+    if (!fieldSelect) return;
+    
+    // Store current selection
+    const currentValue = fieldSelect.value;
+    
+    // Clear and rebuild options
+    fieldSelect.innerHTML = '<option value="">請選擇文字欄位</option>';
+    
+    this.textBoxes.forEach(textBox => {
+      const option = document.createElement('option');
+      option.value = textBox.id;
+      option.textContent = textBox.name;
+      fieldSelect.appendChild(option);
+    });
+    
+    // Restore selection if still valid
+    if (currentValue && this.textBoxes.find(tb => tb.id === currentValue)) {
+      fieldSelect.value = currentValue;
+    }
   }
   
   /**

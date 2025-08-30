@@ -658,7 +658,7 @@ async function loadConfigs() {
           key: 'classic',
           label: '經典',
           folder: 'Classic',
-          ext: 'svg',
+          ext: 'jpg',
           count: 2,
           options: [
             { key: 'title', label: '主標題', type: 'text' },
@@ -899,46 +899,61 @@ function renderTemplatesGrid() {
   );
 }
 
-// Handle template change
+// Handle template change with debouncing
+let templateChangeTimeout;
 window.handleTemplateChange = function(templateIndex) {
+  // Clear any pending template change
+  if (templateChangeTimeout) {
+    clearTimeout(templateChangeTimeout);
+  }
+  
+  // Debounce template changes to prevent flashing
+  templateChangeTimeout = setTimeout(() => {
+    handleTemplateChangeInternal(templateIndex);
+  }, 100);
+};
+
+function handleTemplateChangeInternal(templateIndex) {
+  console.log(`🔄 Starting template switch from ${currentTemplate} to ${templateIndex}`);
+  
   // Save current template state before switching
   if (layerManager && templateStateStore) {
     layerManager.saveState(currentCategory, currentTemplate);
   }
   
+  const oldTemplate = currentTemplate;
   currentTemplate = templateIndex;
   categoryStorage.setSelectedTemplate(currentCategory, templateIndex);
   
-  // Try to load saved state for the new template
-  let stateLoaded = false;
-  if (layerManager && templateStateStore) {
-    stateLoaded = layerManager.loadState(currentCategory, currentTemplate);
+  // For same category switches, preserve layer state and only update background
+  const category = getCurrentCategoryConfig();
+  if (category) {
+    // Update template grid selection
+    updateTemplateGridSelection(templateIndex);
+    
+    // Load new background/template image without clearing layers
+    loadTemplateImages();
+    
+    console.log(`✅ Preserved layers during template switch: ${oldTemplate} → ${templateIndex}`);
   }
   
-  // If no saved state, load template images normally
-  if (!stateLoaded) {
-    const category = getCurrentCategoryConfig();
-    if (category) {
-      loadImageWithFallback(
-        `assets/templates/${category.folder}/${category.folder}_${currentTemplate + 1}`,
-        ['jpg', 'svg', 'png'],
-        (img) => {
-          foregroundImage = img;
-          updateCanvas();
-        },
-        () => {
-          console.warn('Foreground image not found for template', currentTemplate + 1);
-          foregroundImage = null;
-          updateCanvas();
-        }
-      );
-    } else {
-      updateCanvas();
-    }
+  // Update canvas with preserved layers
+  if (layerManager) {
+    layerManager.updateCanvas();
+  } else {
+    updateCanvas();
   }
+}
+
+function updateTemplateGridSelection(templateIndex) {
+  const templateGrid = document.getElementById('template-grid');
+  if (!templateGrid) return;
   
-  console.log(`🔄 Switched to template ${currentTemplate + 1}, state loaded: ${stateLoaded}`);
-};
+  const inputs = templateGrid.querySelectorAll('input[type="radio"]');
+  inputs.forEach((input, index) => {
+    input.checked = (index === templateIndex);
+  });
+}
 
 // Render category-specific options
 function renderCategoryOptions() {

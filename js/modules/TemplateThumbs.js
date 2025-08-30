@@ -46,8 +46,8 @@ class TemplateThumbs {
    * Tries JPG first, then PNG as fallback
    */
   getThumbnailPath(categoryFolder, templateNumber) {
-    // Primary path: Card_N.jpg format in templates folder
-    return `assets/templates/${categoryFolder}/Card_${templateNumber}.jpg`;
+    // Primary path: Category_N.jpg format in templates folder
+    return `assets/templates/${categoryFolder}/${categoryFolder}_${templateNumber}.jpg`;
   }
   
   /**
@@ -55,14 +55,14 @@ class TemplateThumbs {
    * For full-bleed backgrounds
    */
   getBackgroundPath(categoryFolder, templateNumber) {
-    // Try background image: bg_N.jpg format
-    return `assets/templates/${categoryFolder}/bg_${templateNumber}.jpg`;
+    // Try background image: Category_Empty_N.jpg format
+    return `assets/templates/${categoryFolder}/${categoryFolder}_Empty_${templateNumber}.jpg`;
   }
   
   /**
    * Load template image with fallback support
    */
-  loadTemplateImage(categoryFolder, templateNumber, extensions = ['jpg', 'png', 'svg']) {
+  loadTemplateImage(categoryFolder, templateNumber, extensions = ['jpg', 'png']) {
     const cacheKey = `${categoryFolder}_${templateNumber}`;
     
     // Return cached promise if exists
@@ -111,7 +111,7 @@ class TemplateThumbs {
         console.log(`✅ Loaded template image: ${path}`);
         return image;
       } catch (error) {
-        console.log(`⚠️ Failed to load: assets/templates/${categoryFolder}/${prefix}${templateNumber}.${ext}`);
+        console.log(`⚠️ Failed to load: assets/templates/${categoryFolder}/${prefix ? prefix + templateNumber : categoryFolder + '_' + templateNumber}.${ext}`);
         continue;
       }
     }
@@ -164,7 +164,7 @@ class TemplateThumbs {
   async getTemplateForCanvas(categoryFolder, templateNumber) {
     // Try to load the main template image (not thumbnail)
     try {
-      return await this.loadTemplateImage(categoryFolder, templateNumber, ['jpg', 'svg', 'png']);
+      return await this.loadTemplateImage(categoryFolder, templateNumber, ['jpg', 'png']);
     } catch (error) {
       console.warn(`Failed to load template for canvas: ${categoryFolder}_${templateNumber}`, error);
       return null;
@@ -179,9 +179,9 @@ class TemplateThumbs {
     try {
       const emptyImage = await this.loadImageWithFallbacks(
         categoryFolder, 
-        'Empty_1', 
+        1, 
         ['png', 'jpg'],
-        ''
+        `${categoryFolder}_Empty_`
       );
       return emptyImage;
     } catch (error) {
