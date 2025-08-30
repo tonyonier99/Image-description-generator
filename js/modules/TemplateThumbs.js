@@ -173,20 +173,37 @@ class TemplateThumbs {
   
   /**
    * Get background image for canvas rendering
+   * Uses current template index to load corresponding Empty background
    */
-  async getBackgroundForCanvas(categoryFolder) {
-    // Try to load empty/background template
+  async getBackgroundForCanvas(categoryFolder, templateIndex = 1) {
+    // Convert templateIndex to 1-based for filename
+    const templateNumber = templateIndex + 1;
+    
+    // Try to load empty/background template for current template
     try {
       const emptyImage = await this.loadImageWithFallbacks(
         categoryFolder, 
-        1, 
+        templateNumber, 
         ['png', 'jpg'],
         `${categoryFolder}_Empty_`
       );
       return emptyImage;
     } catch (error) {
-      console.warn(`Failed to load background for canvas: ${categoryFolder}`, error);
-      return null;
+      console.warn(`Failed to load background ${categoryFolder}_Empty_${templateNumber}, falling back to Empty_1`, error);
+      
+      // Fallback to Empty_1 if specific template background doesn't exist
+      try {
+        const fallbackImage = await this.loadImageWithFallbacks(
+          categoryFolder, 
+          1, 
+          ['png', 'jpg'],
+          `${categoryFolder}_Empty_`
+        );
+        return fallbackImage;
+      } catch (fallbackError) {
+        console.warn(`Failed to load fallback background for canvas: ${categoryFolder}`, fallbackError);
+        return null;
+      }
     }
   }
   

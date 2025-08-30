@@ -1911,35 +1911,58 @@ function downloadImage() {
     exportCanvas.height = exportHeight;
     const exportCtx = exportCanvas.getContext('2d');
     
-    // Fill background
-    exportCtx.fillStyle = '#ffffff';
-    exportCtx.fillRect(0, 0, exportWidth, exportHeight);
-    
-    // Draw background image with cover algorithm
-    if (backgroundImage) {
-      drawImageWithCover(exportCtx, backgroundImage, 0, 0, exportWidth, exportHeight);
-    }
-    
-    // Draw foreground template with cover algorithm  
-    if (foregroundImage) {
-      drawImageWithCover(exportCtx, foregroundImage, 0, 0, exportWidth, exportHeight);
-    }
-    
-    // Draw uploaded image
-    if (uploadedImage) {
-      const padding = Math.floor(exportWidth * 0.05); // 5% padding
-      const maxWidth = exportWidth - padding * 2;
-      const maxHeight = Math.floor(exportHeight * 0.6) - padding;
+    // Use the same rendering pipeline as preview for consistency
+    if (layerManager) {
+      // Create a temporary layer manager for export with the export canvas
+      const originalCanvas = layerManager.canvas;
+      const originalCtx = layerManager.ctx;
       
-      const dims = calculateScaledDimensions(uploadedImage.width, uploadedImage.height, maxWidth, maxHeight);
-      const x = (exportWidth - dims.width) / 2;
-      const y = padding;
+      // Temporarily switch to export canvas
+      layerManager.canvas = exportCanvas;
+      layerManager.ctx = exportCtx;
       
-      exportCtx.drawImage(uploadedImage, x, y, dims.width, dims.height);
+      // Render using the same unified pipeline
+      layerManager.updateCanvas();
+      
+      // Restore original canvas
+      layerManager.canvas = originalCanvas;
+      layerManager.ctx = originalCtx;
+    } else {
+      // Fallback to legacy rendering for export
+      exportCtx.fillStyle = '#ffffff';
+      exportCtx.fillRect(0, 0, exportWidth, exportHeight);
+      
+      // Draw background image with cover algorithm
+      if (backgroundImage) {
+        drawImageWithCover(exportCtx, backgroundImage, 0, 0, exportWidth, exportHeight);
+      }
+      
+      // Draw foreground template with cover algorithm  
+      if (foregroundImage) {
+        drawImageWithCover(exportCtx, foregroundImage, 0, 0, exportWidth, exportHeight);
+      }
+      
+      // Draw slot layers (legacy support)
+      if (typeof slotLayerManager !== 'undefined') {
+        slotLayerManager.renderOnCanvas(exportCtx, exportWidth, exportHeight);
+      }
+      
+      // Draw uploaded image (legacy support)
+      if (uploadedImage && (typeof slotLayerManager === 'undefined' || slotLayerManager.slots.size === 0)) {
+        const padding = Math.floor(exportWidth * 0.05); // 5% padding
+        const maxWidth = exportWidth - padding * 2;
+        const maxHeight = Math.floor(exportHeight * 0.6) - padding;
+        
+        const dims = calculateScaledDimensions(uploadedImage.width, uploadedImage.height, maxWidth, maxHeight);
+        const x = (exportWidth - dims.width) / 2;
+        const y = padding;
+        
+        exportCtx.drawImage(uploadedImage, x, y, dims.width, dims.height);
+      }
+      
+      // Draw text content at export scale
+      drawTextContentForExport(exportCtx, exportWidth, exportHeight);
     }
-    
-    // Draw text content at export scale
-    drawTextContentForExport(exportCtx, exportWidth, exportHeight);
     
     // Convert to appropriate format
     let mimeType, quality, extension;
@@ -2447,7 +2470,7 @@ function loadTemplateImages() {
 
   // Load background image using the new TemplateThumbs module
   if (templateThumbs && layerManager) {
-    templateThumbs.getBackgroundForCanvas(category.folder)
+    templateThumbs.getBackgroundForCanvas(category.folder, currentTemplate)
       .then(img => {
         if (img) {
           backgroundImage = img;
@@ -2473,7 +2496,7 @@ function loadTemplateImages() {
   } else {
     // Fallback to legacy loading
     loadImageWithFallback(
-      `assets/templates/${category.folder}/${category.folder}_Empty_1`,
+      `assets/templates/${category.folder}/${category.folder}_Empty_${currentTemplate + 1}`,
       ['png', 'jpg'],
       (img) => {
         backgroundImage = img;
