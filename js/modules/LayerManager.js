@@ -50,6 +50,9 @@ class LayerManager {
   }
   
   setupTextBoxPropertyControls() {
+    // Populate font family dropdown first
+    this.populateFontDropdown();
+    
     const controls = [
       { id: 'text-box-content', property: 'content', type: 'textarea' },
       { id: 'text-box-font-family', property: 'fontFamily', type: 'select' },
@@ -73,6 +76,31 @@ class LayerManager {
         }
       }
     });
+  }
+  
+  /**
+   * Populate font family dropdown with loaded fonts
+   */
+  populateFontDropdown() {
+    const fontFamilySelect = document.getElementById('text-box-font-family');
+    if (fontFamilySelect) {
+      // Add system fonts
+      fontFamilySelect.innerHTML = `
+        <option value="Inter, sans-serif">Inter</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="'Microsoft JhengHei', sans-serif">微軟正黑體</option>
+      `;
+      
+      // Add loaded custom fonts from global loadedFonts array
+      if (typeof window.loadedFonts !== 'undefined' && window.loadedFonts.length > 0) {
+        window.loadedFonts.forEach(font => {
+          const option = document.createElement('option');
+          option.value = font.family;
+          option.textContent = font.display;
+          fontFamilySelect.appendChild(option);
+        });
+      }
+    }
   }
   
   /**

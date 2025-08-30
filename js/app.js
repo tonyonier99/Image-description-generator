@@ -765,6 +765,19 @@ async function loadFonts() {
     }
     
     console.log(`Loaded ${loadedFonts.length} fonts`);
+    
+    // Make loadedFonts available globally for LayerManager
+    window.loadedFonts = loadedFonts;
+    
+    // Update font dropdowns in LayerManager if it exists
+    if (layerManager && layerManager.populateFontDropdown) {
+      layerManager.populateFontDropdown();
+    }
+    
+    // Refresh text field selector to include text boxes
+    if (layerManager && layerManager.refreshTextFieldSelect) {
+      layerManager.refreshTextFieldSelect();
+    }
   } catch (error) {
     console.warn('Failed to load fonts:', error);
   }
@@ -2397,6 +2410,15 @@ function setupTextTuningControls() {
   if (fieldSelect) {
     fieldSelect.addEventListener('change', (e) => {
       selectedTextField = e.target.value;
+      
+      // Also select the corresponding text box in LayerManager
+      if (layerManager && e.target.value) {
+        const textBox = layerManager.textBoxes.find(tb => tb.id === e.target.value);
+        if (textBox) {
+          layerManager.selectTextBox(textBox);
+        }
+      }
+      
       updateTextTuningPanel();
     });
   }
