@@ -465,6 +465,11 @@ class LayerManager {
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
     
+    // Draw slot layers from SlotLayerManager (if available)
+    if (typeof slotLayerManager !== 'undefined') {
+      slotLayerManager.renderOnCanvas(this.ctx, this.canvas.width, this.canvas.height);
+    }
+    
     // Get all drawable items sorted by z-index
     const allItems = [...this.layers, ...this.textBoxes]
       .filter(item => item.visible && item.type !== 'background')
