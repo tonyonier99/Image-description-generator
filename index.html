@@ -517,16 +517,70 @@
                     </div>
                 </div>
                 
+                <!-- 文字框管理 -->
+                <div class="controls-section">
+                    <h3>文字框管理</h3>
+                    <div class="text-box-controls">
+                        <button id="add-text-box-btn" class="add-text-box-btn">新增文字框</button>
+                        <div id="text-box-list" class="text-box-list">
+                            <!-- Text boxes will be listed here -->
+                        </div>
+                    </div>
+                    <div id="text-box-properties" class="text-box-properties" style="display: none;">
+                        <h4>文字框屬性</h4>
+                        <div class="property-group">
+                            <label for="text-box-content">內容：</label>
+                            <textarea id="text-box-content" rows="3"></textarea>
+                        </div>
+                        <div class="property-row">
+                            <div class="property-group">
+                                <label for="text-box-font-family">字型：</label>
+                                <select id="text-box-font-family">
+                                    <option value="Inter, sans-serif">Inter</option>
+                                    <option value="Arial, sans-serif">Arial</option>
+                                    <option value="'Microsoft JhengHei', sans-serif">微軟正黑體</option>
+                                </select>
+                            </div>
+                            <div class="property-group">
+                                <label for="text-box-font-size">大小：</label>
+                                <input type="number" id="text-box-font-size" min="8" max="200" value="24">
+                            </div>
+                        </div>
+                        <div class="property-row">
+                            <div class="property-group">
+                                <label for="text-box-font-weight">字重：</label>
+                                <select id="text-box-font-weight">
+                                    <option value="400">Normal</option>
+                                    <option value="500">Medium</option>
+                                    <option value="600">Semi Bold</option>
+                                    <option value="700">Bold</option>
+                                </select>
+                            </div>
+                            <div class="property-group">
+                                <label for="text-box-color">顏色：</label>
+                                <input type="color" id="text-box-color" value="#333333">
+                            </div>
+                        </div>
+                        <div class="property-row">
+                            <div class="property-group">
+                                <label for="text-box-align">對齊：</label>
+                                <select id="text-box-align">
+                                    <option value="left">左對齊</option>
+                                    <option value="center">置中</option>
+                                    <option value="right">右對齊</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="property-buttons">
+                            <button id="delete-text-box-btn" class="danger">刪除文字框</button>
+                            <button id="duplicate-text-box-btn" class="secondary">複製文字框</button>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- 類別專屬選項 -->
                 <div class="controls-section">
                     <h3>選項設定</h3>
-                    <!-- Title Field Selector (synced with text field selector) -->
-                    <div id="title-field-selector" class="field-selector">
-                        <label for="title-field-select">標題欄位：</label>
-                        <select id="title-field-select">
-                            <option value="">請選擇欄位</option>
-                        </select>
-                    </div>
                     <div id="category-options" class="category-options">
                         <!-- Category-specific options will be populated by JavaScript -->
                     </div>

@@ -1,0 +1,631 @@
+/**
+ * LayerManager - Enhanced layer management with text boxes and background handling
+ * Supports adding/deleting text boxes, background full-cover, and layer locking
+ */
+class LayerManager {
+  constructor(canvas, ctx, stateStore) {
+    this.canvas = canvas;
+    this.ctx = ctx;
+    this.stateStore = stateStore;
+    this.layers = [];
+    this.textBoxes = [];
+    this.selectedLayer = null;
+    this.backgroundLayer = null;
+    this.nextLayerId = 1;
+    this.nextTextBoxId = 1;
+    
+    this.setupEventListeners();
+  }
+  
+  setupEventListeners() {
+    // Add text box button
+    const addTextBoxBtn = document.getElementById('add-text-box-btn');
+    if (addTextBoxBtn) {
+      addTextBoxBtn.addEventListener('click', () => this.addTextBox());
+    }
+    
+    // Delete text box button
+    const deleteTextBoxBtn = document.getElementById('delete-text-box-btn');
+    if (deleteTextBoxBtn) {
+      deleteTextBoxBtn.addEventListener('click', () => this.deleteSelectedTextBox());
+    }
+    
+    // Duplicate text box button
+    const duplicateTextBoxBtn = document.getElementById('duplicate-text-box-btn');
+    if (duplicateTextBoxBtn) {
+      duplicateTextBoxBtn.addEventListener('click', () => this.duplicateSelectedTextBox());
+    }
+    
+    // Text box property controls
+    this.setupTextBoxPropertyControls();
+  }
+  
+  setupTextBoxPropertyControls() {
+    const controls = [
+      { id: 'text-box-content', property: 'content', type: 'textarea' },
+      { id: 'text-box-font-family', property: 'fontFamily', type: 'select' },
+      { id: 'text-box-font-size', property: 'fontSize', type: 'number' },
+      { id: 'text-box-font-weight', property: 'fontWeight', type: 'select' },
+      { id: 'text-box-color', property: 'color', type: 'color' },
+      { id: 'text-box-align', property: 'align', type: 'select' }
+    ];
+    
+    controls.forEach(({ id, property, type }) => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.addEventListener('change', (e) => {
+          this.updateSelectedTextBoxProperty(property, e.target.value);
+        });
+        
+        if (type === 'textarea') {
+          element.addEventListener('input', (e) => {
+            this.updateSelectedTextBoxProperty(property, e.target.value);
+          });
+        }
+      }
+    });
+  }
+  
+  /**
+   * Initialize layers for a category
+   */
+  initializeCategory(categoryConfig) {
+    // Clear existing layers except background
+    this.layers = this.layers.filter(layer => layer.type === 'background');
+    this.textBoxes = [];
+    
+    // Initialize background layer
+    this.initializeBackgroundLayer(categoryConfig);
+    
+    // Update UI
+    this.updateLayersList();
+    this.updateCanvas();
+  }
+  
+  /**
+   * Initialize background layer (full-cover)
+   */
+  initializeBackgroundLayer(categoryConfig) {
+    if (!this.backgroundLayer) {
+      this.backgroundLayer = {
+        id: 'bg-layer',
+        type: 'background',
+        name: '底圖',
+        x: 0,
+        y: 0,
+        width: this.canvas.width,
+        height: this.canvas.height,
+        zIndex: -1000,
+        locked: true,
+        visible: true,
+        image: null,
+        fitMode: 'cover' // Full-cover mode
+      };
+      
+      this.layers.unshift(this.backgroundLayer);
+    }
+  }
+  
+  /**
+   * Set background image with full-cover
+   */
+  setBackgroundImage(image) {
+    if (this.backgroundLayer) {
+      this.backgroundLayer.image = image;
+      this.updateCanvas();
+    }
+  }
+  
+  /**
+   * Add a new text box
+   */
+  addTextBox(config = {}) {
+    const textBox = {
+      id: `textbox-${this.nextTextBoxId++}`,
+      type: 'text',
+      name: config.name || `文字框 ${this.textBoxes.length + 1}`,
+      content: config.content || '新增文字',
+      x: config.x || this.canvas.width * 0.25,
+      y: config.y || this.canvas.height * 0.25,
+      width: config.width || this.canvas.width * 0.5,
+      height: config.height || 60,
+      rotation: config.rotation || 0,
+      zIndex: config.zIndex || this.getNextZIndex(),
+      locked: config.locked || false,
+      visible: config.visible !== false,
+      // Text styling
+      fontFamily: config.fontFamily || 'Inter, sans-serif',
+      fontSize: config.fontSize || 24,
+      fontWeight: config.fontWeight || '400',
+      color: config.color || '#333333',
+      align: config.align || 'center',
+      lineHeight: config.lineHeight || 1.2,
+      letterSpacing: config.letterSpacing || 0
+    };
+    
+    this.textBoxes.push(textBox);
+    this.selectTextBox(textBox);
+    this.updateTextBoxesList();
+    this.updateCanvas();
+    
+    console.log('Added text box:', textBox);
+    return textBox;
+  }
+  
+  /**
+   * Delete a text box
+   */
+  deleteTextBox(textBox) {
+    const index = this.textBoxes.findIndex(tb => tb.id === textBox.id);
+    if (index > -1) {
+      this.textBoxes.splice(index, 1);
+      
+      if (this.selectedTextBox === textBox) {
+        this.deselectTextBox();
+      }
+      
+      this.updateTextBoxesList();
+      this.updateCanvas();
+      
+      console.log('Deleted text box:', textBox.id);
+    }
+  }
+  
+  /**
+   * Delete selected text box
+   */
+  deleteSelectedTextBox() {
+    if (this.selectedTextBox) {
+      this.deleteTextBox(this.selectedTextBox);
+    }
+  }
+  
+  /**
+   * Duplicate a text box
+   */
+  duplicateTextBox(textBox) {
+    const duplicate = {
+      ...textBox,
+      id: `textbox-${this.nextTextBoxId++}`,
+      name: `${textBox.name} (副本)`,
+      x: textBox.x + 20,
+      y: textBox.y + 20,
+      zIndex: this.getNextZIndex()
+    };
+    
+    this.textBoxes.push(duplicate);
+    this.selectTextBox(duplicate);
+    this.updateTextBoxesList();
+    this.updateCanvas();
+    
+    return duplicate;
+  }
+  
+  /**
+   * Duplicate selected text box
+   */
+  duplicateSelectedTextBox() {
+    if (this.selectedTextBox) {
+      this.duplicateTextBox(this.selectedTextBox);
+    }
+  }
+  
+  /**
+   * Select a text box
+   */
+  selectTextBox(textBox) {
+    this.selectedTextBox = textBox;
+    this.updateTextBoxProperties();
+    this.updateTextBoxesList();
+    
+    // Show properties panel
+    const propertiesPanel = document.getElementById('text-box-properties');
+    if (propertiesPanel) {
+      propertiesPanel.style.display = 'block';
+    }
+  }
+  
+  /**
+   * Deselect current text box
+   */
+  deselectTextBox() {
+    this.selectedTextBox = null;
+    this.updateTextBoxesList();
+    
+    // Hide properties panel
+    const propertiesPanel = document.getElementById('text-box-properties');
+    if (propertiesPanel) {
+      propertiesPanel.style.display = 'none';
+    }
+  }
+  
+  /**
+   * Update selected text box property
+   */
+  updateSelectedTextBoxProperty(property, value) {
+    if (!this.selectedTextBox) return;
+    
+    // Convert value types
+    if (property === 'fontSize') {
+      value = parseInt(value) || 24;
+    } else if (property === 'lineHeight' || property === 'letterSpacing') {
+      value = parseFloat(value) || 0;
+    }
+    
+    this.selectedTextBox[property] = value;
+    this.updateTextBoxesList();
+    this.updateCanvas();
+    
+    console.log(`Updated text box ${property}:`, value);
+  }
+  
+  /**
+   * Update text box properties form
+   */
+  updateTextBoxProperties() {
+    if (!this.selectedTextBox) return;
+    
+    const textBox = this.selectedTextBox;
+    const controls = [
+      { id: 'text-box-content', value: textBox.content },
+      { id: 'text-box-font-family', value: textBox.fontFamily },
+      { id: 'text-box-font-size', value: textBox.fontSize },
+      { id: 'text-box-font-weight', value: textBox.fontWeight },
+      { id: 'text-box-color', value: textBox.color },
+      { id: 'text-box-align', value: textBox.align }
+    ];
+    
+    controls.forEach(({ id, value }) => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.value = value;
+      }
+    });
+  }
+  
+  /**
+   * Update text boxes list UI
+   */
+  updateTextBoxesList() {
+    const listElement = document.getElementById('text-box-list');
+    if (!listElement) return;
+    
+    listElement.innerHTML = '';
+    
+    this.textBoxes.forEach(textBox => {
+      const item = document.createElement('div');
+      item.className = `text-box-item ${this.selectedTextBox === textBox ? 'selected' : ''}`;
+      item.innerHTML = `
+        <div class="text-box-item-name">${textBox.name}</div>
+        <div class="text-box-item-preview">${textBox.content}</div>
+      `;
+      
+      item.addEventListener('click', () => this.selectTextBox(textBox));
+      listElement.appendChild(item);
+    });
+  }
+  
+  /**
+   * Update layers list UI
+   */
+  updateLayersList() {
+    const listElement = document.getElementById('image-layers-list');
+    if (!listElement) return;
+    
+    listElement.innerHTML = '';
+    
+    // Sort layers by z-index (highest first)
+    const sortedLayers = [...this.layers].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
+    
+    sortedLayers.forEach(layer => {
+      const item = document.createElement('div');
+      item.className = `layer-item ${this.selectedLayer === layer ? 'selected' : ''} ${layer.locked ? 'locked' : ''}`;
+      
+      const icon = this.getLayerIcon(layer);
+      const lockIcon = layer.locked ? '🔒' : '';
+      
+      item.innerHTML = `
+        <div class="layer-info">
+          <div class="layer-icon">${icon}</div>
+          <div class="layer-name">${layer.name}</div>
+        </div>
+        <div class="layer-controls">
+          ${layer.type === 'background' ? `<button class="layer-control-btn" title="鎖定/解鎖">${lockIcon}</button>` : ''}
+        </div>
+      `;
+      
+      if (layer.type !== 'background') {
+        item.addEventListener('click', () => this.selectLayer(layer));
+      }
+      
+      // Handle lock/unlock for background
+      const lockBtn = item.querySelector('.layer-control-btn');
+      if (lockBtn && layer.type === 'background') {
+        lockBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleLayerLock(layer);
+        });
+      }
+      
+      listElement.appendChild(item);
+    });
+  }
+  
+  /**
+   * Get icon for layer type
+   */
+  getLayerIcon(layer) {
+    switch (layer.type) {
+      case 'background': return '🖼️';
+      case 'image': return '📷';
+      case 'text': return '📝';
+      default: return '📄';
+    }
+  }
+  
+  /**
+   * Toggle layer lock
+   */
+  toggleLayerLock(layer) {
+    layer.locked = !layer.locked;
+    this.updateLayersList();
+    console.log(`Layer ${layer.name} ${layer.locked ? 'locked' : 'unlocked'}`);
+  }
+  
+  /**
+   * Select a layer
+   */
+  selectLayer(layer) {
+    this.selectedLayer = layer;
+    this.updateLayersList();
+  }
+  
+  /**
+   * Deselect current layer
+   */
+  deselectLayer() {
+    this.selectedLayer = null;
+    this.updateLayersList();
+  }
+  
+  /**
+   * Get next available z-index
+   */
+  getNextZIndex() {
+    const allItems = [...this.layers, ...this.textBoxes];
+    const maxZ = Math.max(0, ...allItems.map(item => item.zIndex || 0));
+    return maxZ + 1;
+  }
+  
+  /**
+   * Get all layers (including text boxes)
+   */
+  getAllLayers() {
+    return [...this.layers, ...this.textBoxes];
+  }
+  
+  /**
+   * Update canvas with all layers
+   */
+  updateCanvas() {
+    if (!this.ctx) return;
+    
+    // Clear canvas
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // Draw background layer with full-cover
+    if (this.backgroundLayer && this.backgroundLayer.image) {
+      this.drawBackgroundLayer(this.backgroundLayer);
+    } else {
+      // Default white background
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+    
+    // Get all drawable items sorted by z-index
+    const allItems = [...this.layers, ...this.textBoxes]
+      .filter(item => item.visible && item.type !== 'background')
+      .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+    
+    // Draw each item
+    allItems.forEach(item => {
+      if (item.type === 'text') {
+        this.drawTextBox(item);
+      } else {
+        this.drawLayer(item);
+      }
+    });
+  }
+  
+  /**
+   * Draw background layer with full-cover
+   */
+  drawBackgroundLayer(layer) {
+    if (!layer.image) return;
+    
+    const ctx = this.ctx;
+    const canvas = this.canvas;
+    const img = layer.image;
+    
+    // Calculate cover fit dimensions
+    const canvasRatio = canvas.width / canvas.height;
+    const imageRatio = img.width / img.height;
+    
+    let drawWidth, drawHeight, drawX, drawY;
+    
+    if (imageRatio > canvasRatio) {
+      // Image is wider, fit height and crop width
+      drawHeight = canvas.height;
+      drawWidth = drawHeight * imageRatio;
+      drawX = (canvas.width - drawWidth) / 2;
+      drawY = 0;
+    } else {
+      // Image is taller, fit width and crop height
+      drawWidth = canvas.width;
+      drawHeight = drawWidth / imageRatio;
+      drawX = 0;
+      drawY = (canvas.height - drawHeight) / 2;
+    }
+    
+    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+  }
+  
+  /**
+   * Draw a text box
+   */
+  drawTextBox(textBox) {
+    if (!textBox.visible) return;
+    
+    const ctx = this.ctx;
+    
+    ctx.save();
+    
+    // Apply transformations
+    const centerX = textBox.x + textBox.width / 2;
+    const centerY = textBox.y + textBox.height / 2;
+    
+    ctx.translate(centerX, centerY);
+    if (textBox.rotation) {
+      ctx.rotate((textBox.rotation * Math.PI) / 180);
+    }
+    ctx.translate(-centerX, -centerY);
+    
+    // Set text style
+    ctx.font = `${textBox.fontWeight} ${textBox.fontSize}px ${textBox.fontFamily}`;
+    ctx.fillStyle = textBox.color;
+    ctx.textAlign = textBox.align;
+    ctx.textBaseline = 'top';
+    
+    // Calculate text position based on alignment
+    let textX;
+    switch (textBox.align) {
+      case 'left': textX = textBox.x; break;
+      case 'right': textX = textBox.x + textBox.width; break;
+      default: textX = textBox.x + textBox.width / 2; break;
+    }
+    
+    // Draw text (handle line breaks)
+    const lines = this.wrapText(textBox.content, textBox.width);
+    const lineHeight = textBox.fontSize * (textBox.lineHeight || 1.2);
+    
+    lines.forEach((line, index) => {
+      const y = textBox.y + (index * lineHeight);
+      ctx.fillText(line, textX, y);
+    });
+    
+    ctx.restore();
+  }
+  
+  /**
+   * Draw a regular layer
+   */
+  drawLayer(layer) {
+    if (!layer.visible || !layer.image) return;
+    
+    const ctx = this.ctx;
+    
+    ctx.save();
+    
+    // Apply transformations
+    const centerX = layer.x + layer.width / 2;
+    const centerY = layer.y + layer.height / 2;
+    
+    ctx.translate(centerX, centerY);
+    if (layer.rotation) {
+      ctx.rotate((layer.rotation * Math.PI) / 180);
+    }
+    ctx.translate(-centerX, -centerY);
+    
+    // Apply opacity
+    if (layer.opacity !== undefined && layer.opacity !== 1) {
+      ctx.globalAlpha = layer.opacity;
+    }
+    
+    // Draw image
+    ctx.drawImage(layer.image, layer.x, layer.y, layer.width, layer.height);
+    
+    ctx.restore();
+  }
+  
+  /**
+   * Wrap text to fit within specified width
+   */
+  wrapText(text, maxWidth) {
+    const ctx = this.ctx;
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+    
+    for (let word of words) {
+      const testLine = currentLine + (currentLine ? ' ' : '') + word;
+      const metrics = ctx.measureText(testLine);
+      
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    return lines;
+  }
+  
+  /**
+   * Save current state to template store
+   */
+  saveState(category, templateIndex) {
+    if (this.stateStore) {
+      this.stateStore.saveState(category, templateIndex, {
+        layers: this.layers,
+        textBoxes: this.textBoxes,
+        settings: {
+          selectedLayer: this.selectedLayer?.id,
+          selectedTextBox: this.selectedTextBox?.id
+        }
+      });
+    }
+  }
+  
+  /**
+   * Load state from template store
+   */
+  loadState(category, templateIndex) {
+    if (!this.stateStore) return false;
+    
+    const state = this.stateStore.loadState(category, templateIndex);
+    if (state) {
+      // Restore layers (but keep background)
+      this.layers = this.layers.filter(layer => layer.type === 'background');
+      if (state.layers) {
+        this.layers.push(...state.layers.filter(layer => layer.type !== 'background'));
+      }
+      
+      // Restore text boxes
+      this.textBoxes = state.textBoxes || [];
+      
+      // Restore selections
+      if (state.settings?.selectedLayer) {
+        this.selectedLayer = this.layers.find(l => l.id === state.settings.selectedLayer);
+      }
+      if (state.settings?.selectedTextBox) {
+        this.selectedTextBox = this.textBoxes.find(tb => tb.id === state.settings.selectedTextBox);
+      }
+      
+      // Update UI
+      this.updateLayersList();
+      this.updateTextBoxesList();
+      this.updateCanvas();
+      
+      return true;
+    }
+    
+    return false;
+  }
+}
+
+export { LayerManager };
